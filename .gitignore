@@ -1,0 +1,10 @@
+.venv312/
+.venv-pybamm312/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+runs/
+*.egg-info/
+.env
+Reference/
+data/raw/

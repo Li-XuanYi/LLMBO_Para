@@ -1,0 +1,12 @@
+{
+  "dataset_sha256": "6c796b3f08156229636b033d3e6ff036ad8ae143525e86c5de16983e5a1483a7",
+  "cell_format": "21700",
+  "supersedes_cell_format": "18650",
+  "source": "User corrected the cell format and authorized the same DFN simulation design as Reference.",
+  "reference_notebook": "Reference/LLAMBO-master/P2D.ipynb",
+  "reference_parameterization": "Chen2020",
+  "sample_period_s": 1,
+  "raw_dataset_modified": false,
+  "historical_run_labels_modified": false,
+  "alignment_directory": "runs/measured-identification/20261011T021237Z_5c536026feeb_6f940f7b"
+}

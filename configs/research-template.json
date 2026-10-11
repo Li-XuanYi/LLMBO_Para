@@ -1,0 +1,150 @@
+{
+  "schema_version": 1,
+  "run_kind": "research",
+  "cell_id": null,
+  "cell_format": "18650",
+  "nominal_capacity_ah": null,
+  "rates": [
+    "0.5C",
+    "1C",
+    "2C",
+    "3C"
+  ],
+  "parameters": {
+    "Negative electrode active material volume fraction": {
+      "lower": null,
+      "upper": null,
+      "unit": "1",
+      "transform": "linear"
+    },
+    "Positive electrode active material volume fraction": {
+      "lower": null,
+      "upper": null,
+      "unit": "1",
+      "transform": "linear"
+    },
+    "Negative particle diffusivity [m2.s-1]": {
+      "lower": null,
+      "upper": null,
+      "unit": "m2.s-1",
+      "transform": "log10"
+    },
+    "Positive particle diffusivity [m2.s-1]": {
+      "lower": null,
+      "upper": null,
+      "unit": "m2.s-1",
+      "transform": "log10"
+    },
+    "Negative electrode conductivity [S.m-1]": {
+      "lower": null,
+      "upper": null,
+      "unit": "S.m-1",
+      "transform": "linear"
+    },
+    "Positive electrode conductivity [S.m-1]": {
+      "lower": null,
+      "upper": null,
+      "unit": "S.m-1",
+      "transform": "linear"
+    }
+  },
+  "physical_constraints": {
+    "fixed_porosity": {
+      "negative": null,
+      "positive": null
+    }
+  },
+  "conditions_by_rate": {
+    "0.5C": {
+      "initial_soc": null,
+      "initial_temperature_k": null,
+      "ambient_temperature_k": null,
+      "voltage_cutoff_v": null
+    },
+    "1C": {
+      "initial_soc": null,
+      "initial_temperature_k": null,
+      "ambient_temperature_k": null,
+      "voltage_cutoff_v": null
+    },
+    "2C": {
+      "initial_soc": null,
+      "initial_temperature_k": null,
+      "ambient_temperature_k": null,
+      "voltage_cutoff_v": null
+    },
+    "3C": {
+      "initial_soc": null,
+      "initial_temperature_k": null,
+      "ambient_temperature_k": null,
+      "voltage_cutoff_v": null
+    }
+  },
+  "data": {
+    "kind": "xlsx",
+    "path": "../data/raw/6c796b3f08156229636b033d3e6ff036ad8ae143525e86c5de16983e5a1483a7/true_data.xlsx",
+    "sha256": "6c796b3f08156229636b033d3e6ff036ad8ae143525e86c5de16983e5a1483a7",
+    "evaluation_grid": "all_measured_samples_no_extrapolation",
+    "legacy_assumed_1s": false,
+    "sample_period_s": null,
+    "time_column": null,
+    "current_column": "I",
+    "voltage_column": "U",
+    "temperature_column": null,
+    "temperature_unit": null,
+    "time_unit": "s",
+    "current_unit": "A",
+    "voltage_unit": "V",
+    "sheet_by_rate": {
+      "0.5C": "0.5C",
+      "1C": "1C",
+      "2C": "2C",
+      "3C": "3C"
+    },
+    "discharge_current_sign": null
+  },
+  "model": {
+    "provider": "pybamm",
+    "name": "DFN",
+    "parameterization_id": null,
+    "parameter_values_factory": null,
+    "pybamm_version": null,
+    "options": null,
+    "mesh_points": {
+      "x_n": null,
+      "x_s": null,
+      "x_p": null,
+      "r_n": null,
+      "r_p": null
+    },
+    "solver": {
+      "name": "CasadiSolver",
+      "mode": "safe",
+      "rtol": null,
+      "atol": null,
+      "dt_max": null
+    }
+  },
+  "optimization": {
+    "seed": 20261010,
+    "warm_start_llm_points": 10,
+    "sobol_points": 10,
+    "total_candidate_budget": null,
+    "candidate_pool_size": 1024,
+    "composite_ei_draws": 512,
+    "gp_sweeps": 4,
+    "max_rate_attempts": 1,
+    "parallel_workers": 1,
+    "llm_enabled": false,
+    "gpu_backend": "cpu"
+  },
+  "llm": {
+    "transport": "structured_json_service",
+    "endpoint": null,
+    "api_key_env": null,
+    "model": null,
+    "timeout_s": 30.0,
+    "min_diversity_distance": 0.001
+  },
+  "status": "template_requires_research_group_values"
+}

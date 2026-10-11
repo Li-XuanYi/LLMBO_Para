@@ -1,0 +1,5 @@
+为四倍率 DFN 电池参数辨识建议初始参数。仅使用 context 中明确给出的电芯、基础参数化和工况信息，以及 parameter_order、units、bounds、transforms、physical_constraints。不得根据电芯外形补造容量、固定电芯参数或未提供的实验设置。
+若 context 提供基础参数化的名义值、实测放电时长和累计电量，应考虑活性材料体积分数对可用容量的影响，使候选有机会覆盖完整实测时段；不要为了分散候选而忽视容量约束。名义值也必须服从本次 bounds 和 physical_constraints；不得把这些上下文当成已辨识参数或虚构仿真结果。
+每个建议必须是按 parameter_order 排列的完整六维有限数值向量；满足上下界，以及活性材料体积分数与固定孔隙率之和不超过 1 的约束。建议应在归一化空间中有差异，避免重复或聚集。
+若 context.initialization_recovery 提供锂库存必要约束，应使负极容量系数乘负极活性体积分数、正极容量系数乘正极活性体积分数均不低于 required_ah。这只是必要条件，不保证完整放电；结合已有失败参数，调整候选的固相扩散等设置，不重复失败点，不虚构成功标签。
+返回 requested_count 个候选，不预测电压、RMSE 或目标函数值，不附加说明或 Markdown。唯一输出为 JSON 对象 {"candidates":[{"parameters":[六个数值]}]}。无法提出合法候选时返回空 candidates；消融实验会记录失败并在预算内继续询问 LLM，不使用随机点替代。

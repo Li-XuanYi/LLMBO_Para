@@ -1,0 +1,5 @@
+# Direct runtime dependencies verified in the existing Python 3.12 environment.
+# PyBaMM and its battery parameter sets are supplied and pinned by the research group later.
+numpy==2.5.3
+openpyxl==3.1.5
+et_xmlfile==2.0.0

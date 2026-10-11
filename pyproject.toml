@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "llmbo-para"
+version = "0.1.0"
+description = "Reproducible multi-rate LLM-assisted battery parameter identification"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "numpy==2.5.3",
+  "openpyxl==3.1.5",
+  "et_xmlfile==2.0.0",
+]
+
+[project.scripts]
+llmbo-para = "llmbo_para.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+llmbo_para = ["prompts/*.txt"]
+
+[tool.unittest]
+start-directory = "tests"

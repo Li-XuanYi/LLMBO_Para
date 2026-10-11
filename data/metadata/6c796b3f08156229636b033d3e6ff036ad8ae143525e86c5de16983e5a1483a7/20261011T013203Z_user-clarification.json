@@ -1,0 +1,19 @@
+{
+  "dataset_sha256": "6c796b3f08156229636b033d3e6ff036ad8ae143525e86c5de16983e5a1483a7",
+  "source": "Direct user clarification in the 2026-10-11 workflow review",
+  "sample_period_s": 1,
+  "sample_period_status": "confirmed_by_user",
+  "T_column_meaning": "temperature",
+  "T_column_meaning_status": "tentative_user_says_should_be_temperature",
+  "T_column_unit": null,
+  "cell_format": "18650",
+  "cell_model": null,
+  "nominal_capacity_ah": null,
+  "measured_current_a": null,
+  "discharge_current_sign": null,
+  "parameter_set": null,
+  "parameter_bounds": null,
+  "review_directory": "runs/workflow-review/20261011T013203Z_323db0136de1_3e8759fe",
+  "raw_file_modified": false,
+  "research_template_completed": false
+}

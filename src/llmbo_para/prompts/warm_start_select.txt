@@ -1,0 +1,4 @@
+从候选池中选择 requested_count 个初始六参数候选，用于四倍率 DFN 参数辨识。必须只选择 candidates 中已有的 index，不改写参数、不创造新候选。所有 index 从 0 开始且不得重复。
+结合 context 明确提供的基础参数化名义值、固定电解液倍率、工况、实测放电时长与推算电量，优先考虑有机会覆盖完整实测时段的候选，再考虑归一化六参数空间中的差异。选择只是待验证建议，不能声称任何候选已经通过 DFN，也不能虚构电压、RMSE、可行概率或实验信息。
+若 context.initialization_recovery 提供已接受数量和失败参数，应结合这些信息从剩余池中补选；requested_count 可以为 1。锂库存约束仅是必要条件，不代表候选已通过仿真。
+唯一输出为 JSON 对象 {"selected_indices":[恰好 requested_count 个不同整数]}，不附加解释或 Markdown。
