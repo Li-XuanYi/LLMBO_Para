@@ -82,6 +82,29 @@ class ChatTransportTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "strict JSON"):
                     self.transport().post({"task": "warm_start", "instructions": "Return JSON"})
 
+    def test_explicit_thinking_toggle_is_sent_and_omission_preserves_provider_default(self):
+        sent = []
+        class Opener:
+            def open(self, request, **kwargs):
+                sent.append(json.loads(request.data))
+                return Response('{"candidates":[]}')
+        with patch.dict("os.environ", self.environment), patch("llmbo_para.llm.build_opener", return_value=Opener()):
+            for mode in (None, "enabled", "disabled"):
+                self.transport(thinking=mode).post({"task": "warm_start", "instructions": "Return JSON"})
+        self.assertNotIn("thinking", sent[0])
+        self.assertEqual(sent[1]["thinking"], {"type": "enabled"})
+        self.assertEqual(sent[2]["thinking"], {"type": "disabled"})
+        config = synthetic_config()
+        config["optimization"]["llm_enabled"] = True
+        config["llm"].update(transport="openai_chat_completions", endpoint=self.endpoint, model="requested-test-model",
+            api_key_env="LLMBO_TEST_API_KEY", max_tokens=512, json_mode=True, thinking="disabled")
+        from llmbo_para.workflow import build_transport
+        from llmbo_para.config import configuration_errors
+        self.assertEqual(configuration_errors(config), [])
+        self.assertEqual(build_transport(config["llm"]).thinking, "disabled")
+        config["llm"]["thinking"] = "low"
+        self.assertTrue(any("thinking" in message for message in configuration_errors(config)))
+
     def test_http_error_is_archived_without_authentication_value(self):
         class Opener:
             def open(self, *args, **kwargs):

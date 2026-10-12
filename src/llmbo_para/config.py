@@ -62,7 +62,7 @@ def configuration_errors(config: dict) -> list[str]:
         "data": {"kind", "path", "sha256", "evaluation_grid", "legacy_assumed_1s", "sample_period_s", "time_column", "current_column", "voltage_column", "temperature_column", "temperature_unit", "time_unit", "current_unit", "voltage_unit", "sheet_by_rate", "discharge_current_sign"},
         "model": {"provider", "name", "parameterization_id", "parameter_values_factory", "pybamm_version", "options", "mesh_points", "solver", "fixture_formula", "initial_state_mode", "fixed_electrolyte_diffusivity_multiplier"},
         "optimization": {"seed", "warm_start_llm_points", "sobol_points", "total_candidate_budget", "candidate_pool_size", "composite_ei_draws", "parallel_workers", "llm_enabled", "gpu_backend", "gp_sweeps", "max_rate_attempts", "llm_warm_start_enabled", "llm_gp_groups_enabled", "strict_llm_tasks", "initial_candidates", "initial_candidates_source", "initial_candidates_evidence", "inventory_feasibility_filter", "bo_repair"},
-        "llm": {"transport", "endpoint", "api_key_env", "model", "timeout_s", "min_diversity_distance", "max_tokens", "json_mode"},
+        "llm": {"transport", "endpoint", "api_key_env", "model", "timeout_s", "min_diversity_distance", "max_tokens", "json_mode", "thinking"},
         "physical_constraints": {"fixed_porosity"},
         "parameters": set(PARAMETER_NAMES),
     }
@@ -282,5 +282,7 @@ def configuration_errors(config: dict) -> list[str]:
             number(llm.get("max_tokens"), "llm.max_tokens", minimum=1, maximum=8192, integer=True)
             if not isinstance(llm.get("json_mode"), bool):
                 errors.append("chat transport requires an explicit llm.json_mode boolean")
+            if llm.get("thinking") is not None and llm["thinking"] not in ("enabled", "disabled"):
+                errors.append("llm.thinking must be enabled, disabled or omitted")
         number(llm.get("timeout_s"), "llm.timeout_s", positive=True)
     return errors

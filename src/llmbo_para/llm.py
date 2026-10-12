@@ -117,7 +117,7 @@ class ChatCompletionsTransport(HttpJsonTransport):
     """Adapt the existing two-task JSON contract to messages/choices."""
 
     def __init__(self, endpoint: str, api_key_env: str, *, model: str, max_tokens: int,
-                 json_mode: bool, timeout_s: float = 60, run_store=None):
+                 json_mode: bool, timeout_s: float = 60, run_store=None, thinking: str | None = None):
         super().__init__(endpoint, api_key_env, timeout_s=timeout_s, run_store=run_store)
         if not endpoint.rstrip("/").endswith("/chat/completions"):
             raise ValueError("chat transport requires the full /chat/completions HTTPS endpoint")
@@ -127,7 +127,10 @@ class ChatCompletionsTransport(HttpJsonTransport):
             raise ValueError("chat max_tokens must be an integer in [1, 8192]")
         if not isinstance(json_mode, bool):
             raise ValueError("json_mode must be an explicit boolean")
+        if thinking is not None and thinking not in ("enabled", "disabled"):
+            raise ValueError("thinking must be enabled, disabled or omitted")
         self.model, self.max_tokens, self.json_mode = model, max_tokens, json_mode
+        self.thinking = thinking
 
     def post(self, payload: Mapping) -> Mapping:
         reject_inline_secrets(payload)
@@ -140,6 +143,8 @@ class ChatCompletionsTransport(HttpJsonTransport):
                 ], "max_tokens": self.max_tokens, "stream": False}
         if self.json_mode:
             wire["response_format"] = {"type": "json_object"}
+        if self.thinking is not None:
+            wire["thinking"] = {"type": self.thinking}
         result = self._post_json(wire, task=payload["task"])
         try:
             choice = result["choices"][0]

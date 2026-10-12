@@ -175,7 +175,8 @@ def build_transport(settings: dict, store=None):
               "timeout_s": settings.get("timeout_s", 0), "run_store": store}
     if settings.get("transport") == "openai_chat_completions":
         return ChatCompletionsTransport(**common, model=settings.get("model"),
-                                        max_tokens=settings.get("max_tokens"), json_mode=settings.get("json_mode"))
+                                        max_tokens=settings.get("max_tokens"), json_mode=settings.get("json_mode"),
+                                        thinking=settings.get("thinking"))
     if settings.get("transport") != "structured_json_service":
         raise ValueError("unsupported configured LLM transport")
     return HttpJsonTransport(**common)
