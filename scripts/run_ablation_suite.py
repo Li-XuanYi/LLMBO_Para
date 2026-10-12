@@ -99,7 +99,8 @@ def screen_family(template, source, suite, base_dir, *, budget=None, resume_plan
         initializer = FeasibleInitializer(config, prepared.space, prepared.series, evaluator, store, gate=gate, source=source,
             llm_factory=factory if source == "llm" else None, parameterization_fingerprint=fingerprint, checkpoint_callback=checkpoint, budget=budget)
         if resume_plan:
-            initializer.restore_random(read_json(resume_plan), resume_plan)
+            restore = initializer.restore_random if source == "random" else initializer.restore_llm
+            restore(read_json(resume_plan), resume_plan)
         plan = initializer.run()
         print(json.dumps({"screening_directory": str(store.path), **plan["screening_cost"]}), flush=True)
         return plan, store.path / "initial-plan.json"
@@ -182,7 +183,10 @@ def main():
     parser.add_argument("--random-plan", type=Path)
     parser.add_argument("--llm-plan", type=Path)
     parser.add_argument("--resume-random-plan", type=Path)
+    parser.add_argument("--resume-llm-plan", type=Path)
     parser.add_argument("--max-screening-evaluations", type=int, default=200)
+    parser.add_argument("--max-warm-batches", type=int, default=10)
+    parser.add_argument("--max-selection-requests", type=int, default=30)
     parser.add_argument("--prompt-for-key", action="store_true", help="Read API key invisibly; never save it")
     args = parser.parse_args()
     template = load_json(args.config)
@@ -191,7 +195,8 @@ def main():
     if args.prompt_for_key:
         import getpass
         os.environ[template["llm"]["api_key_env"]] = getpass.getpass("LLM API key (hidden, environment only): ")
-    budget = ScreeningBudget(max_evaluations=args.max_screening_evaluations)
+    budget = ScreeningBudget(max_evaluations=args.max_screening_evaluations,
+        max_warm_batches=args.max_warm_batches, max_selection_requests=args.max_selection_requests)
     protocol = {"template": template, "screening": asdict(budget), "bo_iterations": args.bo_iterations,
         "arms": ARMS, "workers": 1, "paired_sets": True, "pilot_checkpoint": 2,
         "screening_only": args.screening_only, "external_api_summary_consent": True,
@@ -217,7 +222,7 @@ def main():
                 validated_cached_results(template, prepared.series, initial, existing)
             else:
                 initial, existing = screen_family(template, source, suite, args.config.resolve().parent, budget=budget,
-                    resume_plan=args.resume_random_plan if source == "random" else None, artifact_root=args.artifact_root)
+                    resume_plan=args.resume_random_plan if source == "random" else args.resume_llm_plan, artifact_root=args.artifact_root)
             family_costs[source] = initial["screening_cost"]
             evidence = suite.write_json(source + "-initial-plan.json", initial)
             if initial.get("source") != source or not initial.get("complete") or len(initial["parameters"]) != 8:

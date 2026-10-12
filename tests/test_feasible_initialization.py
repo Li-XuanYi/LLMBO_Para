@@ -131,6 +131,39 @@ class FeasibleInitializationTests(unittest.TestCase):
         self.assertEqual((resumed.evaluations,resumed.rate_solves,len(list((resumed.store.path/'attempts').glob('*.json')))),(4,16,2))
         self.assertEqual(plan['evaluation_sources'][:2],prior['evaluation_sources'])
 
+    def test_llm_continuation_retains_points_failed_feedback_and_cumulative_budget(self):
+        points=[self.space.denormalize((v,)*6) for v in (.2,.4,.6,.8)]
+        contexts=[]
+        class Client:
+            def __init__(client,index):client.index=index
+            def warm_start(client,space,count):return points[:2] if client.index==1 else points[2:]
+            def select_warm_start(client,space,pool,count):return tuple(pool[:count])
+        def factory(stage,index,context):
+            contexts.append(copy.deepcopy(context))
+            return Client(index)
+        def simulate(params,row):
+            return (row.time_s[:-1],row.voltage_v[:-1]) if params[self.space.specs[0].name]==points[0][0] else (row.time_s,row.voltage_v)
+        first=self.initializer(simulate,gate=None,source='llm',llm_factory=factory,
+            budget=ScreeningBudget(target=2,max_evaluations=4,max_warm_batches=1))
+        prior=first.run()
+        self.assertEqual((prior['complete'],first.evaluations,len(prior['parameters'])),(False,2,1))
+        resumed=self.initializer(simulate,gate=None,source='llm',llm_factory=factory,
+            budget=ScreeningBudget(target=2,max_evaluations=4,max_warm_batches=2))
+        resumed.restore_llm(prior,first.store.path/'initial-plan.json')
+        plan=resumed.run()
+        self.assertEqual(plan['parameters'],[list(points[1]),list(points[2])])
+        self.assertEqual((resumed.evaluations,resumed.rate_solves,resumed.api_requests,resumed.batches),(3,12,4,2))
+        self.assertEqual((plan['screening_cost']['new_candidate_evaluations'],plan['screening_cost']['new_rate_solve_attempts']),(1,4))
+        self.assertEqual(plan['evaluation_sources'][0],prior['evaluation_sources'][0])
+        recovery=contexts[-1]['initialization_recovery']
+        self.assertEqual(recovery['generation_batch'],2)
+        self.assertEqual(recovery['failed_candidates'][0]['parameters'],list(points[0]))
+        self.assertEqual(len(list((resumed.store.path/'attempts').glob('*.json'))),1)
+        altered=copy.deepcopy(prior);altered['screening_cost']['candidate_evaluations']=5
+        another=self.initializer(simulate,gate=None,source='llm',llm_factory=factory,budget=ScreeningBudget(target=2,max_evaluations=4))
+        with self.assertRaisesRegex(ValueError,'budget'):
+            another.restore_llm(altered,first.store.path/'initial-plan.json')
+
 
 if __name__ == "__main__":
     unittest.main()

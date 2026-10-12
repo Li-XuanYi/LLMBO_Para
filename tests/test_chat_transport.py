@@ -55,6 +55,37 @@ class ChatTransportTests(unittest.TestCase):
         self.assertEqual(sent[0].get_header("User-agent"), "LLMBO-Para/1")
         self.assertNotIn("test-credential", sent[0].data.decode())
 
+    def test_group_contract_repair_is_bounded_archived_and_never_silently_corrects_names(self):
+        from llmbo_para.metrics import RATE_ORDER
+        space=parameter_space_from_config(synthetic_config())
+        legal=space.specs[0].name
+        bad={'groups':{rate:[legal] for rate in RATE_ORDER}}
+        bad['groups']['0.5C']=['invented parameter']
+        good={'groups':{rate:[legal] for rate in RATE_ORDER}}
+        for replies,expected_attempts,valid in (([bad,good],2,True),([bad,bad,bad],3,False)):
+            sent=[]
+            class Opener:
+                def open(inner,request,**kwargs):
+                    sent.append(json.loads(request.data))
+                    return Response(json.dumps(replies[len(sent)-1]))
+            with tempfile.TemporaryDirectory(dir=Path.cwd()) as folder,patch.dict('os.environ',self.environment),patch('llmbo_para.llm.build_opener',return_value=Opener()):
+                store=RunStore(Path(folder),{'run_kind':'contract-repair-test'},command='bounded repair regression')
+                client=LLMClient(self.transport(run_store=store),run_store=store)
+                groups=client.parameter_groups(space,[])
+                self.assertEqual(len(sent),expected_attempts)
+                self.assertEqual(client.last_group_validation['valid_response'],valid)
+                self.assertEqual(groups['0.5C'],(legal,) if valid else ())
+                feedback=json.loads(sent[1]['messages'][1]['content'])['contract_repair']
+                self.assertEqual(feedback['validation']['rates']['0.5C']['reason'],'unknown_parameter_name')
+                first=json.loads((store.path/'llm-attempts/rate_parameter_groups/attempt-001/llm/rate_parameter_groups.response.json').read_text())
+                self.assertEqual(first,bad)
+                canonical=json.loads((store.path/'llm/rate_parameter_groups.response.json').read_text())
+                self.assertEqual(canonical,replies[-1])
+                events=[json.loads(line) for line in store.events_path.read_text().splitlines()]
+                self.assertEqual(sum(r['type']=='llm_http_finished' for r in events),expected_attempts)
+                with self.assertRaisesRegex(ValueError,'once'):
+                    client.parameter_groups(space,[])
+
     def test_opencode_session_identifies_archived_run_without_archiving_authentication(self):
         sent = []
         class Opener:

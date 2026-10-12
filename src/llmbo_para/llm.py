@@ -8,6 +8,7 @@ import os
 import hashlib
 import re
 import time
+from copy import copy
 from importlib import resources
 from typing import Mapping, Protocol, Sequence
 from urllib.request import Request, HTTPRedirectHandler, build_opener
@@ -174,27 +175,42 @@ class LLMClient:
         self.min_diversity_distance = min_diversity_distance
         self.used_tasks = set()
 
-    def _request(self, payload: dict) -> Mapping:
+    def _request(self, payload: dict, *, archive_prefix: str = "") -> Mapping:
         task = payload["task"]
-        if task in self.used_tasks:
+        request_key = archive_prefix + task
+        if request_key in self.used_tasks:
             raise ValueError("each LLM task may be requested only once per run")
-        self.used_tasks.add(task)
+        self.used_tasks.add(request_key)
+        store = self.store
+        transport = self.transport
+        if archive_prefix and store:
+            parent_store = store
+            class ScopedStore:
+                path = parent_store.path / archive_prefix
+                def write_json(inner, relative_path, value):
+                    return parent_store.write_json(archive_prefix + relative_path, value)
+                def append_event(inner, event):
+                    parent_store.append_event({**event, "request_archive_prefix": archive_prefix})
+            store = ScopedStore()
+            if isinstance(transport, HttpJsonTransport):
+                transport = copy(transport)
+                transport.store = store
         prompt_name = {"warm_start": "warm_start", "warm_start_select": "warm_start_select",
                        "rate_parameter_groups": "parameter_groups"}[task]
         instructions = resources.files("llmbo_para").joinpath(f"prompts/{prompt_name}.txt").read_text(encoding="utf-8")
         payload = {**payload, "context": self.context, "instructions": instructions,
                    "prompt_sha256": hashlib.sha256(instructions.encode("utf-8")).hexdigest()}
-        if self.store:
-            self.store.write_json(f"llm/{task}.request.json", payload)
+        if store:
+            store.write_json(f"llm/{task}.request.json", payload)
         try:
-            response = dict(self.transport.post(payload))
+            response = dict(transport.post(payload))
             reject_inline_secrets(response, "response")
         except Exception as exc:
-            if self.store:
-                self.store.write_json(f"llm/{task}.error.json", {"error_type": type(exc).__name__})
+            if store:
+                store.write_json(f"llm/{task}.error.json", {"error_type": type(exc).__name__})
             raise RuntimeError(f"LLM {task} failed ({type(exc).__name__}); transport error text omitted to protect credentials") from None
-        if self.store:
-            self.store.write_json(f"llm/{task}.response.json", response)
+        if store:
+            store.write_json(f"llm/{task}.response.json", response)
         return self._content(response)
 
     @staticmethod
@@ -309,7 +325,7 @@ class LLMClient:
                         raise ValueError("residual summaries may contain only finite scalar statistics")
                 safe["residual_summary"] = {r: dict(summaries[r]) for r in RATE_ORDER}
             safe_observations.append(safe)
-        response = self._request({
+        payload = {
             "task": "rate_parameter_groups",
             "parameter_order": [s.name for s in space.specs],
             "units": [s.unit for s in space.specs],
@@ -319,7 +335,36 @@ class LLMClient:
             "group_constraints": {"maximum_nonempty_group_size": len(space.specs) - 1,
                                   "allow_empty_abstention": True, "all_six_parameters_is_invalid": True},
             "response_schema": {"groups": {rate: ["parameter names"] for rate in RATE_ORDER}},
-        })
+        }
+        if "rate_parameter_groups" in self.used_tasks:
+            raise ValueError("each LLM task may be requested only once per run")
+        self.used_tasks.add("rate_parameter_groups")
+        for attempt in range(1, 4):
+            prefix = f"llm-attempts/rate_parameter_groups/attempt-{attempt:03d}/"
+            response = self._request(payload, archive_prefix=prefix)
+            output = self._validate_parameter_groups(space, response)
+            if self.store:
+                self.store.write_json(prefix + "validation.json", self.last_group_validation)
+                self.store.append_event({"type": "llm_group_attempt_validation", "attempt": attempt, **self.last_group_validation})
+            if self.last_group_validation["valid_response"]:
+                break
+            payload = {**payload, "contract_repair": {"previous_response": response,
+                "validation": self.last_group_validation,
+                "instruction": "Correct only contract errors. Copy names verbatim from parameter_order; do not invent or silently replace names. Return all four groups again, or explicit [] if evidence is insufficient."}}
+        self.last_group_validation["request_attempts"] = attempt
+        if self.store:
+            # Canonical paths identify the final response; every rejected attempt stays immutable.
+            for kind in ("llm", "http"):
+                for suffix in ("request.json", "response.json"):
+                    source = self.store.path / prefix / kind / ("rate_parameter_groups." + suffix)
+                    if source.exists():
+                        self.store.write_json(kind + "/rate_parameter_groups." + suffix, json.loads(source.read_text(encoding="utf-8")))
+            self.store.write_json("llm/rate_parameter_groups.validation.json", self.last_group_validation)
+            self.store.write_json("llm/rate_parameter_groups.accepted.json", output)
+            self.store.append_event({"type": "llm_group_validation", **self.last_group_validation})
+        return output
+
+    def _validate_parameter_groups(self, space: ParameterSpace, response: Mapping):
         groups = response.get("groups")
         if not isinstance(groups, Mapping):
             raise ValueError("group response requires a groups object")
@@ -351,8 +396,4 @@ class LLMClient:
         self.last_group_validation = {"valid_response": not invalid_rates and not unexpected_rates,
                                       "invalid_rates": invalid_rates, "unexpected_rates": unexpected_rates,
                                       "maximum_nonempty_group_size": len(space.specs) - 1, "rates": diagnostics}
-        if self.store:
-            self.store.write_json("llm/rate_parameter_groups.validation.json", self.last_group_validation)
-            self.store.write_json("llm/rate_parameter_groups.accepted.json", output)
-            self.store.append_event({"type": "llm_group_validation", **self.last_group_validation})
         return output

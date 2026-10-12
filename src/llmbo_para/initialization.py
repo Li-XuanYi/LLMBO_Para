@@ -104,6 +104,60 @@ class FeasibleInitializer:
         self.simulation_elapsed_s = 0.
         self.started = time.perf_counter()
         self.elapsed_offset_s = 0.
+        self.failures = []
+
+    def restore_llm(self, plan, plan_path):
+        """Continue a bounded LLM family without replacing its validated points or costs."""
+        if self.source != "llm" or plan.get("source") != "llm":
+            raise ValueError("LLM continuation requires an LLM source plan")
+        validated_cached_results(self.config, self.series, plan, plan_path)
+        directory = Path(plan["screening_directory"])
+        manifest = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
+        previous_config = manifest["config"].get("experiment", manifest["config"])
+        if previous_config["llm"] != self.config["llm"] or previous_config["optimization"]["seed"] != self.config["optimization"]["seed"]:
+            raise ValueError("LLM continuation model/configuration or seed differs")
+        if plan.get("parameterization_fingerprint") != self.parameterization_fingerprint:
+            raise ValueError("LLM continuation fixed parameterization differs")
+        cost = plan["screening_cost"]
+        if (cost["candidate_evaluations"] > self.budget.max_evaluations or len(plan["parameters"]) > self.budget.target
+            or cost["batches"] > self.budget.max_warm_batches or cost["selection_requests"] > self.budget.max_selection_requests):
+            raise ValueError("continuation budget is smaller than its previously consumed cost")
+        for attr,key in (("draws","generated_draws"),("evaluations","candidate_evaluations"),("batches","batches"),
+            ("selection_requests","selection_requests"),("analytical_rejections","analytical_rejections"),
+            ("physical_rejections","physical_rejections"),("rate_solves","rate_solve_attempts"),("api_requests","api_requests")):
+            setattr(self,attr,cost[key])
+        self.accepted,self.accepted_sources = list(plan["evaluations"]),list(plan["evaluation_sources"])
+        records = [json.loads(p.read_text(encoding="utf-8")) for p in sorted((directory/"attempts").glob("*.json"))]
+        if len(records)+plan.get("prior_candidate_evaluations",0) != self.evaluations:
+            raise ValueError("continuation candidate cost differs from archived attempts")
+        self.seen = {tuple(p) for p in plan.get("seen_parameters", [])}
+        if not self.seen:
+            # Legacy plans retain the exact generation archives in their event stream.
+            for line in (directory/"events.jsonl").read_text(encoding="utf-8").splitlines():
+                event=json.loads(line)
+                if event["type"] == "llm_request_archive" and event["stage"] == "generate":
+                    accepted=Path(event["path"])/"llm/warm_start.accepted.json"
+                    for point in json.loads(accepted.read_text(encoding="utf-8"))["parameters"]:
+                        point=self.space.validate(point)
+                        if self.gate is None or self.gate.check(point)["feasible"]:
+                            self.seen.add(point)
+        if any(tuple(r["parameters"]) not in self.seen for r in records+self.accepted):
+            raise ValueError("LLM cached/evaluated points lack original generation provenance")
+        self.failures = list(plan.get("failed_candidate_feedback", []))
+        if not self.failures:
+            self.failures=[{"parameters":r["parameters"],"reason":"four_rate_incomplete",
+                "covered_duration_s":{v["rate"]:v["simulation_time_s"][-1] if v["simulation_time_s"] else None for v in r["rates"]}}
+                for r in records if not r["valid"]][-20:]
+        self.elapsed_offset_s=cost["elapsed_s"]
+        self.simulation_elapsed_s=cost["simulation_elapsed_s"]
+        self.prior_candidate_evaluations,self.prior_rate_solves,self.prior_draws=self.evaluations,self.rate_solves,self.draws
+        target=self.store.path/"inputs/resume-plan.json"
+        target.parent.mkdir(exist_ok=True)
+        shutil.copyfile(plan_path,target)
+        self.store.write_json("resume-lineage.json",{"plan_path":str(Path(plan_path).resolve()),"plan_sha256":sha256_file(target),
+            "screening_directory":str(directory),"original_cost":cost,"old_budget":manifest["config"].get("budget"),
+            "new_budget":asdict(self.budget),"next_generation_batch":self.batches+1})
+        self.store.append_event({"type":"llm_screening_resumed",**self.progress()})
 
     def restore_random(self, plan, plan_path):
         """Continue the exact RNG sequence and cumulative budget, retaining originals."""
@@ -208,7 +262,7 @@ class FeasibleInitializer:
             self._evaluate(point)
 
     def _warm(self):
-        failures = []
+        failures = self.failures
         while len(self.accepted) < self.budget.target and self.evaluations < self.budget.max_evaluations and self.batches < self.budget.max_warm_batches and self.selection_requests < self.budget.max_selection_requests:
             self.batches += 1
             context = {"initialization_recovery": {"accepted_count": len(self.accepted), "target": self.budget.target,
@@ -273,4 +327,6 @@ class FeasibleInitializer:
             "parameterization_fingerprint": self.parameterization_fingerprint,
             "screening_directory": str(self.store.path), "screening_cost": self.progress(),
             "prior_candidate_evaluations": getattr(self, "prior_candidate_evaluations", 0),
+            "seen_parameters": [list(point) for point in sorted(self.seen)] if self.source == "llm" else [],
+            "failed_candidate_feedback": self.failures[-20:] if self.source == "llm" else [],
             "complete": len(self.accepted) == self.budget.target}
