@@ -326,6 +326,9 @@ def run_fixed_candidates(config: dict, output, candidates, *, mode: str, base_di
             shutil.copy2(prepared.workbook, target)
             if sha256_file(target) not in prepared.input_hashes.values():
                 raise ValueError("fixed-run raw workbook copy failed its integrity check")
+        if config["optimization"].get("inventory_feasibility_filter"):
+            gate = InventoryGate.from_parameters(backend.base_parameters(), prepared.series)
+            store.write_json("inventory-gate.json", asdict(gate))
         evaluator = FourRateEvaluator(prepared.space, backend, max_rate_attempts=config["optimization"]["max_rate_attempts"], event_callback=store.append_event)
         inputs = {rate: asdict(series) for rate, series in prepared.series.items()}
         store.write_json("input-series.json", inputs)

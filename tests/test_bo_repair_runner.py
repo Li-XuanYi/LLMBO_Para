@@ -78,3 +78,37 @@ def test_current_code_initial_cache_is_solved_once_and_reused_by_all_variants(tm
     assert len(calls) == 32+4*4  # 32 shared initial rate solves, then one four-rate BO point per arm.
     assert all(row["cache_hits"] == 8 for row in result["arms"].values())
     assert result["new_bo_rate_solve_attempts"] == 16
+
+
+def test_fixed_candidate_run_archives_enabled_inventory_gate_and_audits_its_values(tmp_path):
+    from dataclasses import asdict
+    from llmbo_para.audit import audit_run
+    from llmbo_para.feasibility import InventoryGate
+    from llmbo_para.workflow import run_fixed_candidates
+    from llmbo_para.synthetic import synthetic_series
+
+    pytest.importorskip("pybamm")
+    config = runner.load_config()
+    space = parameter_space_from_config(config)
+    gate = InventoryGate(1.0, 2.0, .1)
+
+    class FixtureBackend(SyntheticSimulator):
+        def base_parameters(self): return {"fixture": 1}
+        def save_parameterization(self, store):
+            store.write_json("parameterization.json", {"values": self.base_parameters()})
+
+    # Keep the actual inventory-enabled research config. Only this test replaces
+    # the expensive backend and constants; production preflight remains active.
+    with patch("llmbo_para.workflow.build_backend", return_value=FixtureBackend(space)), \
+         patch("llmbo_para.workflow.InventoryGate.from_parameters", return_value=gate):
+        result = run_fixed_candidates(config, tmp_path/"output",
+            [(0, space.denormalize([.5]*6))], mode="smoke", archived_series=synthetic_series())
+        directory = Path(result["run_directory"])
+        artifact = directory/"inventory-gate.json"
+        assert json.loads(artifact.read_text()) == asdict(gate)
+        assert audit_run(directory)["passed"]
+        altered = asdict(gate); altered["required_ah"] = .2
+        artifact.write_text(json.dumps(altered), encoding="utf8")
+        audit = audit_run(directory)
+        assert not audit["passed"]
+        assert any("inventory feasibility coefficients" in issue for issue in audit["issues"])
