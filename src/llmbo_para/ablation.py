@@ -31,7 +31,7 @@ def random_initial_points(space, count, seed):
 def arm_config(template, plan, plan_file, *, warm_start, gp_groups, bo_iterations):
     config = deepcopy(template)
     count = len(plan["parameters"])
-    config["status"] = "paired_four_arm_ablation_8_initial_then_25_bo"
+    config["status"] = f"paired_four_arm_ablation_{count}_initial_then_{bo_iterations}_bo"
     config["optimization"].update(llm_enabled=warm_start or gp_groups,
         llm_warm_start_enabled=warm_start, llm_gp_groups_enabled=gp_groups,
         strict_llm_tasks=True, warm_start_llm_points=count if warm_start else 0,

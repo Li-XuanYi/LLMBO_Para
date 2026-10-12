@@ -46,11 +46,13 @@ class ArchivedRequest:
         return call
 
 
-def screen_family(template, source, suite, base_dir, *, budget=None, resume_plan=None):
+def screen_family(template, source, suite, base_dir, *, budget=None, resume_plan=None, artifact_root=None):
     budget = budget or ScreeningBudget()
     config = deepcopy(template)
     config["optimization"].update(llm_enabled=source == "llm", llm_warm_start_enabled=source == "llm", llm_gp_groups_enabled=False)
-    store = RunStore(workspace / "runs/feasible-initial", {"experiment": config, "source": source, "budget": asdict(budget),
+    screening_root = Path(artifact_root) / "screening" if artifact_root is not None else workspace / "runs/feasible-initial"
+    request_root = Path(artifact_root) / "requests" if artifact_root is not None else workspace / "runs/initial-requests"
+    store = RunStore(screening_root, {"experiment": config, "source": source, "budget": asdict(budget),
                      "resume_evidence": {"path": str(resume_plan.resolve()), "sha256": sha256_file(resume_plan)} if resume_plan else None},
                      data_hashes={config["data"]["path"]: config["data"]["sha256"]} if config["data"]["kind"] == "xlsx" else {},
                      command="bounded feasible initialization " + source)
@@ -77,7 +79,7 @@ def screen_family(template, source, suite, base_dir, *, budget=None, resume_plan
         evaluator = FourRateEvaluator(prepared.space, backend, max_rate_attempts=config["optimization"]["max_rate_attempts"], event_callback=store.append_event)
 
         def factory(stage, index, context):
-            request = RunStore(workspace / "runs/initial-requests", {"experiment": config, "stage": stage, "index": index, "context": context},
+            request = RunStore(request_root, {"experiment": config, "stage": stage, "index": index, "context": context},
                                command=f"LLM initialization {stage} {index}")
             if hasattr(backend, "save_parameterization"):
                 backend.save_parameterization(request)
@@ -175,6 +177,7 @@ def main():
     parser.add_argument("config", type=Path)
     parser.add_argument("--bo-iterations", type=int, default=25)
     parser.add_argument("--output", type=Path, default=Path("runs/ablations"))
+    parser.add_argument("--artifact-root", type=Path, help="Keep screening, LLM requests and arm runs below this directory")
     parser.add_argument("--screening-only", choices=("random", "llm"))
     parser.add_argument("--random-plan", type=Path)
     parser.add_argument("--llm-plan", type=Path)
@@ -192,7 +195,8 @@ def main():
     protocol = {"template": template, "screening": asdict(budget), "bo_iterations": args.bo_iterations,
         "arms": ARMS, "workers": 1, "paired_sets": True, "pilot_checkpoint": 2,
         "screening_only": args.screening_only, "external_api_summary_consent": True,
-        "source_data_remote_transfer": "pending explicit permission", "no_random_llm_substitution": True}
+        "source_data_remote_transfer": "managed by caller", "no_random_llm_substitution": True,
+        "artifact_root": str(args.artifact_root.resolve()) if args.artifact_root else None}
     suite = RunStore(args.output, protocol, command=" ".join(sys.argv))
     suite.write_json("study-plan.json", protocol)
     print(json.dumps({"suite_directory": str(suite.path), "state": "preparing_initial_sets"}), flush=True)
@@ -213,7 +217,7 @@ def main():
                 validated_cached_results(template, prepared.series, initial, existing)
             else:
                 initial, existing = screen_family(template, source, suite, args.config.resolve().parent, budget=budget,
-                    resume_plan=args.resume_random_plan if source == "random" else None)
+                    resume_plan=args.resume_random_plan if source == "random" else None, artifact_root=args.artifact_root)
             family_costs[source] = initial["screening_cost"]
             evidence = suite.write_json(source + "-initial-plan.json", initial)
             if initial.get("source") != source or not initial.get("complete") or len(initial["parameters"]) != 8:
@@ -246,7 +250,8 @@ def main():
             suite.write_json("config-" + name + ".json", config)
             suite.append_event({"type": "ablation_arm_started", "arm": name})
             try:
-                result = run_experiment(config, workspace / "runs/ablation-arms", base_dir=args.config.resolve().parent, command="paired ablation " + name)
+                arm_root = args.artifact_root / "arms" if args.artifact_root else workspace / "runs/ablation-arms"
+                result = run_experiment(config, arm_root, base_dir=args.config.resolve().parent, command="paired ablation " + name)
                 audit_started = time.perf_counter()
                 audit = audit_run(result["run_directory"], deep=True)
                 outcome = {"arm": name, "execution_completed": audit["passed"], "result": result, "deep_audit": audit,

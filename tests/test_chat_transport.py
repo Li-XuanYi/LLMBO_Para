@@ -52,8 +52,26 @@ class ChatTransportTests(unittest.TestCase):
         self.assertEqual(wire["max_tokens"], 512)
         self.assertEqual(wire["response_format"], {"type": "json_object"})
         self.assertFalse(wire["stream"])
-        self.assertEqual(sent[0].get_header("User-agent"), "LLMBO-Para-connectivity-probe/1")
+        self.assertEqual(sent[0].get_header("User-agent"), "LLMBO-Para/1")
         self.assertNotIn("test-credential", sent[0].data.decode())
+
+    def test_opencode_session_identifies_archived_run_without_archiving_authentication(self):
+        sent = []
+        class Opener:
+            def open(self, request, **kwargs):
+                sent.append(request)
+                return Response('{"candidates":[]}')
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as folder, patch.dict("os.environ", self.environment), \
+             patch("llmbo_para.llm.build_opener", return_value=Opener()):
+            store = RunStore(Path(folder), {"run_kind": "test"}, command="OpenCode session regression")
+            transport = ChatCompletionsTransport("https://opencode.ai/zen/go/v1/chat/completions", "LLMBO_TEST_API_KEY",
+                model="deepseek-v4.1-flash", max_tokens=512, json_mode=True, run_store=store)
+            transport.post({"task": "warm_start", "instructions": "Return JSON"})
+            expected = "llmbo-para-" + store.path.name
+            self.assertEqual(sent[0].get_header("X-opencode-session"), expected)
+            archived = json.loads((store.path/"http/warm_start.request.json").read_text())
+            self.assertEqual(archived["headers"]["x-opencode-session"], expected)
+            self.assertNotIn("test-credential-do-not-persist", json.dumps(archived))
 
     def test_truncated_and_non_object_output_are_rejected(self):
         for response in (Response('{"candidates":[]}', finish="length"), Response("[]"), Response("not JSON")):

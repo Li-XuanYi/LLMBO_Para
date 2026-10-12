@@ -63,14 +63,17 @@ class HttpJsonTransport:
                 return [redact(child) for child in value]
             return value
 
+        public_headers = {"User-Agent": "LLMBO-Para/1"}
+        if urlsplit(self.endpoint).hostname == "opencode.ai" and urlsplit(self.endpoint).path.startswith("/zen/go/"):
+            public_headers["x-opencode-session"] = "llmbo-para-" + (self.store.path.name if self.store else "unarchived")
         if self.store:
-            self.store.write_json(f"http/{task}.request.json", {"endpoint": self.endpoint, "body": redact(dict(payload))})
+            self.store.write_json(f"http/{task}.request.json", {"endpoint": self.endpoint, "headers": public_headers,
+                                                               "body": redact(dict(payload))})
             self.store.append_event({"type": "llm_http_started", "task": task, "endpoint": self.endpoint})
         request = Request(
             self.endpoint,
             data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json",
-                     "User-Agent": "LLMBO-Para-connectivity-probe/1"},
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json", **public_headers},
             method="POST",
         )
         started = time.perf_counter()

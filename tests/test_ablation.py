@@ -74,6 +74,7 @@ class AblationTests(unittest.TestCase):
             plan = {"source": "random", "parameters": [list(point) for point in random_initial_points(space, 2, 123)]}
             plan_file.write_text(json.dumps(plan), encoding="utf-8")
             case = arm_config(config, plan, plan_file, warm_start=False, gp_groups=False, bo_iterations=1)
+            self.assertEqual(case["status"], "paired_four_arm_ablation_2_initial_then_1_bo")
             self.assertEqual(configuration_errors(case), [])
             result = run_experiment(case, Path(folder) / "runs")
             self.assertTrue(audit_run(result["run_directory"], deep=True)["passed"])
@@ -104,6 +105,7 @@ class AblationTests(unittest.TestCase):
             config_file.write_text(json.dumps(synthetic_config()), encoding="utf-8")
             called = []
             def execute(config, output, **kwargs):
+                self.assertEqual(Path(output), root / "artifacts/arms")
                 flags = config["optimization"]
                 called.append((flags["llm_warm_start_enabled"], flags["llm_gp_groups_enabled"]))
                 return {"run_directory": str(root / ("groups" if flags["llm_gp_groups_enabled"] else "baseline"))}
@@ -115,7 +117,7 @@ class AblationTests(unittest.TestCase):
                 return plan, suite.write_json("mock-initial.json", plan)
             status = {"completed_candidates": 9, "successful_candidates": 9, "failed_candidates": 0, "pending_candidates": 0}
             with patch.object(runner, "workspace", root), \
-                 patch.object(runner.sys, "argv", [str(script), str(config_file), "--bo-iterations", "1", "--output", str(root / "suite")]), \
+                 patch.object(runner.sys, "argv", [str(script), str(config_file), "--bo-iterations", "1", "--output", str(root / "suite"), "--artifact-root", str(root / "artifacts")]), \
                  patch.object(runner, "screen_family", side_effect=screen), \
                  patch.object(runner, "cost_curve", return_value=[]), \
                  patch.object(runner, "run_experiment", side_effect=execute), \
