@@ -111,3 +111,7 @@ The first approved random run obtained 4/8 valid points in 200 candidate evaluat
 scripts/audit_feasible_screening.py recalculates every archived label and replays the seeded draws without DFN/API calls. scripts/check_feasible_gp.py permits a separate small closure of zero to two BO steps, explicitly labeled as verification rather than a formal study. Suite archives separate actual shared preparation from each arm's standalone cost attribution and save curves against both BO iteration and cumulative DFN rate solves.
 
 scripts/deploy_zju_ablation.py --prepare-only builds a local deployment bundle without a connection or transfer. Source/XLSX upload remains pending explicit permission after the earlier automatic-review rejection.
+
+## Completed local ablation, 2026-10-11
+
+Four local arms each completed eight cached valid initial observations plus 25 BO attempts, using gpt-5.6-sol for enabled LLM components. All deep audits passed. Scientific interpretation and complete costs: [local ablation audit](docs/audits/local-ablation-2026-10-11.md). The high failed-candidate rate and lack of reliable superiority evidence are reported explicitly. Config: configs/21700-local-gpt56sol-20261011.json. Historical pending-state reports remain unchanged.

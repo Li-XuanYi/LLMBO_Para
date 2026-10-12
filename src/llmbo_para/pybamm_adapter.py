@@ -161,8 +161,20 @@ class PyBaMMSimulator:
             solve_settings = {"t_eval": times[[0, -1]], "t_interp": times}
         if self.initial_state_mode == "explicit_soc":
             solve_settings["initial_soc"] = conditions["initial_soc"]
-        solution = simulation.solve(**solve_settings)
-        return solution["Time [s]"].entries, solution["Terminal voltage [V]"].entries
+        from .evaluation import SimulationTrace, SimulationSolverError
+        try:
+            solution = simulation.solve(**solve_settings)
+        except Exception as exc:
+            if isinstance(exc, getattr(pybamm, "SolverError", ())):
+                raise SimulationSolverError(str(exc), solver_error_type=type(exc).__name__) from exc
+            raise
+        termination = getattr(solution, "termination", None)
+        termination = str(termination) if termination is not None else None
+        is_event = termination is not None and termination.lower().startswith("event:")
+        cutoff = ("voltage" in termination.lower()) if is_event else (False if termination == "final time" else None)
+        return SimulationTrace(solution["Time [s]"].entries, solution["Terminal voltage [V]"].entries,
+            termination=termination, voltage_cutoff=cutoff,
+            simulation_completed=(termination == "final time") if termination is not None else None)
 
 
 def build_simulator(config: dict) -> PyBaMMSimulator:

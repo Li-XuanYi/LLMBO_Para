@@ -44,6 +44,9 @@ def audit_run(path, *, deep: bool = False, require_terminal: bool = True) -> dic
             issues.append("raw workbook copy does not match recorded input hash")
         checks.append("local_input_archive")
         options = manifest["config"]["optimization"]
+        from .bo_repair import RepairSettings, CompletionModel, decision_scores, LocalNeighborhood, select_candidate
+        repair = RepairSettings.parse(options.get("bo_repair"))
+        repaired = "bo_repair" in options
         if "initial_candidates" in options and (path / "initial-set.json").exists():
             plan_file = path / "inputs/initial-plan.json"
             if not plan_file.exists() or sha256_file(plan_file) != options["initial_candidates_evidence"]["sha256"]:
@@ -103,6 +106,20 @@ def audit_run(path, *, deep: bool = False, require_terminal: bool = True) -> dic
             errors = {}
             for result in rates:
                 rate = result["rate"]
+                if result.get("feedback_source"):
+                    if result.get("t_required_s") != series[rate]["time_s"][-1]:
+                        issues.append(f"{file.name}/{rate}: required time differs from measured grid")
+                    if result.get("t_end_s") is not None:
+                        required = result["t_required_s"]
+                        margin = result["t_end_s"] / required - 1 if required > 0 else None
+                        if margin != result.get("coverage_margin"):
+                            issues.append(f"{file.name}/{rate}: coverage margin differs from endpoint ratio")
+                    if result["valid"] and result.get("full_grid_coverage") is not True:
+                        issues.append(f"{file.name}/{rate}: valid rate lacks complete coverage")
+                    if result.get("failure_kind") == "voltage_cutoff" and result.get("voltage_cutoff") is not True:
+                        issues.append(f"{file.name}/{rate}: voltage cutoff claimed without event evidence")
+                    if result.get("failure_kind") == "solver_error" and not result.get("solver_error_type"):
+                        issues.append(f"{file.name}/{rate}: solver failure lacks its error type")
                 if result["valid"]:
                     t = np.asarray(result["simulation_time_s"], dtype=float)
                     v = np.asarray(result["simulation_voltage_v"], dtype=float)
@@ -169,7 +186,7 @@ def audit_run(path, *, deep: bool = False, require_terminal: bool = True) -> dic
             if {file.name for file in models} != expected_states:
                 issues.append("optimization result lacks the complete sequence of GP states")
         expected_frozen = None
-        if initial_count:
+        if initial_count and not repaired:
             initial_valid = [row for row in attempts[:initial_count] if row["valid"]]
             if len(initial_valid) >= 2:
                 from dataclasses import asdict
@@ -179,24 +196,69 @@ def audit_run(path, *, deep: bool = False, require_terminal: bool = True) -> dic
                 }
         frozen = None
         fixed_groups = None
+        repair_frozen, previous_models, previous_ids = {}, {}, {}
+        expected_fit_counts = {rate:0 for rate in RATE_ORDER}
         for file in models:
             state = read_json(file)
             history_count = int(file.stem.split("-")[-1])
             training = [row for row in attempts[:history_count] if row["valid"]]
-            if set(state["transforms"]) != set(RATE_ORDER) or set(state["models"]) != set(RATE_ORDER):
+            if not repaired and (set(state["transforms"]) != set(RATE_ORDER) or set(state["models"]) != set(RATE_ORDER)):
                 issues.append(f"{file.name}: GP archive does not contain all four rates")
+            if repaired:
+                from dataclasses import asdict
+                if state.get("schema_version") != 2 or state.get("training_data") != repair.training_data:
+                    issues.append(f"{file.name}: repaired GP schema/policy differs from configuration")
+                for rate in RATE_ORDER:
+                    rows = [(i, row, next(q for q in row["rates"] if q["rate"] == rate)) for i, row in enumerate(attempts[:history_count])]
+                    rows = [(i, row, q) for i, row, q in rows if q["valid"] and (repair.training_data == "per_rate" or row["valid"])]
+                    metadata = state["training"][rate]
+                    if metadata["record_ids"] != [i for i, _, _ in rows] or metadata["count"] != len(rows):
+                        issues.append(f"{file.name}/{rate}: training record IDs or count differ")
+                    if len(rows) >= 2:
+                        repair_frozen.setdefault(rate, asdict(LogRMSETransform.fit([q["rmse_v"] for _, _, q in rows])))
+                        if rate not in state["models"]:
+                            issues.append(f"{file.name}/{rate}: sufficient valid labels but GP missing")
+                        expected_reuse = rate in previous_models and previous_ids.get(rate) == metadata["record_ids"]
+                        expected_fit_counts[rate] += int(not expected_reuse)
+                        if metadata["fit_reused"] != expected_reuse or metadata.get("cumulative_fits") != expected_fit_counts[rate]:
+                            issues.append(f"{file.name}/{rate}: GP reuse or cumulative fit count differs")
+                    elif rate in state["models"]:
+                        issues.append(f"{file.name}/{rate}: fitted GP has insufficient labels")
+                    if metadata.get("fit_reused") and state["models"].get(rate) != previous_models.get(rate):
+                        issues.append(f"{file.name}/{rate}: reused GP changed its state")
+                if state["transforms"] != repair_frozen:
+                    issues.append(f"{file.name}: per-rate frozen transforms do not reproduce")
+                if repair.feasibility_weighting:
+                    classifier = CompletionModel().fit([space.normalize(r["parameters"]) for r in attempts[:history_count]], [r["valid"] for r in attempts[:history_count]])
+                    if classifier.state != state["completion_model"]:
+                        issues.append(f"{file.name}: joint completion classifier does not reproduce")
+                previous_models = state["models"]
+                previous_ids = {r:v["record_ids"] for r,v in state["training"].items()}
+                neighborhood = state["neighborhood"]
+                if neighborhood["settings"] != asdict(repair):
+                    issues.append(f"{file.name}: local search settings differ from configuration")
+                if history_count == initial_count:
+                    expected_local = {"radius_after":repair.local_radius,"success_streak":0,"failure_streak":0}
+                else:
+                    expected_local = read_json(path/"feedback"/f"candidate-{history_count-1:06d}.json")
+                if neighborhood["radius"] != expected_local["radius_after"] or any(neighborhood[key] != expected_local[key] for key in ("success_streak","failure_streak")):
+                    issues.append(f"{file.name}: radius/streak state differs from previous feedback")
             if expected_frozen is not None and state["transforms"] != expected_frozen:
                 issues.append(f"{file.name}: output transform does not reproduce from initial valid observations")
             if frozen is None:
                 frozen = state["transforms"]
-            elif frozen != state["transforms"]:
+            elif not repaired and frozen != state["transforms"]:
                 issues.append(f"{file.name}: initial output standardization was not frozen")
             groups = {rate: model["group"] for rate, model in state["models"].items()}
             if fixed_groups is None:
                 fixed_groups = groups
-            elif groups != fixed_groups:
+            elif any(rate in fixed_groups and group != fixed_groups[rate] for rate, group in groups.items()):
                 issues.append(f"{file.name}: parameter groups changed during optimization")
+            fixed_groups.update(groups)
             for rate, model in state["models"].items():
+                if repaired:
+                    training = [row for row in attempts[:history_count] if
+                        (repair.training_data == "per_rate" or row["valid"]) and next(q["valid"] for q in row["rates"] if q["rate"] == rate)]
                 if options.get("llm_gp_groups_enabled") is False and (model["group"] or model["lambda"] != 0):
                     issues.append(f"{file.name}/{rate}: disabled GP LLM component still changed the kernel")
                 if any(len(x) != 6 for x in model["x"]) or not 0 <= model["lambda"] <= 0.8:
@@ -230,10 +292,61 @@ def audit_run(path, *, deep: bool = False, require_terminal: bool = True) -> dic
             scores = np.asarray(row["composite_ei"])
             selected = row["selected_index"]
             previous = [value for value in attempts[:candidate_id] if value["valid"]]
-            if not previous or not math.isclose(row["best_observed_objective_v"], min(value["objective_v"] for value in previous), rel_tol=1e-12, abs_tol=1e-14):
+            if (previous and not math.isclose(row["best_observed_objective_v"], min(value["objective_v"] for value in previous), rel_tol=1e-12, abs_tol=1e-14)) or (not previous and (not repaired or row["best_observed_objective_v"] is not None)):
                 issues.append(f"{file.name}: EI threshold differs from the best actually completed objective")
-            if not np.all(np.isfinite(scores)) or selected != int(np.argmax(scores)):
+            if not repaired and (not np.all(np.isfinite(scores)) or selected != int(np.argmax(scores))):
                 issues.append(f"{file.name}: selected candidate does not maximize finite Composite EI")
+            if repaired:
+                from .evaluation import EvaluationResult, RateResult
+                state = read_json(path / "models" / f"after-{candidate_id:06d}.json")
+                ready = set(state["models"]) == set(RATE_ORDER) and bool(previous)
+                if row.get("schema_version") != 2 or row["gp_ready"] != ready:
+                    issues.append(f"{file.name}: acquisition schema or GP readiness differs")
+                classifier = CompletionModel(); classifier.state = state["completion_model"]
+                predicted = classifier.predict(row["normalized_pool"]) if repair.feasibility_weighting else None
+                if (predicted is None) != (row["p_complete"] is None) or (predicted is not None and not np.allclose(predicted, row["p_complete"], rtol=1e-12, atol=1e-14)):
+                    issues.append(f"{file.name}: joint completion probabilities differ from archived classifier")
+                expected_scores, policy, fallback = decision_scores(scores, predicted, enabled=repair.feasibility_weighting)
+                if not ready:
+                    expected_scores = np.zeros(len(scores)); policy, fallback = "seeded_eligible_space_filling", "gp_or_complete_objective_unavailable"
+                    if np.any(scores):
+                        issues.append(f"{file.name}: unavailable GP generated a fabricated EI")
+                proposal = row["proposal"]
+                n_pool = len(row["normalized_pool"])
+                if not 1 <= n_pool <= options["candidate_pool_size"] or any(len(proposal[key]) != n_pool for key in ("origins","center_record_ids","eligible")):
+                    issues.append(f"{file.name}: candidate pool metadata has inconsistent lengths")
+                if proposal["radius"] != state["neighborhood"]["radius"] or proposal["local_actual"] != proposal["origins"].count("local"):
+                    issues.append(f"{file.name}: candidate radius or local pool count differs")
+                past_keys = {tuple(round(v,12) for v in space.normalize(value["parameters"])) for value in attempts[:candidate_id]}
+                keys = [tuple(round(v,12) for v in point) for point in row["normalized_pool"]]
+                if len(set(keys)) != len(keys) or any(key in past_keys for key in keys):
+                    issues.append(f"{file.name}: candidate pool duplicates a current or evaluated point")
+                ordinal = candidate_id - initial_count + 1
+                quota = repair.candidate_policy == "local" and ordinal % repair.global_every == 0
+                eligible = np.asarray([o == "global" or not quota for o in proposal["origins"]])
+                if proposal["global_quota"] != quota or proposal["eligible"] != eligible.tolist() or not np.any(eligible):
+                    issues.append(f"{file.name}: global exploration quota/mask differs")
+                if not np.allclose(row["decision_scores"], expected_scores, rtol=1e-12, atol=1e-14) or row["policy"] != policy or row["fallback"] != fallback:
+                    issues.append(f"{file.name}: constrained scores or declared fallback differ")
+                expected_selected = select_candidate(expected_scores,eligible,seed=options["seed"],candidate_id=candidate_id,cold_start=not ready)
+                if selected != expected_selected:
+                    issues.append(f"{file.name}: selected candidate differs from eligible score/fallback policy")
+                for point, origin, center_id in zip(row["normalized_pool"], proposal["origins"], proposal["center_record_ids"]):
+                    if origin not in {"local", "global"} or (repair.candidate_policy == "global" and origin != "global"):
+                        issues.append(f"{file.name}: unexpected candidate origin")
+                    if origin == "local":
+                        if center_id is None or not 0 <= center_id < candidate_id or not attempts[center_id]["valid"]:
+                            issues.append(f"{file.name}: local center is not a past valid point")
+                        elif np.max(np.abs(np.asarray(point)-space.normalize(attempts[center_id]["parameters"]))) > proposal["radius"]+1e-12:
+                            issues.append(f"{file.name}: local candidate exceeds declared radius")
+                local = LocalNeighborhood(repair, options["seed"])
+                for key in ("radius", "success_streak", "failure_streak"):
+                    setattr(local, key, state["neighborhood"][key])
+                current = attempts[candidate_id]
+                result = EvaluationResult(tuple(current["parameters"]), tuple(RateResult(**q) for q in current["rates"]), current["valid"], current["objective_v"])
+                feedback = local.update(result, proposal["origins"][selected])
+                if feedback != read_json(path / "feedback" / f"candidate-{candidate_id:06d}.json"):
+                    issues.append(f"{file.name}: local radius feedback does not reproduce")
             plan = read_json(path / "plans" / f"candidate-{candidate_id:06d}.json")
             selected_parameters = parameter_space_from_config(manifest["config"]).denormalize(row["normalized_pool"][selected])
             if gate:
@@ -241,7 +354,7 @@ def audit_run(path, *, deep: bool = False, require_terminal: bool = True) -> dic
                     issues.append(f"{file.name}: acquisition pool contains an analytically infeasible point")
             if not np.allclose(selected_parameters, plan["parameters"], rtol=1e-12, atol=0):
                 issues.append(f"{file.name}: selected normalized input differs from evaluated parameters")
-            if deep:
+            if deep and (not repaired or row["gp_ready"]):
                 from .surrogate import Matern52GP
                 from .acquisition import composite_ei
                 state = read_json(path / "models" / f"after-{candidate_id:06d}.json")

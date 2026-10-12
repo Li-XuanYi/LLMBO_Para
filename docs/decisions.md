@@ -54,3 +54,7 @@ Subsequent user confirmation resolved both questions. The subsequent real smoke 
 ## Local execution approval, 2026-10-11
 
 The user selected local execution and explicitly agreed to qwen3.7-flash and a cumulative random screening limit of 800, retaining the prior 200 evaluations and four valid points. The random raw-draw limit remains 20000. The LLM family retains its original 200-candidate, 20-proposal batch, 10-generation/30-selection limits. Both families target eight valid points, followed by four paired ablation arms with 25 BO attempts each. One CPU worker and one numerical thread; no remote operations are planned. New configuration: configs/21700-local-qwen-20261011.json. Old settings and results remain historical records.
+
+## Completed local four-arm study, 2026-10-11
+
+Qwen's real probe returned AllocationQuota.FreeTierOnly. The user explicitly selected gpt5.6sol, mapped to the provider-listed gpt-5.6-sol; the new configuration and response identities are archived. Random screening reached 8/8 after 387 cumulative evaluations; WarmStart reached 8/8 after 28 evaluations and seven API requests. All four arms completed 25 BO attempts and passed deep audits. See docs/audits/local-ablation-2026-10-11.md. Historical decisions above are retained; no remote operations occurred.
