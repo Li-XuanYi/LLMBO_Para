@@ -56,7 +56,17 @@ def prepare_experiment(config: dict, *, base_dir: Path | None = None, archived_s
     if optimization.get("llm_enabled"):
         llm = config.get("llm", {}) if isinstance(config.get("llm"), dict) else {}
         key_env = llm.get("api_key_env") if isinstance(llm.get("api_key_env"), str) else ""
-        if not os.environ.get(key_env):
+        replay = llm.get("parameter_groups_replay")
+        if replay is not None:
+            try:
+                from .llm_replay import ArchivedGroupTransport
+                checked = ArchivedGroupTransport(replay, expected_model=llm.get("model"))
+                if config.get("run_kind") == "research" and checked.packet["source_kind"] != "archived_real_llm_response":
+                    errors.append("research replay requires an explicitly archived real LLM reply")
+                warnings.append("LLM groups replay a hash-verified archived response; no new group API call")
+            except (ValueError, TypeError, OSError, KeyError) as exc:
+                errors.append("archived group preflight: " + str(exc))
+        elif not os.environ.get(key_env):
             errors.append("the named LLM credential environment variable is not set")
         try:
             build_transport(llm)
@@ -166,7 +176,12 @@ def build_llm(config: dict, store: RunStore, *, prepared=None) -> LLMClient | No
     if parameterization_file.exists():
         values = read_json(parameterization_file)["values"]
         context["nominal_parameter_values_from_reference"] = {spec.name: values[spec.name] for spec in prepared.space.specs} if prepared is not None else {}
-    return LLMClient(build_transport(llm, store),
+    if llm.get("parameter_groups_replay") is not None:
+        from .llm_replay import ArchivedGroupTransport
+        transport = ArchivedGroupTransport(llm["parameter_groups_replay"], expected_model=llm["model"], run_store=store)
+    else:
+        transport = build_transport(llm, store)
+    return LLMClient(transport,
                      context=context, run_store=store, min_diversity_distance=llm["min_diversity_distance"],
                      selection_max_attempts=llm.get("selection_max_attempts", 1))
 

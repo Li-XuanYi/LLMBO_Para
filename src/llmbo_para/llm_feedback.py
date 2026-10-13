@@ -50,6 +50,9 @@ def summarize_evaluation(space, record: Mapping, *, candidate_id: int) -> dict:
                 value = (raw.get("residual_summary") or {}).get(name)
                 if value is not None:
                     residual[name] = _number(value)
+        censor = raw.get("coverage_right_censored")
+        if censor is not None and type(censor) is not bool:
+            raise ValueError("coverage censor flag must be boolean or null")
         failure_kind = raw.get("failure_kind")
         if failure_kind is not None and not isinstance(failure_kind, str):
             raise ValueError("failure kind must be a string or null")

@@ -188,3 +188,44 @@ def test_feedback_is_opt_in_and_success_rmse_reaches_next_generation(tmp_path):
             assert data["records"][0]["objective_v"] == pytest.approx(.02)
             assert data["records"][0]["rates"]["3C"]["valid"] is True
             assert init.plan()["feedback_schema_version"] == 1
+
+
+def test_feedback_rejects_non_boolean_censor_field_instead_of_forwarding_data():
+    from llmbo_para.evaluation import CallableSimulator, FourRateEvaluator
+    from llmbo_para.synthetic import synthetic_series
+    summarize, _ = feedback_functions()
+    space, points = pool()
+    evaluator = FourRateEvaluator(space, CallableSimulator(lambda p, s: (s.time_s, s.voltage_v)))
+    record = evaluator.evaluate(points[0], synthetic_series()).to_dict()
+    record["rates"][0]["coverage_right_censored"] = [1.0, 2.0, 3.0]
+    with pytest.raises(ValueError, match="censor|boolean"):
+        summarize(space, record, candidate_id=0)
+
+
+def test_rich_feedback_resume_recomputes_original_labels_and_costs(tmp_path):
+    import numpy as np
+    from llmbo_para.evaluation import CallableSimulator, FourRateEvaluator
+    from llmbo_para.initialization import FeasibleInitializer, ScreeningBudget
+    from llmbo_para.synthetic import synthetic_series
+    config = synthetic_config(); config["llm"]["warm_start_feedback"] = True
+    space, points = pool(); contexts = []
+    class Client:
+        def __init__(self, batch): self.batch = batch
+        def warm_start(self, space, count): return [points[self.batch - 1]]
+        def select_warm_start(self, space, candidates, count): return tuple(candidates[:count])
+    def factory(stage, batch, context):
+        contexts.append(copy.deepcopy(context)); return Client(batch)
+    series = synthetic_series()
+    evaluator = FourRateEvaluator(space, CallableSimulator(lambda p, s: (s.time_s, np.asarray(s.voltage_v) + .02)))
+    def make(batches):
+        store = RunStore(tmp_path / "r", config, command="strict rich-feedback continuation")
+        return FeasibleInitializer(config, space, series, evaluator, store, gate=None, source="llm", llm_factory=factory,
+            budget=ScreeningBudget(target=2, max_warm_batches=batches))
+    first = make(1); plan = first.run()
+    assert not plan["complete"] and len(plan["feedback_history"]) == 1
+    resumed = make(2); resumed.restore_llm(plan, first.store.path / "initial-plan.json")
+    finished = resumed.run()
+    assert finished["complete"] and finished["screening_cost"]["new_candidate_evaluations"] == 1
+    assert [row["candidate_id"] for row in finished["feedback_history"]] == [0, 1]
+    assert contexts[-2]["initialization_recovery"]["evaluation_feedback"]["records"][0]["objective_v"] == pytest.approx(.02)
+    assert finished["generated_history"] == [list(points[0]), list(points[1])]

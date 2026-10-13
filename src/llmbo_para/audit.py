@@ -371,6 +371,10 @@ def audit_run(path, *, deep: bool = False, require_terminal: bool = True) -> dic
             checks.append("acquisition_choice" + ("_and_monte_carlo_recalculation" if deep else "_without_recomputing_all_gp_draws"))
         else:
             checks.append("acquisition_not_applicable_without_bo_iterations")
+        if manifest["config"].get("llm", {}).get("parameter_groups_replay") is not None and options.get("llm_gp_groups_enabled", options.get("llm_enabled")):
+            from .llm_replay import audit_group_replay
+            issues.extend(audit_group_replay(path, manifest["config"]))
+            checks.append("archived_real_group_reply_provenance_without_live_api")
         if require_terminal and not (path / "terminal.json").exists():
             issues.append("run has no terminal lifecycle record")
     except (ValueError, KeyError, TypeError, OSError, IndexError) as exc:
