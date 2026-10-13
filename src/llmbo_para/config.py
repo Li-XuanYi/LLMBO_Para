@@ -62,7 +62,7 @@ def configuration_errors(config: dict) -> list[str]:
         "data": {"kind", "path", "sha256", "evaluation_grid", "legacy_assumed_1s", "sample_period_s", "time_column", "current_column", "voltage_column", "temperature_column", "temperature_unit", "time_unit", "current_unit", "voltage_unit", "sheet_by_rate", "discharge_current_sign"},
         "model": {"provider", "name", "parameterization_id", "parameter_values_factory", "pybamm_version", "options", "mesh_points", "solver", "fixture_formula", "initial_state_mode", "fixed_electrolyte_diffusivity_multiplier"},
         "optimization": {"seed", "warm_start_llm_points", "sobol_points", "total_candidate_budget", "candidate_pool_size", "composite_ei_draws", "parallel_workers", "llm_enabled", "gpu_backend", "gp_sweeps", "max_rate_attempts", "llm_warm_start_enabled", "llm_gp_groups_enabled", "strict_llm_tasks", "initial_candidates", "initial_candidates_source", "initial_candidates_evidence", "inventory_feasibility_filter", "bo_repair"},
-        "llm": {"transport", "endpoint", "api_key_env", "model", "timeout_s", "min_diversity_distance", "max_tokens", "json_mode", "thinking"},
+        "llm": {"transport", "endpoint", "api_key_env", "model", "timeout_s", "min_diversity_distance", "max_tokens", "json_mode", "thinking", "selection_max_attempts", "warm_start_feedback"},
         "physical_constraints": {"fixed_porosity"},
         "parameters": set(PARAMETER_NAMES),
     }
@@ -272,6 +272,10 @@ def configuration_errors(config: dict) -> list[str]:
         errors.append("candidate_pool_size * composite_ei_draws exceeds the implemented 8,388,608-element memory guard; add validated batching before increasing it")
     llm = section("llm")
     number(llm.get("min_diversity_distance"), "llm.min_diversity_distance", minimum=0)
+    if "warm_start_feedback" in llm and type(llm["warm_start_feedback"]) is not bool:
+        errors.append("llm.warm_start_feedback must be boolean")
+    if "selection_max_attempts" in llm:
+        number(llm["selection_max_attempts"], "llm.selection_max_attempts", minimum=1, maximum=3, integer=True)
     if optimization.get("llm_enabled"):
         for key in ("endpoint", "api_key_env", "model"):
             if not isinstance(llm.get(key), str) or not llm[key].strip():

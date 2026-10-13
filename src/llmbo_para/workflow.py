@@ -167,7 +167,8 @@ def build_llm(config: dict, store: RunStore, *, prepared=None) -> LLMClient | No
         values = read_json(parameterization_file)["values"]
         context["nominal_parameter_values_from_reference"] = {spec.name: values[spec.name] for spec in prepared.space.specs} if prepared is not None else {}
     return LLMClient(build_transport(llm, store),
-                     context=context, run_store=store, min_diversity_distance=llm["min_diversity_distance"])
+                     context=context, run_store=store, min_diversity_distance=llm["min_diversity_distance"],
+                     selection_max_attempts=llm.get("selection_max_attempts", 1))
 
 
 def build_transport(settings: dict, store=None):

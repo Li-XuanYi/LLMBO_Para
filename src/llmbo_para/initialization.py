@@ -105,6 +105,9 @@ class FeasibleInitializer:
         self.started = time.perf_counter()
         self.elapsed_offset_s = 0.
         self.failures = []
+        self.rich_feedback = config.get("llm", {}).get("warm_start_feedback", False)
+        self.feedback_rows, self.feedback_sources, self.generated_history = [], [], []
+        self.generated_history_order = "generation_order"
 
     def restore_llm(self, plan, plan_path):
         """Continue a bounded LLM family without replacing its validated points or costs."""
@@ -148,6 +151,25 @@ class FeasibleInitializer:
             self.failures=[{"parameters":r["parameters"],"reason":"four_rate_incomplete",
                 "covered_duration_s":{v["rate"]:v["simulation_time_s"][-1] if v["simulation_time_s"] else None for v in r["rates"]}}
                 for r in records if not r["valid"]][-20:]
+        if self.rich_feedback:
+            from .llm_feedback import summarize_evaluation
+            sources = plan.get("feedback_source_records")
+            if sources is None:
+                # An old plan lacks a complete ordered feedback ledger: reconstruct
+                # only source records that are actually available, never invent the rest.
+                sources = [{"candidate_id": int(p.name.split("-")[1]), "path": str(p), "sha256": sha256_file(p)}
+                           for p in sorted((directory/"attempts").glob("candidate-*.json"))]
+            self.feedback_rows, self.feedback_sources = [], []
+            for source in sources:
+                file = Path(source["path"])
+                if not file.is_file() or sha256_file(file) != source["sha256"]:
+                    raise ValueError("resumed scalar feedback source hash mismatch")
+                self.feedback_rows.append(summarize_evaluation(self.space, json.loads(file.read_text(encoding="utf-8")), candidate_id=source["candidate_id"]))
+                self.feedback_sources.append(dict(source))
+            if "feedback_history" in plan and self.feedback_rows != plan["feedback_history"]:
+                raise ValueError("resumed feedback summaries differ from source evaluations")
+            self.generated_history = [tuple(self.space.validate(p)) for p in plan.get("generated_history", [])]
+            self.generated_history_order = plan.get("generated_history_order", "unknown_legacy_history")
         self.elapsed_offset_s=cost["elapsed_s"]
         self.simulation_elapsed_s=cost["simulation_elapsed_s"]
         self.prior_candidate_evaluations,self.prior_rate_solves,self.prior_draws=self.evaluations,self.rate_solves,self.draws
@@ -227,6 +249,10 @@ class FeasibleInitializer:
         result = self.evaluator.evaluate(point, self.series)
         self.last_result = result
         path = self.store.save_attempt(self.evaluations, 1, result.to_dict())
+        if self.rich_feedback:
+            from .llm_feedback import summarize_evaluation
+            self.feedback_rows.append(summarize_evaluation(self.space, result.to_dict(), candidate_id=self.evaluations))
+            self.feedback_sources.append({"candidate_id": self.evaluations, "path": str(path), "sha256": sha256_file(path)})
         self.evaluations += 1
         self.rate_solves += sum(len(row.attempts) for row in result.rates)
         self.simulation_elapsed_s += sum(row.elapsed_s for row in result.rates)
@@ -261,6 +287,16 @@ class FeasibleInitializer:
             self.store.append_event({"type": "screening_proposal", "draw": self.draws, "parameters": point})
             self._evaluate(point)
 
+    def _add_evaluation_feedback(self, context):
+        if not self.rich_feedback:
+            return
+        from .llm_feedback import build_feedback
+        recovery = context["initialization_recovery"]
+        recovery["evaluation_feedback"] = build_feedback(self.space, self.feedback_rows, gate=self.gate)
+        recovery["previous_generated_parameters"] = [list(point) for point in self.generated_history[-200:]]
+        recovery["generated_history_order"] = self.generated_history_order
+        recovery["evaluated_parameters"] = [row["parameters"] for row in self.feedback_rows[-20:]]
+
     def _warm(self):
         failures = self.failures
         while len(self.accepted) < self.budget.target and self.evaluations < self.budget.max_evaluations and self.batches < self.budget.max_warm_batches and self.selection_requests < self.budget.max_selection_requests:
@@ -269,6 +305,7 @@ class FeasibleInitializer:
                 "generation_batch": self.batches, "accepted_parameters": [row["parameters"] for row in self.accepted],
                 "previous_generated_parameters": [list(point) for point in sorted(self.seen)][-200:],
                 "failed_candidates": failures[-20:], "inventory_check": asdict(self.gate) if self.gate else None}}
+            self._add_evaluation_feedback(context)
             client = self.llm_factory("generate", self.batches, context)
             self.api_requests += 1
             proposals = client.warm_start(self.space, self.budget.warm_batch_size)
@@ -277,6 +314,8 @@ class FeasibleInitializer:
             self.analytical_rejections += statistics["received"] - len(proposals)
             self.store.append_event({"type": "screening_generation", "batch": self.batches, "statistics": statistics})
             pool = []
+            if self.rich_feedback:
+                self.generated_history.extend(tuple(point) for point in proposals)
             for proposed in proposals:
                 point = self.space.validate(proposed)
                 check = self.gate.check(point) if self.gate else {"feasible": True}
@@ -288,11 +327,18 @@ class FeasibleInitializer:
                 self.seen.add(point)
                 pool.append(point)
             while pool and len(self.accepted) < self.budget.target and self.evaluations < self.budget.max_evaluations and self.selection_requests < self.budget.max_selection_requests:
+                self._add_evaluation_feedback(context)
+                context["initialization_recovery"]["remaining_selection_requests"] = self.budget.max_selection_requests - self.selection_requests
                 self.selection_requests += 1
                 client = self.llm_factory("select", self.selection_requests, context)
                 count = min(self.budget.target-len(self.accepted), len(pool), self.budget.max_evaluations-self.evaluations)
                 self.api_requests += 1
-                selected = client.select_warm_start(self.space, pool, count)
+                try:
+                    selected = client.select_warm_start(self.space, pool, count)
+                finally:
+                    extra_calls = max(0, getattr(client, "last_select_request_attempts", 1) - 1)
+                    self.selection_requests += extra_calls
+                    self.api_requests += extra_calls
                 if len(selected) != count or len(set(selected)) != count or any(point not in pool for point in selected):
                     raise ValueError("LLM selection did not return distinct existing candidate vectors")
                 for point in selected:
@@ -329,4 +375,8 @@ class FeasibleInitializer:
             "prior_candidate_evaluations": getattr(self, "prior_candidate_evaluations", 0),
             "seen_parameters": [list(point) for point in sorted(self.seen)] if self.source == "llm" else [],
             "failed_candidate_feedback": self.failures[-20:] if self.source == "llm" else [],
-            "complete": len(self.accepted) == self.budget.target}
+            "complete": len(self.accepted) == self.budget.target,
+            **({"feedback_schema_version": 1, "feedback_history": self.feedback_rows,
+                "feedback_source_records": self.feedback_sources,
+                "generated_history": [list(p) for p in self.generated_history],
+                "generated_history_order": self.generated_history_order} if self.rich_feedback else {})}
