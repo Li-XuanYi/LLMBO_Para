@@ -17,6 +17,7 @@ from .progress import summarize_progress
 from .runstore import RunStore, digest_value
 from .sobol import Sobol6
 from .surrogate import Matern52GP
+from .gp_prior_guard import GuardSettings, PredictivePriorGuard
 from .bo_repair import RepairSettings, CompletionModel, LocalNeighborhood, decision_scores, select_candidate
 
 
@@ -43,6 +44,7 @@ class Optimizer:
         initial_evaluations=None,
         candidate_filter=None,
         bo_repair=None,
+        gp_prior_guard=None,
     ):
         if any(not isinstance(v, int) or isinstance(v, bool) for v in (initial_llm_count, initial_sobol_count, candidate_pool_size, mc_draws, gp_sweeps, seed)):
             raise ValueError("optimizer sizes and seed must be integers")
@@ -63,6 +65,10 @@ class Optimizer:
         self.neighborhood = LocalNeighborhood(self.repair, seed)
         self.completion = CompletionModel()
         self._model_cache, self._training_keys = {}, {}
+        self.prior_guard = PredictivePriorGuard(GuardSettings.parse(gp_prior_guard),
+            initial_count=initial_llm_count + initial_sobol_count)
+        self._shadow_models = {}
+        self.shadow_fit_counts = {rate: 0 for rate in RATE_ORDER}
         self.model_training_counts = {}
         self.model_fit_counts = {rate: 0 for rate in RATE_ORDER}
         self.sobol = Sobol6()
@@ -213,7 +219,25 @@ class Optimizer:
                 models[rate] = self._model_cache[rate]
                 training_metadata[rate]["fit_reused"] = True
             else:
-                models[rate] = Matern52GP(max_sweeps=self.gp_sweeps).fit(x, y, indexes)
+                if self.prior_guard.settings.enabled and indexes:
+                    ordinary = Matern52GP(max_sweeps=self.gp_sweeps).fit(x, y)
+                    mixed = Matern52GP(max_sweeps=self.gp_sweeps).fit(x, y, indexes)
+                    self._shadow_models[rate] = {"ordinary": ordinary, "mixed": mixed}
+                    self.shadow_fit_counts[rate] += 2
+                    active = self.prior_guard.decision(rate, has_group=True)["active"]
+                    if active == "mixed":
+                        models[rate] = mixed
+                    else:
+                        # Retain proposal provenance while using EXACTLY the ordinary
+                        # fitted covariance. A zero mixture does not refit the group.
+                        full_state = ordinary.state_dict()
+                        full_state["group"] = sorted(indexes)
+                        full_state["hyperparameters"][8] = 0.0
+                        full_state["lambda"] = 0.0
+                        models[rate] = Matern52GP.from_state(full_state)
+                        models[rate].max_sweeps = ordinary.max_sweeps
+                else:
+                    models[rate] = Matern52GP(max_sweeps=self.gp_sweeps).fit(x, y, indexes)
                 self._model_cache[rate], self._training_keys[rate] = models[rate], key
                 self.model_fit_counts[rate] += 1
             training_metadata[rate]["cumulative_fits"] = self.model_fit_counts[rate]
@@ -231,6 +255,12 @@ class Optimizer:
                 snapshot.update(schema_version=2, training_data=self.repair.training_data,
                     training=training_metadata, completion_model=self.completion.state,
                     neighborhood=self.neighborhood.state_dict())
+            if self.prior_guard.settings.enabled:
+                snapshot["prior_guard"] = {**self.prior_guard.state_dict(),
+                    "decisions": {rate: self.prior_guard.decision(rate, has_group=bool(groups.get(rate))) for rate in RATE_ORDER},
+                    "shadow_fit_counts": dict(self.shadow_fit_counts)}
+                snapshot["shadow_models"] = {rate: {name: model.state_dict() for name, model in pair.items()}
+                                              for rate, pair in self._shadow_models.items()}
             self.store.write_json(f"models/after-{len(self.records):06d}.json", snapshot)
         self.gp_fit_s += time.perf_counter() - fit_started
         return models, transforms, best
@@ -356,7 +386,17 @@ class Optimizer:
                 self.store.write_json(f"acquisition/candidate-{next_index:06d}.json", acquisition)
                 self.store.write_json(f"plans/candidate-{next_index:06d}.json", {"candidate_id": next_index, "parameters": selected})
                 self.store.append_event({"type": "candidate_started", "candidate_id": next_index})
+            prior_prediction = None
+            if self.prior_guard.settings.enabled:
+                prior_prediction = self.prior_guard.predict_before(next_index, candidates[selected_index][0],
+                    self._shadow_models, transforms)
+                if self.store:
+                    self.store.write_json(f"gp-prior/predictions/candidate-{next_index:06d}.json", prior_prediction)
             result = self.evaluator.evaluate(selected, self.series_by_rate)
+            if prior_prediction is not None:
+                scored = self.prior_guard.observe(prior_prediction, result.to_dict())
+                if self.store:
+                    self.store.write_json(f"gp-prior/scores/candidate-{next_index:06d}.json", scored)
             self._record(next_index, result)
             update = self.neighborhood.update(result, proposal["origins"][selected_index])
             if self.store and self.repair_enabled:
@@ -370,6 +410,9 @@ class Optimizer:
         best_result = min(complete, key=lambda r: r.objective_v)
         summary = {
             "candidate_budget": total_candidate_budget,
+            **({"gp_prior_guard": self.prior_guard.state_dict(),
+                "prior_guard_decisions": {r: self.prior_guard.decision(r, has_group=bool(self.groups.get(r))) for r in RATE_ORDER},
+                "gp_shadow_fit_counts": dict(self.shadow_fit_counts)} if self.prior_guard.settings.enabled else {}),
             "candidate_completed": len(self.records),
             "candidate_valid": len(complete),
             "candidate_failed": len(self.records) - len(complete),

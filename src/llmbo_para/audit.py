@@ -363,6 +363,10 @@ def audit_run(path, *, deep: bool = False, require_terminal: bool = True) -> dic
                 recomputed = composite_ei(row["normalized_pool"], fitted, transforms, row["best_observed_objective_v"], draws=row["mc_draws"], seed=row["mc_seed"])
                 if not np.allclose(scores, recomputed, rtol=1e-10, atol=1e-12):
                     issues.append(f"{file.name}: posterior Monte Carlo EI does not reproduce from saved GP state")
+        if options.get("gp_prior_guard", {}).get("enabled") and models:
+            from .gp_prior_audit import audit_prior_guard
+            issues.extend(audit_prior_guard(path, options, attempts, initial_count))
+            checks.append("forward_predictive_prior_guard_recalculation")
         if acquisitions:
             checks.append("acquisition_choice" + ("_and_monte_carlo_recalculation" if deep else "_without_recomputing_all_gp_draws"))
         else:

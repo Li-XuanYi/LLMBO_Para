@@ -241,6 +241,7 @@ def run_experiment(config: dict, output, *, base_dir=None, command="run_experime
             initial_evaluations=prepared.initial_evaluations,
             candidate_filter=gate.check if gate else None,
             bo_repair=options.get("bo_repair"),
+            gp_prior_guard=options.get("gp_prior_guard"),
         )
         summary = optimizer.optimize(options["total_candidate_budget"])
         audit_started = time.perf_counter()
