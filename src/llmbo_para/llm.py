@@ -280,18 +280,51 @@ class LLMClient:
         pool = [space.validate(point) for point in candidates]
         if type(count) is not int or count < 1 or len(pool) < count:
             raise ValueError("warm-start selection requires enough legal proposals for the requested initial set")
-        response = self._request({"task": "warm_start_select", "rates": list(RATE_ORDER),
+        payload = {"task": "warm_start_select", "rates": list(RATE_ORDER),
             "parameter_order": [spec.name for spec in space.specs],
             "units": [spec.unit for spec in space.specs],
             "bounds": [[spec.lower, spec.upper] for spec in space.specs],
             "transforms": [spec.transform for spec in space.specs],
             "physical_constraints": {"negative_porosity": space.negative_porosity, "positive_porosity": space.positive_porosity},
             "candidates": [{"index": index, "parameters": point} for index, point in enumerate(pool)],
-            "requested_count": count, "response_schema": {"selected_indices": "exactly requested_count unique zero-based integers"}})
-        indices = response.get("selected_indices")
-        if (not isinstance(indices, list) or len(indices) != count
-                or any(isinstance(index, bool) or not isinstance(index, int) or index < 0 or index >= len(pool) for index in indices)
-                or len(set(indices)) != count):
+            "requested_count": count, "response_schema": {"selected_indices": "exactly requested_count unique zero-based integers"}}
+        if "warm_start_select" in self.used_tasks:
+            raise ValueError("each LLM task may be requested only once per run")
+        self.used_tasks.add("warm_start_select")
+        self.last_selection_request_attempts = 0
+        for attempt in range(1, 4):
+            prefix = f"llm-attempts/warm_start_select/attempt-{attempt:03d}/"
+            self.last_selection_request_attempts = attempt
+            response = self._request(payload, archive_prefix=prefix)
+            indices = response.get("selected_indices")
+            reason = None
+            if not isinstance(indices, list):
+                reason = "selected_indices_must_be_a_list"
+            elif len(indices) != count:
+                reason = "wrong_selected_count"
+            elif any(isinstance(index, bool) or not isinstance(index, int) or index < 0 or index >= len(pool) for index in indices):
+                reason = "index_out_of_range_or_not_integer"
+            elif len(set(indices)) != count:
+                reason = "duplicate_index"
+            self.last_selection_validation = {"valid_response": reason is None, "reason": reason,
+                "requested_count": count, "pool_size": len(pool), "received_count": len(indices) if isinstance(indices, list) else None,
+                "attempt": attempt}
+            if self.store:
+                self.store.write_json(prefix + "validation.json", self.last_selection_validation)
+                self.store.append_event({"type": "llm_selection_attempt_validation", **self.last_selection_validation})
+            if reason is None:
+                break
+            payload = {**payload, "contract_repair": {"previous_response": response,
+                "validation": self.last_selection_validation,
+                "instruction": "Correct only the index contract. Return exactly requested_count distinct integer indices from the unchanged candidates list. Do not invent or alter candidate parameters."}}
+        if self.store:
+            for kind in ("llm", "http"):
+                for suffix in ("request.json", "response.json"):
+                    source = self.store.path / prefix / kind / ("warm_start_select." + suffix)
+                    if source.exists():
+                        self.store.write_json(kind + "/warm_start_select." + suffix, json.loads(source.read_text(encoding="utf-8")))
+            self.store.write_json("llm/warm_start_select.validation.json", self.last_selection_validation)
+        if reason is not None:
             raise ValueError("LLM must select the requested number of distinct existing candidate indices")
         selected = tuple(pool[index] for index in indices)
         if self.store:

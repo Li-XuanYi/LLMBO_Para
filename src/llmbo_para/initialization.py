@@ -116,6 +116,11 @@ class FeasibleInitializer:
         previous_config = manifest["config"].get("experiment", manifest["config"])
         if previous_config["llm"] != self.config["llm"] or previous_config["optimization"]["seed"] != self.config["optimization"]["seed"]:
             raise ValueError("LLM continuation model/configuration or seed differs")
+        for name in ("warm_start.txt", "warm_start_select.txt"):
+            archived = directory / "source/src/llmbo_para/prompts" / name
+            current = Path(__file__).parent / "prompts" / name
+            if not archived.is_file() or sha256_file(archived) != sha256_file(current):
+                raise ValueError("LLM continuation Prompt differs: " + name)
         if plan.get("parameterization_fingerprint") != self.parameterization_fingerprint:
             raise ValueError("LLM continuation fixed parameterization differs")
         cost = plan["screening_cost"]
@@ -291,8 +296,10 @@ class FeasibleInitializer:
                 self.selection_requests += 1
                 client = self.llm_factory("select", self.selection_requests, context)
                 count = min(self.budget.target-len(self.accepted), len(pool), self.budget.max_evaluations-self.evaluations)
-                self.api_requests += 1
-                selected = client.select_warm_start(self.space, pool, count)
+                try:
+                    selected = client.select_warm_start(self.space, pool, count)
+                finally:
+                    self.api_requests += getattr(client, "last_selection_request_attempts", 1)
                 if len(selected) != count or len(set(selected)) != count or any(point not in pool for point in selected):
                     raise ValueError("LLM selection did not return distinct existing candidate vectors")
                 for point in selected:

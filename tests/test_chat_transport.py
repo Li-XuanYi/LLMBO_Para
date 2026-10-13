@@ -86,6 +86,33 @@ class ChatTransportTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError,'once'):
                     client.parameter_groups(space,[])
 
+    def test_warm_selection_retries_duplicate_indices_without_silent_replacement(self):
+        space = parameter_space_from_config(synthetic_config())
+        candidates = [space.denormalize((fraction,) * 6) for fraction in (.3, .4, .5)]
+        replies = [{'selected_indices': [1, 1]}, {'selected_indices': [0, 2]}]
+        sent = []
+
+        class Opener:
+            def open(self, request, **kwargs):
+                sent.append(json.loads(request.data))
+                return Response(json.dumps(replies[len(sent)-1]))
+
+        with tempfile.TemporaryDirectory(dir=Path.cwd()) as folder, patch.dict('os.environ', self.environment), \
+             patch('llmbo_para.llm.build_opener', return_value=Opener()):
+            store = RunStore(Path(folder), {'run_kind': 'selector-contract-repair-test'}, command='selector retry regression')
+            client = LLMClient(self.transport(run_store=store), run_store=store)
+            selected = client.select_warm_start(space, candidates, 2)
+            self.assertEqual(selected, (candidates[0], candidates[2]))
+            self.assertEqual(client.last_selection_request_attempts, 2)
+            self.assertEqual(len(sent), 2)
+            self.assertEqual(json.loads(sent[1]['messages'][1]['content'])['contract_repair']['validation']['reason'],
+                             'duplicate_index')
+            first = json.loads((store.path/'llm-attempts/warm_start_select/attempt-001/llm/warm_start_select.response.json').read_text())
+            self.assertEqual(first, replies[0])
+            canonical = json.loads((store.path/'llm/warm_start_select.response.json').read_text())
+            self.assertEqual(canonical, replies[1])
+            self.assertTrue(json.loads((store.path/'llm/warm_start_select.validation.json').read_text())['valid_response'])
+
     def test_opencode_session_identifies_archived_run_without_archiving_authentication(self):
         sent = []
         class Opener:
