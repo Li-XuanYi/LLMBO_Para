@@ -61,7 +61,7 @@ def configuration_errors(config: dict) -> list[str]:
     nested_allowed = {
         "data": {"kind", "path", "sha256", "evaluation_grid", "legacy_assumed_1s", "sample_period_s", "time_column", "current_column", "voltage_column", "temperature_column", "temperature_unit", "time_unit", "current_unit", "voltage_unit", "sheet_by_rate", "discharge_current_sign"},
         "model": {"provider", "name", "parameterization_id", "parameter_values_factory", "pybamm_version", "options", "mesh_points", "solver", "fixture_formula", "initial_state_mode", "fixed_electrolyte_diffusivity_multiplier"},
-        "optimization": {"seed", "warm_start_llm_points", "sobol_points", "total_candidate_budget", "candidate_pool_size", "composite_ei_draws", "parallel_workers", "llm_enabled", "gpu_backend", "gp_sweeps", "max_rate_attempts", "llm_warm_start_enabled", "llm_gp_groups_enabled", "strict_llm_tasks", "initial_candidates", "initial_candidates_source", "initial_candidates_evidence", "inventory_feasibility_filter", "bo_repair"},
+        "optimization": {"seed", "warm_start_llm_points", "sobol_points", "total_candidate_budget", "candidate_pool_size", "composite_ei_draws", "parallel_workers", "llm_enabled", "gpu_backend", "gp_sweeps", "max_rate_attempts", "llm_warm_start_enabled", "llm_gp_groups_enabled", "strict_llm_tasks", "initial_candidates", "initial_candidates_source", "initial_candidates_evidence", "inventory_feasibility_filter", "bo_repair", "surrogate_mode", "llm_informed_enabled", "llm_informed", "reuse_screening_history"},
         "llm": {"transport", "endpoint", "api_key_env", "model", "timeout_s", "min_diversity_distance", "max_tokens", "json_mode", "thinking"},
         "physical_constraints": {"fixed_porosity"},
         "parameters": set(PARAMETER_NAMES),
@@ -218,6 +218,9 @@ def configuration_errors(config: dict) -> list[str]:
                 number(solver.get(key), "model.solver." + key, positive=True)
 
     optimization = section("optimization")
+    surrogate_mode = optimization.get("surrogate_mode", "per_rate")
+    if not isinstance(surrogate_mode, str) or surrogate_mode not in {"per_rate", "single_objective"}:
+        errors.append("optimization.surrogate_mode must be per_rate or single_objective")
     if "bo_repair" in optimization:
         from .bo_repair import RepairSettings
         try:
@@ -237,15 +240,35 @@ def configuration_errors(config: dict) -> list[str]:
         errors.append("only gpu_backend=cpu is implemented and validated")
     if not isinstance(optimization.get("llm_enabled"), bool):
         errors.append("optimization.llm_enabled must be explicitly true or false")
-    for key in ("llm_warm_start_enabled", "llm_gp_groups_enabled", "strict_llm_tasks", "inventory_feasibility_filter"):
+    for key in ("llm_warm_start_enabled", "llm_gp_groups_enabled", "strict_llm_tasks", "inventory_feasibility_filter", "llm_informed_enabled", "reuse_screening_history"):
         if key in optimization and not isinstance(optimization[key], bool):
             errors.append("optimization." + key + " must be boolean")
+    if optimization.get("reuse_screening_history") and (
+        "initial_candidates" not in optimization or surrogate_mode != "per_rate"
+        or not isinstance(optimization.get("bo_repair"), dict)
+        or optimization["bo_repair"].get("training_data") != "per_rate"):
+        errors.append("screening history reuse requires a verified initial plan and per_rate GP/training policies")
     if optimization.get("inventory_feasibility_filter") and (model.get("provider") != "pybamm" or initial_state_mode != "parameterization"):
         errors.append("inventory feasibility filter requires PyBaMM with fixed parameterization initial concentrations")
     warm_enabled = optimization.get("llm_warm_start_enabled", optimization.get("llm_enabled"))
     groups_enabled = optimization.get("llm_gp_groups_enabled", optimization.get("llm_enabled"))
-    if bool(optimization.get("llm_enabled")) != bool(warm_enabled or groups_enabled):
-        errors.append("llm_enabled must match whether either LLM component is enabled")
+    if surrogate_mode == "single_objective":
+        if groups_enabled:
+            errors.append("single_objective requires llm_gp_groups_enabled=false (one full Matérn kernel)")
+        repair = optimization.get("bo_repair", {})
+        if isinstance(repair, dict) and repair.get("training_data", "complete") != "complete":
+            errors.append("single_objective requires complete four-rate objective labels")
+    informed_enabled = optimization.get("llm_informed_enabled", False)
+    if informed_enabled and (surrogate_mode != "single_objective" or groups_enabled):
+        errors.append("LLM-Informed requires single_objective and disabled group kernels")
+    if "llm_informed" in optimization:
+        from .informed import InformedSettings
+        try:
+            InformedSettings.parse(optimization["llm_informed"])
+        except ValueError as exc:
+            errors.append(str(exc))
+    if bool(optimization.get("llm_enabled")) != bool(warm_enabled or groups_enabled or informed_enabled):
+        errors.append("llm_enabled must match whether any LLM component is enabled")
     if "initial_candidates" in optimization:
         points = optimization["initial_candidates"]
         if not isinstance(points, list) or len(points) < 2 or (all(isinstance(v, int) for v in sizes) and len(points) != sizes[0] + sizes[1]):
@@ -259,7 +282,7 @@ def configuration_errors(config: dict) -> list[str]:
             except (ValueError, TypeError) as exc:
                 errors.append("shared initial_candidates: " + str(exc))
         source = optimization.get("initial_candidates_source")
-        if source not in {"random", "llm"} or (source == "llm") != bool(warm_enabled):
+        if source not in {"random", "llm", "history"} or (source == "llm") != bool(warm_enabled):
             errors.append("shared initial source must match the WarmStart component switch")
         evidence = optimization.get("initial_candidates_evidence")
         if (not isinstance(evidence, dict) or set(evidence) != {"path", "sha256"}

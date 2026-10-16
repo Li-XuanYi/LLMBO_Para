@@ -34,6 +34,7 @@ class PreparedExperiment:
     workbook: Path | None = None
     initial_plan: Path | None = None
     initial_evaluations: list | None = None
+    screening_history: object | None = None
 
 
 class ExperimentFailure(RuntimeError):
@@ -123,9 +124,19 @@ def prepare_experiment(config: dict, *, base_dir: Path | None = None, archived_s
             if item.assumptions:
                 warnings.append(f"{rate}: " + "; ".join(item.assumptions))
         cached = validated_cached_results(config, series, plan, initial_plan) if initial_plan else None
+        history = None
+        if optimization.get("reuse_screening_history"):
+            if cached is None:
+                raise ValueError("screening history reuse requires cached original evaluations")
+            from .screening_history import load_screening_history
+            history = load_screening_history(config, series, plan, initial_plan)
+            report["screening_history"] = {k: history.catalog[k] for k in (
+                "reused_failed_candidates", "partial_rate_labels", "attributed_screening_cost")}
+            if history.catalog.get('schema_version') == 2:
+                report['screening_history'].update({k:history.catalog[k] for k in ('reused_valid_candidates','reused_candidates')})
         report.update(ready=True, samples_by_rate={r: len(v.time_s) for r, v in series.items()}, input_sha256=hashes,
                       cached_initial_evaluations=0 if cached is None else len(cached))
-        return report, PreparedExperiment(config, space, series, hashes, workbook, initial_plan, cached)
+        return report, PreparedExperiment(config, space, series, hashes, workbook, initial_plan, cached, history)
     except (ValueError, TypeError, OSError, KeyError) as exc:
         errors.append(f"input preflight: {type(exc).__name__}: {exc}")
         return report, None
@@ -215,6 +226,8 @@ def run_experiment(config: dict, output, *, base_dir=None, command="run_experime
                         raise ValueError("cached source record changed during archiving")
         if simulator is not None and config["run_kind"] != "synthetic_software_smoke_only":
             raise ValueError("simulator overrides are allowed only in explicit synthetic tests")
+        if prepared.screening_history is not None:
+            prepared.screening_history.archive(store)
         backend = simulator or build_backend(prepared)
         if hasattr(backend, "save_parameterization"):
             backend.save_parameterization(store)
@@ -240,6 +253,10 @@ def run_experiment(config: dict, output, *, base_dir=None, command="run_experime
             initial_evaluations=prepared.initial_evaluations,
             candidate_filter=gate.check if gate else None,
             bo_repair=options.get("bo_repair"),
+            surrogate_mode=options.get("surrogate_mode", "per_rate"),
+            llm_informed_enabled=options.get("llm_informed_enabled", False),
+            llm_informed=options.get("llm_informed"),
+            screening_history=prepared.screening_history,
         )
         summary = optimizer.optimize(options["total_candidate_budget"])
         audit_started = time.perf_counter()
@@ -248,7 +265,7 @@ def run_experiment(config: dict, output, *, base_dir=None, command="run_experime
         store.write_json("result-audit.json", audit)
         if not audit["passed"]:
             raise RuntimeError("post-run consistency audit failed; see result-audit.json")
-        status = "completed_with_failures" if summary["candidate_failed"] else "completed"
+        status = "completed_with_failures" if summary["candidate_failed"] or summary.get("llm_informed",{}).get("error_iterations",0) else "completed"
         store.finish(status, summary)
         return {"run_directory": str(store.path), "run_kind": config["run_kind"], "status": status, "audit_passed": audit["passed"], **summary}
     except BaseException as exc:
@@ -302,11 +319,22 @@ def run_fixed_candidates(config: dict, output, candidates, *, mode: str, base_di
     if mode not in {"smoke", "recovery"} or not candidates:
         raise ValueError("fixed evaluation needs smoke/recovery mode and at least one explicit candidate")
     config = json.loads(json.dumps(config))
+    original_config = json.loads(json.dumps(config))
     original_hash = digest_value(config)
     config["optimization"]["llm_enabled"] = False
+    for name in ("llm_warm_start_enabled", "llm_gp_groups_enabled", "llm_informed_enabled"):
+        if name in config["optimization"]:
+            config["optimization"][name] = False
+    # Fixed candidate replay does not initialize or optimize. Keep the original
+    # provenance separately; no cached initialization plan is executed here.
+    for name in ("initial_candidates", "initial_candidates_source", "initial_candidates_evidence"):
+        config["optimization"].pop(name, None)
+    config["optimization"].update(warm_start_llm_points=0, sobol_points=2)
+    config["optimization"].pop("reuse_screening_history", None)
     report, prepared = prepare_experiment(config, base_dir=base_dir, archived_series=archived_series)
     store = RunStore(output, config, data_hashes=source_hashes or (prepared.input_hashes if prepared else {}), command=f"llmbo-para {mode} explicit-candidates")
     store.write_json("preflight.json", report)
+    store.write_json("original-config.json", original_config)
     store.write_json("execution-mode.json", {"mode": mode, "original_config_sha256": original_hash,
                                              "llm_calls": 0, "candidate_count": len(candidates)})
     if source_info:

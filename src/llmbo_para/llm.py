@@ -196,7 +196,12 @@ class LLMClient:
                 transport = copy(transport)
                 transport.store = store
         prompt_name = {"warm_start": "warm_start", "warm_start_select": "warm_start_select",
-                       "rate_parameter_groups": "parameter_groups"}[task]
+                       "rate_parameter_groups": "parameter_groups", "region_preference": "region_preference",
+                       "lengthscale_prior": "lengthscale_prior"}[task]
+        if task in {'warm_start','warm_start_select'} and self.context.get('initialization_policy') == 'quality_feedback':
+            prompt_name += '_quality'
+            if self.context.get('staged_screening',{}).get('policy') == 'two_complete_then_quality':
+                prompt_name = prompt_name.removesuffix('_quality') + '_staged'
         instructions = resources.files("llmbo_para").joinpath(f"prompts/{prompt_name}.txt").read_text(encoding="utf-8")
         payload = {**payload, "context": self.context, "instructions": instructions,
                    "prompt_sha256": hashlib.sha256(instructions.encode("utf-8")).hexdigest()}
@@ -211,7 +216,12 @@ class LLMClient:
             raise RuntimeError(f"LLM {task} failed ({type(exc).__name__}); transport error text omitted to protect credentials") from None
         if store:
             store.write_json(f"llm/{task}.response.json", response)
-        return self._content(response)
+        try:
+            return self._content(response)
+        except (ValueError, TypeError) as exc:
+            if store:
+                store.write_json(f"llm/{task}.error.json", {"error_type":type(exc).__name__, "stage":"content_decoding"})
+            raise ValueError("LLM content decoding failed; see archived response") from None
 
     @staticmethod
     def _content(response: Mapping) -> Mapping:
@@ -221,6 +231,44 @@ class LLMClient:
         if not isinstance(content, Mapping):
             raise ValueError("structured LLM response must be a JSON object")
         return content
+
+    def region_preference(self, space: ParameterSpace, records, *, iteration: int, settings):
+        """Bounded, per-iteration JSON requests; the same transport and archives.
+
+        A schema repair can repeat once. Transport failures are visible to the
+        optimizer, which falls back for that iteration rather than inventing a
+        region. A later iteration can try again with new observations.
+        """
+        from .informed import observation_summary, validate_region_response
+        if type(iteration) is not int or iteration < 0:
+            raise ValueError("region request iteration must be a nonnegative integer")
+        payload = {"task":"region_preference", "iteration":iteration,
+            "parameter_order":[s.name for s in space.specs], "units":[s.unit for s in space.specs],
+            "bounds":[[s.lower,s.upper] for s in space.specs], "transforms":[s.transform for s in space.specs],
+            "physical_constraints":{"negative_porosity":space.negative_porosity,"positive_porosity":space.positive_porosity},
+            "objective":"minimize the arithmetic mean of four complete measured-grid RMSEs (V)",
+            "observations":observation_summary(space, records),
+            "region_policy":{"min_width":settings.min_width,"max_width":settings.max_width},
+            "response_schema":{"kind":"region or none", "coordinate_space":"normalized", "lb":"six normalized numbers, region only",
+                "ub":"six normalized numbers, region only", "confidence":"number in [0,1]", "reason":"short rationale"}}
+        for attempt in range(1, 3):
+            prefix = f"informed-requests/iteration-{iteration:06d}/attempt-{attempt:03d}/"
+            self.last_region_request = {"iteration":iteration,"attempts":attempt,"archive_prefix":prefix,"valid_response":False}
+            response = self._request(payload, archive_prefix=prefix)
+            try:
+                validated = validate_region_response(response)
+                reason = None
+            except ValueError as exc:
+                reason = str(exc)
+            validation = {"valid_response":reason is None, "reason":reason}
+            if self.store:
+                self.store.write_json(prefix+"validation.json", validation)
+            if reason is None:
+                self.last_region_request["valid_response"] = True
+                return validated
+            payload = {**payload, "contract_repair":{"previous_response":response,"error":reason,
+                "instruction":"Correct the JSON schema only, or explicitly abstain using kind=none. Never invent missing parameter values."}}
+        raise ValueError("region JSON contract failed after two archived attempts")
 
     def warm_start(self, space: ParameterSpace, count: int = 10) -> tuple[tuple[float, ...], ...]:
         if count < 1:
@@ -270,6 +318,12 @@ class LLMClient:
             chosen.append(valid.pop(index))
         self.last_warm_statistics = {"received": len(candidates), "accepted_for_selection": len(chosen),
             "rejected_invalid_or_duplicate": len(rejected), "unused_diversity_or_limit": len(candidates)-len(rejected)-len(chosen)}
+        # Keep rejected numeric proposals available to bounded Agent feedback;
+        # older callers and the immutable accepted-file schema stay unchanged.
+        self.last_warm_rejections = [{**row, "parameters": candidates[row["index"]].get("parameters")
+            if isinstance(candidates[row["index"]], Mapping) else None} for row in rejected]
+        self.last_warm_rejections.extend({"parameters":list(point), "reason":"minimum_diversity_or_response_limit"}
+            for point in valid)
         if self.store:
             self.store.write_json("llm/warm_start.accepted.json", {"parameters": chosen, "original_indices": [original_indices[point] for point in chosen],
                 "rejections": rejected, "statistics": self.last_warm_statistics, "min_diversity_distance": self.min_diversity_distance})

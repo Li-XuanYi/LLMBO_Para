@@ -163,7 +163,12 @@ class PyBaMMSimulator:
             solve_settings["initial_soc"] = conditions["initial_soc"]
         from .evaluation import SimulationTrace, SimulationSolverError
         try:
-            solution = simulation.solve(**solve_settings)
+            if self.initial_state_mode == "explicit_soc":
+                from .pybamm_compat import electrode_soh_numpy_compat
+                with electrode_soh_numpy_compat():
+                    solution = simulation.solve(**solve_settings)
+            else:
+                solution = simulation.solve(**solve_settings)
         except Exception as exc:
             if isinstance(exc, getattr(pybamm, "SolverError", ())):
                 raise SimulationSolverError(str(exc), solver_error_type=type(exc).__name__) from exc

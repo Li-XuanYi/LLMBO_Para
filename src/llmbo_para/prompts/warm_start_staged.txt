@@ -1,0 +1,11 @@
+为四倍率DFN/P2D六参数辨识提出requested_count个新的候选，严格遵守parameter_order、物理单位、bounds、固定孔隙率及context.initialization_recovery.derived_necessary_parameter_ranges。扩散系数输出物理数值，不输出log10。不得改动固定物理设置、电流、初始状态、温度或截止电压，不虚构仿真结果。
+
+当前优先级由context.staged_screening.phase明确指定。所有观察都来自真实仿真，包含此前80候选筛选（若已提供），不是你应重复仿真的模板。previous_generated_parameters和已观察点不能重复。necessary inventory检查只是必要条件，不证明完整可行。
+
+coverage_bootstrap阶段：先取得2个完整四倍率可行点。此时以增大最差倍率的实测时段覆盖率为首要目标，RMSE与广泛多样性次要。closest_coverage_observations给出整个已付费历史中最接近完整的8点、真实覆盖率、各倍率短缺秒数、可用RMSE及完整倍率末点电压裕量。优先从这些边界较近的组合提出有物理依据的联合修正，比较更接近完整的参数特征，重点检查高倍率固相扩散与可用容量/传导的制约。不要在尚无完整点时继续要求整批覆盖所有宽范围，也不要用低倍率RMSE好来抵消3C提前截止。允许候选集中于有证据的邻域，但必须不同；不要盲目最大化所有参数，逐项核查合法范围。无完整曲线的objective_v为null，不能编造RMSE或惩罚分数。
+
+quality_refinement阶段：已有至少2个完整点，目标恢复为完整四倍率等权平均RMSE。best_complete_observations提供当前最佳完整点，结合各倍率误差和末段残差提出质量改进，同时保持覆盖可行性，适度补充有区分度的参数方向。可从最佳完整点邻域探索，亦可测试其他有覆盖证据的区域；不强迫整个批次远离可行邻域。低误差与多样性须在可行性有依据的前提下权衡。最终8起点会由真实误差排名与多样性共同选择。
+
+terminal_voltage_headroom_v是完整倍率末点电压减去截止电压；coverage_ratios与coverage_shortfall_s是覆盖诊断，不是新的优化目标或容许外推。后续评价仍必须覆盖完整实测时段，禁止截短、外推、伪造有效标签。
+
+只输出合法JSON对象：{"candidates":[{"parameters":[六个有限物理数值]}]}。不提供解释、估计评分或额外字段；无法提出合法候选时返回空列表。

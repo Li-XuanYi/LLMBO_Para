@@ -1,0 +1,21 @@
+{
+  "method": "agent_rejection",
+  "experiment_config": "21700-4gp-linear-completion.json",
+  "max_candidates": 20,
+  "initial_valid_target": 8,
+  "generation_batch_size": 4,
+  "max_generation_requests": 5,
+  "feedback_plan": "../runs/agent-rejection/20261015T063650Z_09a097fc03df_de76db22/initial-plan.json",
+  "success_examples": [
+    {
+      "record_path": "../runs/parameter-profiles/20261014T072130Z_a7426e0ad9d7_861b1c0e/cases/fixed-state-baseline-replay/20261014T072132Z_85d8cdb85d2b_5e816718/attempts/candidate-000000-attempt-001.json",
+      "sha256": "9791165d11ca18cedf95dbca503b201ab9ecb4b4ecf5628026441f131be97271"
+    },
+    {
+      "record_path": "../runs/parameter-profiles/20261014T072130Z_a7426e0ad9d7_861b1c0e/cases/fixed-state-negative-fast-replay/20261014T072143Z_85d8cdb85d2b_2b28c5c0/attempts/candidate-000000-attempt-001.json",
+      "sha256": "c7c90752be8e8723548c71a7ef1e9344674d7c0876b9a2651f1b57df7f6628ef"
+    }
+  ],
+  "bo_iterations": 0,
+  "proxy": "http://127.0.0.1:7897"
+}
