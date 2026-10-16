@@ -1,0 +1,725 @@
+{
+  "snapshot_commit": "a5d298d2359eb6f3948ce6a33938029114882ae9",
+  "source_file_count": 177,
+  "main_source_mismatch": [],
+  "worktree_baseline_mismatch": [],
+  "original_index_sha256_unchanged": true,
+  "attachment": {
+    "path": "D:/DOC/Codex_LLMBO_MO_Electrothermal_Refactor.md",
+    "sha256": "7e8491db55d064eee3c058ade953a84317ed71e43de20d738ce731a8ecece132"
+  },
+  "reference_source_sha256": {
+    "llmbo/scalarization.py": "aa4bea9b293382365a743cef8de301e3216a30a98030a6d1200ef388e3ecdbb0",
+    "llmbo/optimizer.py": "5911b3941fb23688901ec4dff94bedb293f2ff85953cf41e59739be93987bf40",
+    "llmbo/gp_model.py": "0534cc2c23c8094029875abaf4b750e27ca8753c9ea9d65afab7409cd007a786",
+    "llmbo/acquisition.py": "cde3d022c583810656ea1967fc8740cf789367f3b7922a9f5d650a734ad83863",
+    "llmbo/region_lifted_gp.py": "5faca6ee4870d82f978c5c0f6d04b2f520ed3b919eda4dbb8442c65004cb7c1d",
+    "llmbo/warmstart_selector.py": "0b7561d6683e790567393f09c998c8f1bc1c5eccdf2eca9d8720f0f85aa06991",
+    "llm/region_prompt.py": "7bf92b07e39facadbf262b3967bb0f45ca567efece830a7e7e70bae335438402",
+    "llm/llm_interface.py": "b7456bd05d0932e22e830ec3acd87740fd18e46c830b86c9dfee501ebeb601a8",
+    "DataBase/database.py": "c61f2f22c2cf34fac16cd3c4690d43a0c302aa168c1a58eec6d33f56e4617b1b"
+  },
+  "locks": {
+    "requirements-py312.lock": {
+      "sha256": "ab81ed55c47c841d47b8799f931df77278e92747608cd97c67136265e9915753",
+      "packages": [
+        {
+          "package": "numpy",
+          "locked": "2.5.3",
+          "installed": "2.5.3",
+          "matches": true
+        },
+        {
+          "package": "openpyxl",
+          "locked": "3.1.5",
+          "installed": "3.1.5",
+          "matches": true
+        },
+        {
+          "package": "et_xmlfile",
+          "locked": "2.0.0",
+          "installed": "2.0.0",
+          "matches": true
+        }
+      ]
+    },
+    "requirements-research.lock": {
+      "sha256": "407701ab29bdb68c9e85b4130128b415880395a7397a0dad3fa7e468652055ec",
+      "packages": [
+        {
+          "package": "anytree",
+          "locked": "2.13.0",
+          "installed": "2.13.0",
+          "matches": true
+        },
+        {
+          "package": "backoff",
+          "locked": "2.2.1",
+          "installed": "2.2.1",
+          "matches": true
+        },
+        {
+          "package": "black",
+          "locked": "26.10.1",
+          "installed": "26.10.1",
+          "matches": true
+        },
+        {
+          "package": "casadi",
+          "locked": "3.6.7",
+          "installed": "3.6.7",
+          "matches": true
+        },
+        {
+          "package": "certifi",
+          "locked": "2026.7.22",
+          "installed": "2026.7.22",
+          "matches": true
+        },
+        {
+          "package": "charset-normalizer",
+          "locked": "3.5.2",
+          "installed": "3.5.2",
+          "matches": true
+        },
+        {
+          "package": "click",
+          "locked": "8.5.0",
+          "installed": "8.5.0",
+          "matches": true
+        },
+        {
+          "package": "contourpy",
+          "locked": "1.4.0",
+          "installed": "1.4.0",
+          "matches": true
+        },
+        {
+          "package": "cycler",
+          "locked": "0.12.1",
+          "installed": "0.12.1",
+          "matches": true
+        },
+        {
+          "package": "distro",
+          "locked": "1.9.0",
+          "installed": "1.9.0",
+          "matches": true
+        },
+        {
+          "package": "et_xmlfile",
+          "locked": "2.0.0",
+          "installed": "2.0.0",
+          "matches": true
+        },
+        {
+          "package": "fonttools",
+          "locked": "4.66.1",
+          "installed": "4.66.1",
+          "matches": true
+        },
+        {
+          "package": "idna",
+          "locked": "3.20",
+          "installed": "3.20",
+          "matches": true
+        },
+        {
+          "package": "kiwisolver",
+          "locked": "1.5.1",
+          "installed": "1.5.1",
+          "matches": true
+        },
+        {
+          "package": "matplotlib",
+          "locked": "3.11.2",
+          "installed": "3.11.2",
+          "matches": true
+        },
+        {
+          "package": "mpmath",
+          "locked": "1.3.0",
+          "installed": "1.3.0",
+          "matches": true
+        },
+        {
+          "package": "mypy_extensions",
+          "locked": "1.1.0",
+          "installed": "1.1.0",
+          "matches": true
+        },
+        {
+          "package": "numpy",
+          "locked": "2.5.3",
+          "installed": "2.5.3",
+          "matches": true
+        },
+        {
+          "package": "openpyxl",
+          "locked": "3.1.5",
+          "installed": "3.1.5",
+          "matches": true
+        },
+        {
+          "package": "packaging",
+          "locked": "26.3",
+          "installed": "26.3",
+          "matches": true
+        },
+        {
+          "package": "pandas",
+          "locked": "3.0.6",
+          "installed": "3.0.6",
+          "matches": true
+        },
+        {
+          "package": "pathspec",
+          "locked": "1.1.1",
+          "installed": "1.1.1",
+          "matches": true
+        },
+        {
+          "package": "pillow",
+          "locked": "12.3.0",
+          "installed": "12.3.0",
+          "matches": true
+        },
+        {
+          "package": "platformdirs",
+          "locked": "4.12.4",
+          "installed": "4.12.4",
+          "matches": true
+        },
+        {
+          "package": "pooch",
+          "locked": "1.9.0",
+          "installed": "1.9.0",
+          "matches": true
+        },
+        {
+          "package": "posthog",
+          "locked": "7.67.0",
+          "installed": "7.67.0",
+          "matches": true
+        },
+        {
+          "package": "pybamm",
+          "locked": "25.10.2",
+          "installed": "25.10.2",
+          "matches": true
+        },
+        {
+          "package": "pybammsolvers",
+          "locked": "0.3.3",
+          "installed": "0.3.3",
+          "matches": true
+        },
+        {
+          "package": "pyparsing",
+          "locked": "3.3.3",
+          "installed": "3.3.3",
+          "matches": true
+        },
+        {
+          "package": "python-dateutil",
+          "locked": "2.9.0.post0",
+          "installed": "2.9.0.post0",
+          "matches": true
+        },
+        {
+          "package": "pytokens",
+          "locked": "0.4.1",
+          "installed": "0.4.1",
+          "matches": true
+        },
+        {
+          "package": "PyYAML",
+          "locked": "6.0.3",
+          "installed": "6.0.3",
+          "matches": true
+        },
+        {
+          "package": "requests",
+          "locked": "2.34.2",
+          "installed": "2.34.2",
+          "matches": true
+        },
+        {
+          "package": "scipy",
+          "locked": "1.18.1",
+          "installed": "1.18.1",
+          "matches": true
+        },
+        {
+          "package": "six",
+          "locked": "1.17.0",
+          "installed": "1.17.0",
+          "matches": true
+        },
+        {
+          "package": "sympy",
+          "locked": "1.14.0",
+          "installed": "1.14.0",
+          "matches": true
+        },
+        {
+          "package": "typing_extensions",
+          "locked": "4.16.0",
+          "installed": "4.16.0",
+          "matches": true
+        },
+        {
+          "package": "tzdata",
+          "locked": "2026.5",
+          "installed": "2026.5",
+          "matches": true
+        },
+        {
+          "package": "urllib3",
+          "locked": "2.8.0",
+          "installed": "2.8.0",
+          "matches": true
+        },
+        {
+          "package": "xarray",
+          "locked": "2026.9.0",
+          "installed": "2026.9.0",
+          "matches": true
+        }
+      ]
+    },
+    "requirements-test.lock": {
+      "sha256": "64225c52c088659c5998024f68f4103d9d3170441ffcfbb63a49f4244de4c74f",
+      "packages": [
+        {
+          "package": "pytest",
+          "locked": "8.4.2",
+          "installed": "8.4.2",
+          "matches": true
+        },
+        {
+          "package": "pluggy",
+          "locked": "1.6.0",
+          "installed": "1.6.0",
+          "matches": true
+        },
+        {
+          "package": "iniconfig",
+          "locked": "2.3.1",
+          "installed": "2.3.1",
+          "matches": true
+        },
+        {
+          "package": "packaging",
+          "locked": "26.3",
+          "installed": "26.3",
+          "matches": true
+        },
+        {
+          "package": "pygments",
+          "locked": "2.21.0",
+          "installed": "2.21.0",
+          "matches": true
+        },
+        {
+          "package": "colorama",
+          "locked": "0.4.6",
+          "installed": "0.4.6",
+          "matches": true
+        }
+      ]
+    }
+  },
+  "baseline_attempts": [
+    {
+      "attempt": 1,
+      "suite": {
+        "name": "pytest",
+        "errors": "56",
+        "failures": "2",
+        "skipped": "0",
+        "tests": "215",
+        "time": "212.917",
+        "timestamp": "2026-10-16T15:00:24.431321+08:00",
+        "hostname": "SCP"
+      },
+      "xml_sha256": "9c93bdc02cf16a0b347ca10a368183d3694c7b9639fd21f5c1e72569b64f3f00",
+      "log_sha256": "23ac7cbe366583df7d33dc4773af29519fed145ccdf47b504d8ac63dd7d4fd2e",
+      "failures": [
+        {
+          "name": "test_full_offline_workflow_is_auditable_and_deterministic[settings0]",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_full_offline_workflow_is_auditable_and_deterministic[settings1]",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_cold_start_workflow_archives_fallback_until_all_rate_gps_are_ready",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_learned_completion_workflow_scores_reproduce_after_both_classes_arrive",
+          "message": "OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries"
+        },
+        {
+          "name": "test_formal_and_oversized_smoke_are_blocked_before_run_creation",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_runner_preserves_configured_numeric_tuning_without_contaminating_arms",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_current_code_initial_cache_is_solved_once_and_reused_by_all_variants",
+          "message": "OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries"
+        },
+        {
+          "name": "test_fixed_candidate_run_archives_enabled_inventory_gate_and_audits_its_values",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_new_workflow_deep_audit_rejects_tampered_standardization",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_full_workflow_archives_all_calls_fallbacks_and_replays[region]",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_full_workflow_archives_all_calls_fallbacks_and_replays[repair]",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_full_workflow_archives_all_calls_fallbacks_and_replays[none]",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_full_workflow_archives_all_calls_fallbacks_and_replays[invalid]",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_full_workflow_archives_all_calls_fallbacks_and_replays[error]",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_full_workflow_archives_all_calls_fallbacks_and_replays[malformed_content]",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_disabled_module_and_abstention_match_plain_single_gp",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_fixed_candidate_replay_disables_informed_without_credentials",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_one_request_all_fixed_proposals_scored_and_surplus_history_reused",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_infeasible_fixed_design_stops_without_refill_and_preserves_all_paid_curves",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_wrong_generation_count_fails_before_any_DFN_and_never_repairs_request",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_prompt_only_cannot_resume_old_feedback_or_paid_records",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_inventory_reject_consumes_submission_without_refill",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_real_client_uses_original_prompt_once_without_observation_feedback",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_refills_legal_pool_and_transmits_real_scores_before_next_selection",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_quality_selection_preserves_best_and_all_valid_history_is_reused",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_insufficient_pool_never_becomes_select_all_or_random_fallback",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_extra_valid_records_require_reproducible_quality_selection",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_quality_resume_retains_paid_records_pending_pool_and_quality_feedback",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_two_point_checkpoint_contains_both_quality_record_sources",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_invalid_inventory_cutoff_and_duplicate_feedback_reach_next_request",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_raw_invalid_points_consume_candidate_budget_without_DFN_or_extra_API",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_empty_responses_stop_at_request_cap_even_when_no_candidates_generated",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_success_stops_immediately_without_spending_remaining_budget",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_schema_rejection_is_archived_and_returned_within_same_API_cap",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_prior_failed_plan_is_verified_and_used_as_feedback_without_replaying_DFN",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_tampered_prior_feedback_record_fails_before_request_or_DFN",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_second_continuation_keeps_inherited_rejections_successes_and_all_costs",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_positive_reference_is_context_only_and_does_not_preseed_or_rerun",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_copied_positive_reference_is_rejected_instead_of_counted_as_new_seed",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_incomplete_positive_reference_cannot_be_supplied_as_success",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_tampered_ancestor_plan_is_rejected_before_new_request",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_rounded_near_copy_of_reference_is_not_a_new_initial_point",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_partial_history_trains_rates_and_classifier_without_extra_solves",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_history_recalculates_labels_even_if_file_hash_is_new",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_history_missing_attempt_or_wrong_cost_fails_closed",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_history_can_be_empty_and_does_not_duplicate_initial_points",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_history_pool_continuation_is_cached_and_requires_no_llm",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_history_follows_resumed_screening_lineage",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_history_configuration_is_explicit[no_plan]",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_history_configuration_is_explicit[single]",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_history_configuration_is_explicit[complete]",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_history_configuration_is_explicit[not_bool]",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_imported_failures_activate_weighting_and_decisions_replay",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_scalar_run_and_deep_audit_detect_altered_target_and_ei",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_staged_context_exposes_actual_coverage_and_switches_after_two_complete",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_phase_change_refreshes_untried_pool_and_preserves_rejection_evidence",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_followup_retains_paid_records_and_honors_incremental_candidate_cap",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        },
+        {
+          "name": "test_staged_prompt_is_separate_and_meets_json_provider_contract",
+          "message": "failed on setup with \"OSError: could not create numbered dir with prefix pytest- in C:\\Users\\aa133\\AppData\\Local\\Packages\\sandbox.{d9fc288e-a38a-4d19-a85a-ae8059ed65d3}\\AC\\Temp\\pytest-of-aa133 after 10 tries\""
+        }
+      ]
+    },
+    {
+      "attempt": 2,
+      "suite": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "25",
+        "skipped": "0",
+        "tests": "215",
+        "time": "452.353",
+        "timestamp": "2026-10-16T15:06:26.941586+08:00",
+        "hostname": "SCP"
+      },
+      "xml_sha256": "a156adcf23361e7d7ceb62a945821ee8607205a62a84b8e03cfe1d1418ce9f61",
+      "log_sha256": "b163abb4c44ddd5f2e006f3bc752ccabbf7744f37d24fbc733c4573f63b75128",
+      "failures": [
+        {
+          "name": "test_full_offline_workflow_is_auditable_and_deterministic[settings0]",
+          "message": "FileNotFoundError: [WinError 3] 系统找不到指定的路径。"
+        },
+        {
+          "name": "test_full_offline_workflow_is_auditable_and_deterministic[settings1]",
+          "message": "FileNotFoundError: [WinError 3] 系统找不到指定的路径。"
+        },
+        {
+          "name": "test_full_workflow_archives_all_calls_fallbacks_and_replays[region]",
+          "message": "llmbo_para.workflow.ExperimentFailure: [Errno 2] No such file or directory: 'D:\\\\Users\\\\aa133\\\\Desktop\\\\LLMBO_Para\\\\bo-repair-work\\\\20261016_electrothermal_refactor_preparation\\\\pytest-temp-02\\\\test_full_workflow_archives_al0\\\\20261016T071003Z_7b314d5433eb_a5ca4a06\\\\informed-requests\\\\iteration-000000\\\\attempt-001\\\\llm\\\\region_preference.request.json'"
+        },
+        {
+          "name": "test_full_workflow_archives_all_calls_fallbacks_and_replays[repair]",
+          "message": "llmbo_para.workflow.ExperimentFailure: [Errno 2] No such file or directory: 'D:\\\\Users\\\\aa133\\\\Desktop\\\\LLMBO_Para\\\\bo-repair-work\\\\20261016_electrothermal_refactor_preparation\\\\pytest-temp-02\\\\test_full_workflow_archives_al1\\\\20261016T071007Z_7b314d5433eb_110f3ef8\\\\informed-requests\\\\iteration-000000\\\\attempt-001\\\\llm\\\\region_preference.request.json'"
+        },
+        {
+          "name": "test_full_workflow_archives_all_calls_fallbacks_and_replays[none]",
+          "message": "llmbo_para.workflow.ExperimentFailure: [Errno 2] No such file or directory: 'D:\\\\Users\\\\aa133\\\\Desktop\\\\LLMBO_Para\\\\bo-repair-work\\\\20261016_electrothermal_refactor_preparation\\\\pytest-temp-02\\\\test_full_workflow_archives_al2\\\\20261016T071011Z_7b314d5433eb_023a1dcd\\\\informed-requests\\\\iteration-000000\\\\attempt-001\\\\llm\\\\region_preference.request.json'"
+        },
+        {
+          "name": "test_full_workflow_archives_all_calls_fallbacks_and_replays[invalid]",
+          "message": "llmbo_para.workflow.ExperimentFailure: [Errno 2] No such file or directory: 'D:\\\\Users\\\\aa133\\\\Desktop\\\\LLMBO_Para\\\\bo-repair-work\\\\20261016_electrothermal_refactor_preparation\\\\pytest-temp-02\\\\test_full_workflow_archives_al3\\\\20261016T071015Z_7b314d5433eb_98e86672\\\\informed-requests\\\\iteration-000000\\\\attempt-001\\\\llm\\\\region_preference.request.json'"
+        },
+        {
+          "name": "test_full_workflow_archives_all_calls_fallbacks_and_replays[error]",
+          "message": "llmbo_para.workflow.ExperimentFailure: [Errno 2] No such file or directory: 'D:\\\\Users\\\\aa133\\\\Desktop\\\\LLMBO_Para\\\\bo-repair-work\\\\20261016_electrothermal_refactor_preparation\\\\pytest-temp-02\\\\test_full_workflow_archives_al4\\\\20261016T071020Z_7b314d5433eb_981e61e5\\\\informed-requests\\\\iteration-000000\\\\attempt-001\\\\llm\\\\region_preference.request.json'"
+        },
+        {
+          "name": "test_full_workflow_archives_all_calls_fallbacks_and_replays[malformed_content]",
+          "message": "llmbo_para.workflow.ExperimentFailure: [Errno 2] No such file or directory: 'D:\\\\Users\\\\aa133\\\\Desktop\\\\LLMBO_Para\\\\bo-repair-work\\\\20261016_electrothermal_refactor_preparation\\\\pytest-temp-02\\\\test_full_workflow_archives_al5\\\\20261016T071023Z_7b314d5433eb_f550fe64\\\\informed-requests\\\\iteration-000000\\\\attempt-001\\\\llm\\\\region_preference.request.json'"
+        },
+        {
+          "name": "test_disabled_module_and_abstention_match_plain_single_gp",
+          "message": "llmbo_para.workflow.ExperimentFailure: [Errno 2] No such file or directory: 'D:\\\\Users\\\\aa133\\\\Desktop\\\\LLMBO_Para\\\\bo-repair-work\\\\20261016_electrothermal_refactor_preparation\\\\pytest-temp-02\\\\test_disabled_module_and_abste0\\\\none\\\\20261016T071031Z_7b314d5433eb_fa8670a1\\\\informed-requests\\\\iteration-000000\\\\attempt-001\\\\llm\\\\region_preference.request.json'"
+        },
+        {
+          "name": "test_quality_resume_retains_paid_records_pending_pool_and_quality_feedback",
+          "message": "FileNotFoundError: [WinError 3] 系统找不到指定的路径。"
+        },
+        {
+          "name": "test_invalid_inventory_cutoff_and_duplicate_feedback_reach_next_request",
+          "message": "FileNotFoundError: [WinError 3] 系统找不到指定的路径。"
+        },
+        {
+          "name": "test_raw_invalid_points_consume_candidate_budget_without_DFN_or_extra_API",
+          "message": "FileNotFoundError: [WinError 3] 系统找不到指定的路径。"
+        },
+        {
+          "name": "test_empty_responses_stop_at_request_cap_even_when_no_candidates_generated",
+          "message": "FileNotFoundError: [WinError 3] 系统找不到指定的路径。"
+        },
+        {
+          "name": "test_success_stops_immediately_without_spending_remaining_budget",
+          "message": "FileNotFoundError: [WinError 3] 系统找不到指定的路径。"
+        },
+        {
+          "name": "test_schema_rejection_is_archived_and_returned_within_same_API_cap",
+          "message": "FileNotFoundError: [WinError 3] 系统找不到指定的路径。"
+        },
+        {
+          "name": "test_prior_failed_plan_is_verified_and_used_as_feedback_without_replaying_DFN",
+          "message": "FileNotFoundError: [WinError 3] 系统找不到指定的路径。"
+        },
+        {
+          "name": "test_second_continuation_keeps_inherited_rejections_successes_and_all_costs",
+          "message": "FileNotFoundError: [WinError 3] 系统找不到指定的路径。"
+        },
+        {
+          "name": "test_positive_reference_is_context_only_and_does_not_preseed_or_rerun",
+          "message": "FileNotFoundError: [WinError 3] 系统找不到指定的路径。"
+        },
+        {
+          "name": "test_copied_positive_reference_is_rejected_instead_of_counted_as_new_seed",
+          "message": "FileNotFoundError: [WinError 3] 系统找不到指定的路径。"
+        },
+        {
+          "name": "test_incomplete_positive_reference_cannot_be_supplied_as_success",
+          "message": "FileNotFoundError: [WinError 3] 系统找不到指定的路径。"
+        },
+        {
+          "name": "test_tampered_ancestor_plan_is_rejected_before_new_request",
+          "message": "FileNotFoundError: [WinError 3] 系统找不到指定的路径。"
+        },
+        {
+          "name": "test_rounded_near_copy_of_reference_is_not_a_new_initial_point",
+          "message": "FileNotFoundError: [WinError 3] 系统找不到指定的路径。"
+        },
+        {
+          "name": "test_history_pool_continuation_is_cached_and_requires_no_llm",
+          "message": "FileNotFoundError: [WinError 3] 系统找不到指定的路径。"
+        },
+        {
+          "name": "test_history_follows_resumed_screening_lineage",
+          "message": "FileNotFoundError: [WinError 3] 系统找不到指定的路径。"
+        },
+        {
+          "name": "test_followup_retains_paid_records_and_honors_incremental_candidate_cap",
+          "message": "FileNotFoundError: [WinError 3] 系统找不到指定的路径。"
+        }
+      ]
+    },
+    {
+      "attempt": 3,
+      "suite": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "215",
+        "time": "581.885",
+        "timestamp": "2026-10-16T15:16:04.639131+08:00",
+        "hostname": "SCP"
+      },
+      "xml_sha256": "68ce755eac894c9f48c52ece1eeb58633ccb4fea867c06dc2bc3a4b41c1d1276",
+      "log_sha256": "147849a440b5aadfadd2609b2d4053254cc858495b9a4781d9c56a4ece261d8e",
+      "failures": []
+    }
+  ],
+  "constraints": {
+    "workers": 1,
+    "blas_threads": 1,
+    "paid_api_requests": 0,
+    "new_electrothermal_DFN_runs": 0,
+    "real_experiment_runs": 0,
+    "codegraph_initialization": "deferred_by_user_2026-10-16"
+  }
+}
