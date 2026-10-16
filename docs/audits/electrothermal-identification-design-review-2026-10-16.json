@@ -1,0 +1,97 @@
+{
+  "review": "R1; document review only, no product tests rerun",
+  "baseline": [
+    {
+      "attempt": 1,
+      "suite": {
+        "name": "pytest",
+        "errors": "56",
+        "failures": "2",
+        "skipped": "0",
+        "tests": "215",
+        "time": "212.917",
+        "timestamp": "2026-10-16T15:00:24.431321+08:00",
+        "hostname": "SCP"
+      },
+      "exit_code": 1,
+      "log_path": "D:\\Users\\aa133\\Desktop\\LLMBO_Para\\bo-repair-work\\20261016_electrothermal_refactor_preparation\\baseline-pytest.log",
+      "junit_path": "D:\\Users\\aa133\\Desktop\\LLMBO_Para\\bo-repair-work\\20261016_electrothermal_refactor_preparation\\baseline-junit.xml",
+      "log_sha256": "23ac7cbe366583df7d33dc4773af29519fed145ccdf47b504d8ac63dd7d4fd2e",
+      "junit_sha256": "9c93bdc02cf16a0b347ca10a368183d3694c7b9639fd21f5c1e72569b64f3f00",
+      "hashes_match_archive": true
+    },
+    {
+      "attempt": 2,
+      "suite": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "25",
+        "skipped": "0",
+        "tests": "215",
+        "time": "452.353",
+        "timestamp": "2026-10-16T15:06:26.941586+08:00",
+        "hostname": "SCP"
+      },
+      "exit_code": 1,
+      "log_path": "D:\\Users\\aa133\\Desktop\\LLMBO_Para\\bo-repair-work\\20261016_electrothermal_refactor_preparation\\baseline-02-pytest.log",
+      "junit_path": "D:\\Users\\aa133\\Desktop\\LLMBO_Para\\bo-repair-work\\20261016_electrothermal_refactor_preparation\\baseline-02-junit.xml",
+      "log_sha256": "b163abb4c44ddd5f2e006f3bc752ccabbf7744f37d24fbc733c4573f63b75128",
+      "junit_sha256": "a156adcf23361e7d7ceb62a945821ee8607205a62a84b8e03cfe1d1418ce9f61",
+      "hashes_match_archive": true
+    },
+    {
+      "attempt": 3,
+      "suite": {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "0",
+        "tests": "215",
+        "time": "581.885",
+        "timestamp": "2026-10-16T15:16:04.639131+08:00",
+        "hostname": "SCP"
+      },
+      "exit_code": 0,
+      "log_path": "D:\\Users\\aa133\\Desktop\\LLMBO_Para\\bo-repair-work\\20261016_electrothermal_refactor_preparation\\baseline-03-pytest.log",
+      "junit_path": "D:\\Users\\aa133\\Desktop\\LLMBO_Para\\bo-repair-work\\20261016_electrothermal_refactor_preparation\\baseline-03-junit.xml",
+      "log_sha256": "147849a440b5aadfadd2609b2d4053254cc858495b9a4781d9c56a4ece261d8e",
+      "junit_sha256": "68ce755eac894c9f48c52ece1eeb58633ccb4fea867c06dc2bc3a4b41c1d1276",
+      "hashes_match_archive": true
+    }
+  ],
+  "protected_source_files": 177,
+  "main_source_mismatch": [],
+  "worktree_source_mismatch": [],
+  "main_index_bytes_unchanged": true,
+  "detailed_plan_exists": false,
+  "design_arithmetic": {
+    "labels_w_08_02": [
+      0.8600000000000002,
+      1.6900000000000004
+    ],
+    "labels_w_02_08": [
+      1.6900000000000002,
+      0.8600000000000001
+    ],
+    "balanced_quality": {
+      "A": 1.075,
+      "B": 1.075,
+      "D": 1.075,
+      "C": 1.65
+    },
+    "warmstart_orders_over_24_input_permutations": [
+      [
+        "A",
+        "B"
+      ]
+    ],
+    "frozen_context_improvement_below_history_min": 0.4350000000000001,
+    "passed": true
+  },
+  "costs_this_review": {
+    "DFN_solver_calls": 0,
+    "paid_API_requests": 0,
+    "real_BO_runs": 0,
+    "server_tasks": 0
+  }
+}

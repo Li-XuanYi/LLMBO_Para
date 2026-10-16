@@ -26,6 +26,18 @@
 
 最终退出码：0。每轮保留原始pytest日志、JUnit与退出码；未删除失败记录，也未引用历史136/113项代替当前结果。未对失败测试进行静默跳过。第一次临时目录问题与第二次路径长度问题通过调整测试运行目录解决；没有更改产品行为或测试预期。
 
+### 最终证据的可访问路径与失败分类（设计审阅补充）
+
+最终数量：测试215、通过215、失败0、错误0、跳过0，退出码0。控制台耗时581.98 s，JUnit suite耗时581.885 s；两个计时边界不同。R1设计审阅重新解析JUnit并核对日志/JUnit与已归档SHA-256均一致，未重跑或覆盖原证据。
+
+- 日志：[baseline-03-pytest.log](D:/Users/aa133/Desktop/LLMBO_Para/bo-repair-work/20261016_electrothermal_refactor_preparation/baseline-03-pytest.log)。
+- JUnit：[baseline-03-junit.xml](D:/Users/aa133/Desktop/LLMBO_Para/bo-repair-work/20261016_electrothermal_refactor_preparation/baseline-03-junit.xml)。
+- 退出码：[baseline-03-exit-code.txt](D:/Users/aa133/Desktop/LLMBO_Para/bo-repair-work/20261016_electrothermal_refactor_preparation/baseline-03-exit-code.txt)。
+- 首轮日志/JUnit/退出码：同目录baseline-pytest.log、baseline-junit.xml、baseline-exit-code.txt，退出码1。
+- 第二轮日志/JUnit/退出码：同目录baseline-02-pytest.log、baseline-02-junit.xml、baseline-02-exit-code.txt，退出码1。
+
+失败分类：首轮属于运行环境临时目录创建问题；第二轮由长测试路径触发现有Windows归档路径处理限制，属于环境触发的既有限制，尚未修复通用长路径支持。最终短路径回归的既有功能失败0，本轮引入的产品代码失败0（无产品代码变更）。这不意味着所有既有缺陷已被排除；前两次失败不能删除或合并成“从未失败”。
+
 第三轮复现命令：使用主目录 `.venv-pybamm312/Scripts/python.exe -X utf8 -B -m pytest tests -q --basetemp bo-repair-work/3 --junitxml <新的证据路径>`。重复运行必须选择新的临时目录与证据文件，避免pytest清理已有basetemp。启动前设置OMP/OPENBLAS/MKL/NUMEXPR线程为1、关闭遥测，TEMP/TMP指向工程内独立目录；这些仅作用于测试进程。
 
 长临时路径下的归档限制仍存在，本轮通过短测试目录取得有效基线，没有实现通用Windows长路径支持；后续阶段也需沿用独立短路径。
@@ -49,6 +61,8 @@ Python3.12.10、PyBaMM25.10.2、NumPy2.5.3、SciPy1.18.1、CasADi3.6.7、pybamms
 迁移表：docs/audits/electrothermal-identification-migration-2026-10-16.md。
 
 审批节点：superpowers:brainstorming要求“the human partner reviews and approves the written spec”，之后才进入writing-plans；用户和附件也要求遵循已有审批节点。因此详细实施计划docs/superpowers/plans/2026-10-16-electrothermal-identification-plan.md尚未生成，当前阶段提案不冒充已批准计划。待用户审阅设计后生成详细计划并按流程确认，再分阶段实施。
+
+2026-10-16设计审阅状态更新：用户认可A→B→C方向及运行边界，要求先补齐书面设计再确认。本次R1只更新设计契约、验收分类和证据指引，未生成详细实施计划、未开始阶段A。先由用户确认修订设计，再生成明确文件/接口/测试/交付的详细计划；计划审批后才实现。
 
 尚未实现或验证：新电热评价器、数值MOBO、双目标LLM、双目标归档审计、synthetic配置/研究模板/运行入口及其新测试。计划完整覆盖这些交付；本报告不宣称工程改造已完成。
 
