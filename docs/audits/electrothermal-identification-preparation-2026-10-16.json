@@ -721,5 +721,14 @@
     "new_electrothermal_DFN_runs": 0,
     "real_experiment_runs": 0,
     "codegraph_initialization": "deferred_by_user_2026-10-16"
+  },
+  "final_workspace_check": {
+    "main_head_unchanged": true,
+    "new_status_entries": [],
+    "removed_status_entry_count": 171,
+    "removed_status_roots": [
+      "tmp7qmqaq7l"
+    ],
+    "note": "The status captured during baseline 01 included its newly created tmp7qmqaq7l directory. TemporaryDirectory cleaned its own directory after that test. All 177 protected file hashes and original index bytes remain unchanged."
   }
 }
