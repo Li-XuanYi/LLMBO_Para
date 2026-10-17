@@ -63,3 +63,14 @@ def test_analytic_cooling_heat_capacity_and_equilibrium():
     assert analytic_lumped_temperature([0,10],40,.1,310,300,0)==pytest.approx([310,300+10*np.exp(-.1*10/40)])
     assert analytic_lumped_temperature([0,10],40,.1,310,300,1)==pytest.approx([310,310])
     assert analytic_lumped_temperature([10],80,.1,310,300,0)[0]>analytic_lumped_temperature([10],40,.1,310,300,0)[0]
+
+
+def test_native_cost_counts_actual_solve_not_preparation_attempt():
+    from llmbo_para.electrothermal_evaluation import ElectrothermalEvaluator
+    from llmbo_para.electrothermal_synthetic import make_synthetic_dataset
+    class PreprocessFailure:
+        backend_kind='dfn';native_solver_calls=0
+        def simulate(self,p,case):raise ValueError('parameter processing failed before actual solve')
+    sp=parameter_space_from_config(et_config())
+    result=ElectrothermalEvaluator(sp,PreprocessFailure(),fit_rates=R3).evaluate(sp.denormalize([.5]*6),make_synthetic_dataset(R3))
+    assert result.costs['solver_calls']==0 and result.objectives is None

@@ -12,7 +12,7 @@
 
 ## 审批与当前状态
 
-Stage 0检查基点0e01af26b3fac8a6754165421d0eca3b0b4dab9e，分支codex/electrothermal-mo-20261016，工作树C:/Users/aa133/.codex/worktrees/electrothermal-refactor/LLMBO_Para。最新已有提交只增加Method，当前无电热模块、无此前正式计划。保护提交a5d298d及主目录用户修改保留。本计划是待审批交付；以下清单全部未执行。
+Stage 0检查基点0e01af26b3fac8a6754165421d0eca3b0b4dab9e，分支codex/electrothermal-mo-20261016，工作树C:/Users/aa133/.codex/worktrees/electrothermal-refactor/LLMBO_Para。最新已有提交只增加Method，当前无电热模块、无此前正式计划。保护提交a5d298d及主目录用户修改保留。本计划已获用户明确批准；Stage A软件验收完成（255/255），B/C顺序继续；真实物理/实测验收另按预算和数据门槛执行。
 
 2026-10-16的215通过/退出码0是已有基线证据，不能当作本次Stage 0或后续阶段的新测试结果。Stage 0只核查和修订文档。批准后A0重跑当前全量回归，再写新增失败测试。
 
@@ -84,10 +84,10 @@ function Check-ET($label, [string[]]$targets) {
 **Files:** 只读现有src/tests/configs/锁文件；新证据docs/audits/electrothermal-stage-a-2026-10-17.md（或实际完成日期）。
 **Interfaces:** 输入当前分支/保护清单；输出本阶段基线日志、JUnit、退出码及源码指纹。
 
-- [ ] 重查status/diff/worktree，确认没有并发用户修改；核验当前123个产品文件和锁文件相对Stage 0指纹，新增变化需先解释归属。
-- [ ] 执行Check-ET 'A-baseline' @('tests')，保存实际统计。失败时区分原有/环境/新增问题；未定位前不把新功能写成回归通过。
-- [ ] 确认无新增实际DFN solve/真实API；已有eSOH代数兼容检查不计作DFN合成验证。
-- [ ] 仅显式提交本阶段基线审计文档；不提交临时测试目录。
+- [x] 重查status/diff/worktree，确认没有并发用户修改；核验当前123个产品文件和锁文件相对Stage 0指纹，新增变化需先解释归属。
+- [x] 执行Check-ET 'A-baseline' @('tests')，保存实际统计。失败时区分原有/环境/新增问题；未定位前不把新功能写成回归通过。
+- [x] 确认无新增实际DFN solve/真实API；已有eSOH代数兼容检查不计作DFN合成验证。
+- [x] 仅显式提交本阶段基线审计文档；不提交临时测试目录。
 
 ### A1：参数方案、严格v2配置和倍率协议
 
@@ -101,11 +101,11 @@ electrothermal_configuration_errors(config: dict) -> list[str]
 electrothermal_space_from_config(config: dict) -> ParameterSpace
 ~~~
 
-- [ ] 写失败测试test_v2_requires_explicit_fit_rates_and_old_v1_stays_four_rate：缺fit_rates、空/重复/错误标签/bool拒绝；R3/R4均可通过合成结构校验，v1原配置仍有效且不接受v2字段。
-- [ ] 写test_pending_research_and_excluded_source_are_not_assumed_confirmed：旧3C source_id选中则拒绝；三倍率研究模板同时列出实际电流/T语义/初态/冷却/热范围等缺失项。
-- [ ] 写test_profiles_with_six_values_have_different_semantics：六维旧电导率方案不得被当作C_th/G_th；新扩散log10、单位/正值/孔隙约束验证。
-- [ ] Check-ET 'A1-red' @('tests/test_electrothermal_config.py','tests/test_electrothermal_parameters.py')；观察新增函数/契约缺失后最小实现。research模板用null/pending，显式fit_rates=R3和旧3C排除来源；synthetic自洽物理数字仅标为fixture。
-- [ ] Check-ET 'A1-green' @('tests/test_electrothermal_config.py','tests/test_electrothermal_parameters.py')；显式git add上述9个文件后提交。不得以统一放松schema或参数名校验获得兼容。
+- [x] 写失败测试test_v2_requires_explicit_fit_rates_and_old_v1_stays_four_rate：缺fit_rates、空/重复/错误标签/bool拒绝；R3/R4均可通过合成结构校验，v1原配置仍有效且不接受v2字段。
+- [x] 写test_pending_research_and_excluded_source_are_not_assumed_confirmed：旧3C source_id选中则拒绝；三倍率研究模板同时列出实际电流/T语义/初态/冷却/热范围等缺失项。
+- [x] 写test_profiles_with_six_values_have_different_semantics：六维旧电导率方案不得被当作C_th/G_th；新扩散log10、单位/正值/孔隙约束验证。
+- [x] Check-ET 'A1-red' @('tests/test_electrothermal_config.py','tests/test_electrothermal_parameters.py')；观察新增函数/契约缺失后最小实现。research模板用null/pending，显式fit_rates=R3和旧3C排除来源；synthetic自洽物理数字仅标为fixture。
+- [x] Check-ET 'A1-green' @('tests/test_electrothermal_config.py','tests/test_electrothermal_parameters.py')；显式git add上述9个文件后提交。不得以统一放松schema或参数名校验获得兼容。
 
 ### A2：输入/观测分离、单位和动态倍率数据
 
@@ -119,11 +119,11 @@ load_electrothermal_dataset(config: dict, base_dir: Path) -> ElectrothermalDatas
 make_synthetic_dataset(fit_rates: FitRates) -> ElectrothermalDataset
 ~~~
 
-- [ ] 写test_unselected_bad_3c_is_not_loaded：spy workbook loader只读取R3，原XLSX可有坏3C；独立R4 synthetic仅换配置可读；数据映射缺项/额外项/重复/非有限或非递增时间拒绝。
-- [ ] 写test_voltage_temperature_grids_and_initial_vs_ambient_are_separate：U/T分别[0,2,4]与[0,1,4]，25℃只转298.15K一次；恢复已规范K档案不再转换，T_cell0不自动等于T_amb0。
-- [ ] 写test_unknown_current_temperature_probe_or_cooling_blocks_research：输入覆盖不足、来源不明、不同冷却组汇总拒绝；合成fixture可运行，研究元数据缺失不回填。
-- [ ] Check-ET 'A2-red' @('tests/test_electrothermal_data.py')后实现上述类型/加载器；只对fit_rates成员读列，不改旧WorkbookSchema/DischargeSeries的四倍率解释。
-- [ ] Check-ET 'A2-green' @('tests/test_electrothermal_data.py','tests/test_electrothermal_config.py')；按本任务5文件显式提交。
+- [x] 写test_unselected_bad_3c_is_not_loaded：spy workbook loader只读取R3，原XLSX可有坏3C；独立R4 synthetic仅换配置可读；数据映射缺项/额外项/重复/非有限或非递增时间拒绝。
+- [x] 写test_voltage_temperature_grids_and_initial_vs_ambient_are_separate：U/T分别[0,2,4]与[0,1,4]，25℃只转298.15K一次；恢复已规范K档案不再转换，T_cell0不自动等于T_amb0。
+- [x] 写test_unknown_current_temperature_probe_or_cooling_blocks_research：输入覆盖不足、来源不明、不同冷却组汇总拒绝；合成fixture可运行，研究元数据缺失不回填。
+- [x] Check-ET 'A2-red' @('tests/test_electrothermal_data.py')后实现上述类型/加载器；只对fit_rates成员读列，不改旧WorkbookSchema/DischargeSeries的四倍率解释。
+- [x] Check-ET 'A2-green' @('tests/test_electrothermal_data.py','tests/test_electrothermal_config.py')；按本任务5文件显式提交。
 
 ### A3：独立电热结果、RMSE与受控热方程
 
@@ -137,15 +137,15 @@ ElectrothermalEvaluator(space, simulator, *, fit_rates, max_rate_attempts=1, eve
 ElectrothermalEvaluator.evaluate(candidate: Sequence[float], dataset: ElectrothermalDataset) -> ElectrothermalEvaluationResult
 ~~~
 
-- [ ] 写test_selected_rate_means_are_not_fixed_three_or_four：
+- [x] 写test_selected_rate_means_are_not_fixed_three_or_four：
 ~~~python
 assert mean_selected_rmse(dict(zip(R3,[.01,.02,.03])), R3) == pytest.approx(.02)
 assert mean_selected_rmse(dict(zip(R4,[.01,.02,.03,.08])), R4) == pytest.approx(.035)
 ~~~
-- [ ] 写test_one_temperature_failure_preserves_voltage_but_pair_is_none；温度缺失/覆盖短缺/非有限均不能补0或缩分母；R3一次候选调用模拟器3次，R4为4次，每个rate的U/T共用solution_id。
-- [ ] 写test_only_targets_change_predictions_do_not：保持模型参数/输入/初温和观测时间，只变后续T目标，仿真轨迹不变、RMSE改变。写test_analytic_cooling_heat_capacity_and_equilibrium：Q=0的T(t)=T_amb+(T0-T_amb)exp(-G*t/C)，恒温平衡及C改变时间常数。
-- [ ] Check-ET 'A3-red' @('tests/test_electrothermal_evaluation.py')后最小实现模拟器协议、受控代数/解析fixture和独立评价器；旧FourRateEvaluator、mean_rate_rmse、EvaluationResult不改语义。
-- [ ] Check-ET 'A3-green' @('tests/test_electrothermal_evaluation.py','tests/test_core.py')；按本任务5文件提交。
+- [x] 写test_one_temperature_failure_preserves_voltage_but_pair_is_none；温度缺失/覆盖短缺/非有限均不能补0或缩分母；R3一次候选调用模拟器3次，R4为4次，每个rate的U/T共用solution_id。
+- [x] 写test_only_targets_change_predictions_do_not：保持模型参数/输入/初温和观测时间，只变后续T目标，仿真轨迹不变、RMSE改变。写test_analytic_cooling_heat_capacity_and_equilibrium：Q=0的T(t)=T_amb+(T0-T_amb)exp(-G*t/C)，恒温平衡及C改变时间常数。
+- [x] Check-ET 'A3-red' @('tests/test_electrothermal_evaluation.py')后最小实现模拟器协议、受控代数/解析fixture和独立评价器；旧FourRateEvaluator、mean_rate_rmse、EvaluationResult不改语义。
+- [x] Check-ET 'A3-green' @('tests/test_electrothermal_evaluation.py','tests/test_core.py')；按本任务5文件提交。
 
 ### A4：PyBaMM映射及一次耦合求解适配器（不执行真实DFN）
 
@@ -159,11 +159,11 @@ build_electrothermal_simulator(config: dict) -> ElectrothermalPyBaMMSimulator
 ElectrothermalPyBaMMSimulator.simulate(parameters: Mapping[str,float], case: ElectrothermalCase) -> ElectrothermalTrace
 ~~~
 
-- [ ] 写test_native_heat_mapping_uses_actual_volume_area：fixture C=40J/K,V=2e-5m3,G=.1W/K,A=.005m2时实际体积热容2e6、h=20；只集中热容键可明确新增，未知其它键不得统一绕过校验。
-- [ ] 写test_reference_diffusivity_function_and_fixed_sources：T_ref恢复D_ref、T改变响应正确、函数不能退化float；缺活化能/固定电导率来源阻塞研究，非零合成值不冒充Chen2020实测。
-- [ ] 写test_single_solution_contains_cell_temperature_and_heat：fake PyBaMM Simulation.solve调用一次，输出取Volume-averaged cell temperature而非Surface temperature；solver网格覆盖输入及两观测网格，输入不外推，SOC修复保留。
-- [ ] Check-ET 'A4-red' @('tests/test_electrothermal_parameters.py','tests/test_electrothermal_adapter.py')后实现。可处理真实ParameterValues/构建DFN/检查处理后的符号与热体积，但所有新增真实Simulation.solve通过spy禁止；接口fake solve不计Level2。
-- [ ] Check-ET 'A4-green' @('tests/test_electrothermal_parameters.py','tests/test_electrothermal_adapter.py','tests/test_pybamm_compat.py')；按本任务5文件提交。
+- [x] 写test_native_heat_mapping_uses_actual_volume_area：fixture C=40J/K,V=2e-5m3,G=.1W/K,A=.005m2时实际体积热容2e6、h=20；只集中热容键可明确新增，未知其它键不得统一绕过校验。
+- [x] 写test_reference_diffusivity_function_and_fixed_sources：T_ref恢复D_ref、T改变响应正确、函数不能退化float；缺活化能/固定电导率来源阻塞研究，非零合成值不冒充Chen2020实测。
+- [x] 写test_single_solution_contains_cell_temperature_and_heat：fake PyBaMM Simulation.solve调用一次，输出取Volume-averaged cell temperature而非Surface temperature；solver网格覆盖输入及两观测网格，输入不外推，SOC修复保留。
+- [x] Check-ET 'A4-red' @('tests/test_electrothermal_parameters.py','tests/test_electrothermal_adapter.py')后实现。可处理真实ParameterValues/构建DFN/检查处理后的符号与热体积，但所有新增真实Simulation.solve通过spy禁止；接口fake solve不计Level2。
+- [x] Check-ET 'A4-green' @('tests/test_electrothermal_parameters.py','tests/test_electrothermal_adapter.py','tests/test_pybamm_compat.py')；按本任务5文件提交。
 
 ### A5：签名、缓存、归档和成本台账
 
@@ -180,11 +180,11 @@ CostLedger.summary() -> dict
 ElectrothermalRunStore(RunStore).save_evaluation(result: ElectrothermalEvaluationResult) -> str
 ~~~
 
-- [ ] 写test_three_four_rate_signatures_reject_cache_even_with_same_6d_2d_shape；交换fit_rates顺序也改变协议；旧v1六维缓存与新LLM示例拒绝。不能通过改旧SHA或省略签名字段通过。
-- [ ] 写test_region_switch_changes_run_identity_but_shared_init_is_compatible：Full/WarmStart-only配置哈希不同，初始化兼容签名相同；改fit_rates/观测/函数/截止/物性任一则不相容。初始计划先核验曲线并独立复算，不盲信存档目标。
-- [ ] 写test_costs_separate_failure_screening_cache_and_fresh_solves：筛选拒绝0solve、失败和重试消耗实际调用、cache命中0新增solve、历史链去重归属、未尝试与solver错误分开；台账相同事件ID不双计。
-- [ ] Check-ET 'A5-red' @('tests/test_electrothermal_provenance.py','tests/test_electrothermal_store.py')后实现新签名/台账/新型值序列化（含参数函数源码）；旧RunStore不可变写入和旧缓存拒绝条件保留。初始化不足在summary标记phase status，旧terminal状态使用failed。
-- [ ] Check-ET 'A5-green' @('tests/test_electrothermal_provenance.py','tests/test_electrothermal_store.py','tests/test_screening_history.py')；按本任务7文件提交。
+- [x] 写test_three_four_rate_signatures_reject_cache_even_with_same_6d_2d_shape；交换fit_rates顺序也改变协议；旧v1六维缓存与新LLM示例拒绝。不能通过改旧SHA或省略签名字段通过。
+- [x] 写test_region_switch_changes_run_identity_but_shared_init_is_compatible：Full/WarmStart-only配置哈希不同，初始化兼容签名相同；改fit_rates/观测/函数/截止/物性任一则不相容。初始计划先核验曲线并独立复算，不盲信存档目标。
+- [x] 写test_costs_separate_failure_screening_cache_and_fresh_solves：筛选拒绝0solve、失败和重试消耗实际调用、cache命中0新增solve、历史链去重归属、未尝试与solver错误分开；台账相同事件ID不双计。
+- [x] Check-ET 'A5-red' @('tests/test_electrothermal_provenance.py','tests/test_electrothermal_store.py')后实现新签名/台账/新型值序列化（含参数函数源码）；旧RunStore不可变写入和旧缓存拒绝条件保留。初始化不足在summary标记phase status，旧terminal状态使用failed。
+- [x] Check-ET 'A5-green' @('tests/test_electrothermal_provenance.py','tests/test_electrothermal_store.py','tests/test_screening_history.py')；按本任务7文件提交。
 
 ### A6：工作流分派、模板和零预算可检查入口
 
@@ -199,11 +199,11 @@ run_electrothermal_fixed_candidates(prepared, candidates, output: Path, *, simul
 plan_electrothermal_smoke(config: dict, candidates: Sequence[Sequence[float]], budget: dict|None) -> dict
 ~~~
 
-- [ ] 写test_v2_dispatch_and_pending_research_preflight：R3配置由新评价器处理；旧v1仍四倍率，不接受部分新旧混合配置；研究模板列出全部未确认项，退出码2。
-- [ ] 写test_smoke_dry_run_and_missing_budget_make_zero_solves：CLI electrothermal-smoke CONFIG --dry-run；脚本同模式输出fit_rates、生成/验证任务、len(fit_rates)*候选数*max_rate_attempts调用上界；run缺预算先拒绝。生成合成数据和验证评价分别计预算。
-- [ ] 写test_software_fixed_candidates_archive_recomputable_pairs：受控fixture端到端出[.02,2]等可复算目标，成本/API明确为软件类型；不得因未启用DFN自动默换真实研究为mock。
-- [ ] Check-ET 'A6-red' @('tests/test_electrothermal_workflow.py','tests/test_electrothermal_smoke.py')后实现CLI、workflow薄分派和只读plan入口。A阶段run_electrothermal_experiment对未完成的MO模式返回明确错误，B4再完善。README给出软件运行、pending模板预检及未来预算命令；真实run需--budget-file，未给预算实际solve=0。
-- [ ] Check-ET 'A6-green' @('tests/test_electrothermal_workflow.py','tests/test_electrothermal_smoke.py')后Check-ET 'A-full' @('tests')，保存当前实数统计及A审计，明确Level1通过项与Level2/3未运行；上述8文件和本阶段审计显式提交后汇报再推进B。
+- [x] 写test_v2_dispatch_and_pending_research_preflight：R3配置由新评价器处理；旧v1仍四倍率，不接受部分新旧混合配置；研究模板列出全部未确认项，退出码2。
+- [x] 写test_smoke_dry_run_and_missing_budget_make_zero_solves：CLI electrothermal-smoke CONFIG --dry-run；脚本同模式输出fit_rates、生成/验证任务、len(fit_rates)*候选数*max_rate_attempts调用上界；run缺预算先拒绝。生成合成数据和验证评价分别计预算。
+- [x] 写test_software_fixed_candidates_archive_recomputable_pairs：受控fixture端到端出[.02,2]等可复算目标，成本/API明确为软件类型；不得因未启用DFN自动默换真实研究为mock。
+- [x] Check-ET 'A6-red' @('tests/test_electrothermal_workflow.py','tests/test_electrothermal_smoke.py')后实现CLI、workflow薄分派和只读plan入口。A阶段run_electrothermal_experiment对未完成的MO模式返回明确错误，B4再完善。README给出软件运行、pending模板预检及未来预算命令；真实run需--budget-file，未给预算实际solve=0。
+- [x] Check-ET 'A6-green' @('tests/test_electrothermal_workflow.py','tests/test_electrothermal_smoke.py')后Check-ET 'A-full' @('tests')，保存当前实数统计及A审计，明确Level1通过项与Level2/3未运行；上述8文件和本阶段审计显式提交后汇报再推进B。
 
 ## Stage B：先完成无LLM的ParEGO
 

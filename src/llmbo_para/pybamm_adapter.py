@@ -213,6 +213,8 @@ class ElectrothermalPyBaMMSimulator:
         errors=electrothermal_configuration_errors(config)
         if errors:raise ValueError('; '.join(errors))
         self.config=config
+        self.before_solve=None
+        self.native_solver_calls=0
 
     def simulate(self,parameters,case):
         import pybamm
@@ -240,6 +242,8 @@ class ElectrothermalPyBaMMSimulator:
         kwargs={'t_eval':[0.,horizon],'t_interp':times}
         if case.initial_state['mode']=='explicit_soc':kwargs['initial_soc']=case.initial_state['soc']
         from .pybamm_compat import electrode_soh_numpy_compat
+        if self.before_solve is not None:self.before_solve()
+        self.native_solver_calls+=1
         with electrode_soh_numpy_compat():solution=simulation.solve(**kwargs)
         thermal={}
         for key in ('Ohmic heating [W]','Irreversible electrochemical heating [W]','Reversible heating [W]','Surface total cooling [W]'):

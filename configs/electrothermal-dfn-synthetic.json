@@ -1,0 +1,400 @@
+{
+  "schema_version": 2,
+  "problem_type": "electrothermal_identification",
+  "parameter_profile": "electrothermal_4e2t",
+  "run_kind": "synthetic_dfn",
+  "cell_id": "artificial_not_a_measured_cell",
+  "fit_rates": [
+    "0.5C",
+    "1C",
+    "2C"
+  ],
+  "parameters": {
+    "eps_s_n": {
+      "lower": 0.3,
+      "upper": 0.7,
+      "unit": "1",
+      "transform": "linear",
+      "source": "synthetic_fixture_only"
+    },
+    "eps_s_p": {
+      "lower": 0.3,
+      "upper": 0.65,
+      "unit": "1",
+      "transform": "linear",
+      "source": "synthetic_fixture_only"
+    },
+    "D_s_n_ref": {
+      "lower": 1e-15,
+      "upper": 1e-12,
+      "unit": "m2.s-1",
+      "transform": "log10",
+      "source": "synthetic_fixture_only"
+    },
+    "D_s_p_ref": {
+      "lower": 1e-15,
+      "upper": 1e-12,
+      "unit": "m2.s-1",
+      "transform": "log10",
+      "source": "synthetic_fixture_only"
+    },
+    "C_th": {
+      "lower": 20.0,
+      "upper": 80.0,
+      "unit": "J.K-1",
+      "transform": "log10",
+      "source": "synthetic_fixture_only"
+    },
+    "G_th": {
+      "lower": 0.02,
+      "upper": 0.3,
+      "unit": "W.K-1",
+      "transform": "log10",
+      "source": "synthetic_fixture_only"
+    }
+  },
+  "fixed": {
+    "cell_volume_m3": 2e-05,
+    "cooling_area_m2": 0.005,
+    "negative_porosity": 0.25,
+    "positive_porosity": 0.335,
+    "negative_conductivity_s_m": 215.0,
+    "positive_conductivity_s_m": 0.18,
+    "electrolyte_diffusivity_multiplier": 1.0,
+    "sources": {
+      "cell_volume_m3": "synthetic_fixture_only",
+      "cooling_area_m2": "synthetic_fixture_only",
+      "negative_porosity": "synthetic_fixture_only",
+      "positive_porosity": "synthetic_fixture_only",
+      "negative_conductivity_s_m": "synthetic_fixture_only",
+      "positive_conductivity_s_m": "synthetic_fixture_only",
+      "electrolyte_diffusivity_multiplier": "synthetic_fixture_only"
+    }
+  },
+  "property_law": {
+    "kind": "arrhenius_diffusion_v1",
+    "reference_temperature_k": 298.15,
+    "activation_energy_n_j_mol": 22000.0,
+    "activation_energy_p_j_mol": 29000.0,
+    "sources": {
+      "reference_temperature_k": "synthetic_fixture_only",
+      "activation_energy_n_j_mol": "synthetic_fixture_only",
+      "activation_energy_p_j_mol": "synthetic_fixture_only"
+    }
+  },
+  "conditions_by_rate": {
+    "0.5C": {
+      "initial_state": {
+        "mode": "parameterization"
+      },
+      "initial_temperature_k": 300.15,
+      "voltage_cutoff_v": 2.5,
+      "cooling_group_id": "synthetic_shared"
+    },
+    "1C": {
+      "initial_state": {
+        "mode": "parameterization"
+      },
+      "initial_temperature_k": 300.15,
+      "voltage_cutoff_v": 2.5,
+      "cooling_group_id": "synthetic_shared"
+    },
+    "2C": {
+      "initial_state": {
+        "mode": "parameterization"
+      },
+      "initial_temperature_k": 300.15,
+      "voltage_cutoff_v": 2.5,
+      "cooling_group_id": "synthetic_shared"
+    }
+  },
+  "data": {
+    "kind": "inline",
+    "by_rate": {
+      "0.5C": {
+        "source_id": "dfn-generation-template:0.5C",
+        "current_a": {
+          "time_s": [
+            0,
+            60
+          ],
+          "values": [
+            2.5,
+            2.5
+          ],
+          "unit": "A",
+          "provenance": {
+            "kind": "generation_grid_only_not_observations",
+            "source_id": "dfn-generation-template:0.5C"
+          }
+        },
+        "ambient_temperature_k": {
+          "time_s": [
+            0,
+            60
+          ],
+          "values": [
+            298.15,
+            298.15
+          ],
+          "unit": "K",
+          "provenance": {
+            "kind": "generation_grid_only_not_observations",
+            "source_id": "dfn-generation-template:0.5C"
+          }
+        },
+        "voltage": {
+          "time_s": [
+            0,
+            30,
+            60
+          ],
+          "values": [
+            4.2,
+            4.1,
+            4.0
+          ],
+          "unit": "V",
+          "provenance": {
+            "kind": "generation_grid_only_not_observations",
+            "source_id": "dfn-generation-template:0.5C"
+          }
+        },
+        "cell_temperature_k": {
+          "time_s": [
+            0,
+            20,
+            60
+          ],
+          "values": [
+            300.15,
+            300.25,
+            300.55
+          ],
+          "unit": "K",
+          "provenance": {
+            "kind": "generation_grid_only_not_observations",
+            "source_id": "dfn-generation-template:0.5C"
+          }
+        }
+      },
+      "1C": {
+        "source_id": "dfn-generation-template:1C",
+        "current_a": {
+          "time_s": [
+            0,
+            60
+          ],
+          "values": [
+            5.0,
+            5.0
+          ],
+          "unit": "A",
+          "provenance": {
+            "kind": "generation_grid_only_not_observations",
+            "source_id": "dfn-generation-template:1C"
+          }
+        },
+        "ambient_temperature_k": {
+          "time_s": [
+            0,
+            60
+          ],
+          "values": [
+            298.15,
+            298.15
+          ],
+          "unit": "K",
+          "provenance": {
+            "kind": "generation_grid_only_not_observations",
+            "source_id": "dfn-generation-template:1C"
+          }
+        },
+        "voltage": {
+          "time_s": [
+            0,
+            30,
+            60
+          ],
+          "values": [
+            4.2,
+            4.1,
+            4.0
+          ],
+          "unit": "V",
+          "provenance": {
+            "kind": "generation_grid_only_not_observations",
+            "source_id": "dfn-generation-template:1C"
+          }
+        },
+        "cell_temperature_k": {
+          "time_s": [
+            0,
+            20,
+            60
+          ],
+          "values": [
+            300.15,
+            300.25,
+            300.55
+          ],
+          "unit": "K",
+          "provenance": {
+            "kind": "generation_grid_only_not_observations",
+            "source_id": "dfn-generation-template:1C"
+          }
+        }
+      },
+      "2C": {
+        "source_id": "dfn-generation-template:2C",
+        "current_a": {
+          "time_s": [
+            0,
+            60
+          ],
+          "values": [
+            10.0,
+            10.0
+          ],
+          "unit": "A",
+          "provenance": {
+            "kind": "generation_grid_only_not_observations",
+            "source_id": "dfn-generation-template:2C"
+          }
+        },
+        "ambient_temperature_k": {
+          "time_s": [
+            0,
+            60
+          ],
+          "values": [
+            298.15,
+            298.15
+          ],
+          "unit": "K",
+          "provenance": {
+            "kind": "generation_grid_only_not_observations",
+            "source_id": "dfn-generation-template:2C"
+          }
+        },
+        "voltage": {
+          "time_s": [
+            0,
+            30,
+            60
+          ],
+          "values": [
+            4.2,
+            4.1,
+            4.0
+          ],
+          "unit": "V",
+          "provenance": {
+            "kind": "generation_grid_only_not_observations",
+            "source_id": "dfn-generation-template:2C"
+          }
+        },
+        "cell_temperature_k": {
+          "time_s": [
+            0,
+            20,
+            60
+          ],
+          "values": [
+            300.15,
+            300.25,
+            300.55
+          ],
+          "unit": "K",
+          "provenance": {
+            "kind": "generation_grid_only_not_observations",
+            "source_id": "dfn-generation-template:2C"
+          }
+        }
+      }
+    },
+    "exclusions": []
+  },
+  "model": {
+    "provider": "pybamm",
+    "name": "DFN",
+    "parameterization_id": "Chen2020",
+    "pybamm_version": "25.10.2",
+    "options": {
+      "thermal": "lumped",
+      "use lumped thermal capacity": "true",
+      "surface temperature": "ambient"
+    },
+    "mesh_points": {
+      "x_n": 8,
+      "x_s": 8,
+      "x_p": 8,
+      "r_n": 8,
+      "r_p": 8
+    },
+    "solver": {
+      "rtol": 1e-06,
+      "atol": 1e-06,
+      "dt_max": 60.0,
+      "num_threads": 1
+    }
+  },
+  "optimization": {
+    "mode": "parego",
+    "initial_count": 2,
+    "total_candidate_budget": 4,
+    "seed": 17,
+    "gp_sweeps": 1,
+    "global_pool_size": 16,
+    "local_pool_size": 8,
+    "local_radius": 0.2,
+    "max_rate_attempts": 1,
+    "parallel_workers": 1,
+    "objective_scales": [
+      0.1,
+      1.0
+    ],
+    "rho_aug": 0.05,
+    "weights": [
+      [
+        0.8,
+        0.2
+      ],
+      [
+        0.2,
+        0.8
+      ],
+      [
+        0.5,
+        0.5
+      ]
+    ],
+    "hv_reference": [
+      10.0,
+      10.0
+    ],
+    "warmstart": {
+      "count": 2,
+      "pool_size": 4,
+      "max_requests": 3,
+      "max_candidates": 8,
+      "max_evaluations": 8
+    },
+    "region": {}
+  },
+  "budgets": {
+    "max_solver_calls": 0,
+    "max_llm_requests": 0,
+    "wall_clock_s": 60.0
+  },
+  "llm": {
+    "enabled": false,
+    "endpoint": null,
+    "api_key_env": null,
+    "model": null,
+    "max_tokens": 2048,
+    "timeout_s": 30.0,
+    "json_mode": true
+  },
+  "research_confirmations": {}
+}

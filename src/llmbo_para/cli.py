@@ -24,6 +24,14 @@ def run_synthetic_demo(output: str | Path, budget: int = 5) -> dict:
 
 
 def main(argv: list[str] | None = None) -> int:
+    import sys
+    command_args=list(sys.argv[1:] if argv is None else argv)
+    if command_args and command_args[0]=='electrothermal-smoke':
+        import importlib.util
+        script=Path(__file__).resolve().parents[2]/'scripts/run_electrothermal_smoke.py'
+        spec=importlib.util.spec_from_file_location('electrothermal_smoke_entry',script)
+        module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        return module.main(command_args[1:])
     parser = argparse.ArgumentParser(prog="llmbo-para")
     subparsers = parser.add_subparsers(dest="command", required=True)
     validate = subparsers.add_parser("validate-config", help="validate a research configuration")

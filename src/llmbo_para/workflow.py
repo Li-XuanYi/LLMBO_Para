@@ -44,6 +44,9 @@ class ExperimentFailure(RuntimeError):
 
 
 def prepare_experiment(config: dict, *, base_dir: Path | None = None, archived_series=None) -> tuple[dict, PreparedExperiment | None]:
+    if config.get('schema_version') == 2:
+        from .electrothermal_workflow import prepare_electrothermal_experiment
+        return prepare_electrothermal_experiment(config,base_dir=base_dir or Path.cwd())
     errors = configuration_errors(config)
     warnings = []
     if sys.version_info[:2] != (3, 12):
@@ -194,6 +197,9 @@ def build_transport(settings: dict, store=None):
 
 
 def run_experiment(config: dict, output, *, base_dir=None, command="run_experiment", simulator=None) -> dict:
+    if config.get('schema_version') == 2:
+        from .electrothermal_workflow import run_electrothermal_experiment
+        return run_electrothermal_experiment(config,output,base_dir=base_dir or Path.cwd(),simulator=simulator)
     report, prepared = prepare_experiment(config, base_dir=base_dir)
     store = RunStore(output, config, data_hashes=prepared.input_hashes if prepared else {}, command=command)
     store.write_json("preflight.json", report)
@@ -282,6 +288,10 @@ def run_experiment(config: dict, output, *, base_dir=None, command="run_experime
 def run_status(path) -> dict:
     path = Path(path).resolve()
     manifest = read_json(path / "manifest.json")
+    if manifest.get('config',{}).get('schema_version') == 2:
+        terminal=read_json(path/'terminal.json') if (path/'terminal.json').exists() else None
+        return {'run_directory':str(path),'status':terminal['status'] if terminal else 'running',
+                'summary':terminal['summary'] if terminal else None}
     events = [json.loads(line) for line in (path / "events.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
     attempts = [read_json(p) for p in sorted((path / "attempts").glob("*.json"))]
     terminal = read_json(path / "terminal.json") if (path / "terminal.json").exists() else None
@@ -316,6 +326,11 @@ def run_status(path) -> dict:
 def run_fixed_candidates(config: dict, output, candidates, *, mode: str, base_dir=None,
                          archived_series=None, source_info=None, source_hashes=None, simulator=None) -> dict:
     """Shared small-case/recovery path: explicit candidates, four rates, no GP or LLM."""
+    if config.get('schema_version') == 2:
+        from .electrothermal_workflow import prepare_electrothermal_experiment,run_electrothermal_fixed_candidates
+        report,prepared=prepare_electrothermal_experiment(config,base_dir=base_dir or Path.cwd())
+        if prepared is None:raise ValueError('; '.join(report['errors']))
+        return run_electrothermal_fixed_candidates(prepared,[p for _,p in candidates],output,simulator=simulator)
     if mode not in {"smoke", "recovery"} or not candidates:
         raise ValueError("fixed evaluation needs smoke/recovery mode and at least one explicit candidate")
     config = json.loads(json.dumps(config))

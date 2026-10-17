@@ -121,17 +121,23 @@ class ElectrothermalEvaluator:
             for number in range(1,self.max_rate_attempts+1):
                 event={'event_id':ident+':'+rate+':'+str(number),'type':'solver_call' if backend=='dfn' else 'software_call','rate':rate,'attempt':number}
                 if self.callback:self.callback({**event,'status':'started'})
-                cost['solver_calls' if backend=='dfn' else 'software_calls']+=1
+                native_before=getattr(self.simulator,'native_solver_calls',0)
+                if backend!='dfn':cost['software_calls']+=1
                 if number>1:cost['retry_calls']+=1
                 start=time.perf_counter()
                 try:
                     trace=self.simulator.simulate(params,case)
                     if not isinstance(trace,ElectrothermalTrace):raise TypeError('simulator must return an ElectrothermalTrace')
-                    attempts.append({**event,'status':'returned','elapsed_s':time.perf_counter()-start})
+                    native_delta=getattr(self.simulator,'native_solver_calls',0)-native_before if backend=='dfn' else 0
+                    cost['solver_calls']+=native_delta
+                    attempts.append({**event,'status':'returned','solver_calls':native_delta,'elapsed_s':time.perf_counter()-start})
                     break
                 except Exception as exc:
                     reason=type(exc).__name__+': '+str(exc)
-                    attempts.append({**event,'status':'solver_error' if backend=='dfn' else 'software_error','reason':reason,'elapsed_s':time.perf_counter()-start})
+                    native_delta=getattr(self.simulator,'native_solver_calls',0)-native_before if backend=='dfn' else 0
+                    cost['solver_calls']+=native_delta
+                    attempts.append({**event,'status':('solver_error' if native_delta else 'preparation_error') if backend=='dfn' else 'software_error',
+                        'solver_calls':native_delta,'reason':reason,'elapsed_s':time.perf_counter()-start})
                     if not isinstance(exc,TransientSimulationError):break
             voltage=score_output(trace,case.voltage,channel='voltage',reason=reason)
             temperature=score_output(trace,case.cell_temperature_k,channel='temperature',reason=reason)

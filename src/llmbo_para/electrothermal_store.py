@@ -46,6 +46,7 @@ class ElectrothermalRunStore(RunStore):
         else:
             for row in result.rates:
                 for attempt in row.attempts:
-                    self.ledger.record({'event_id':relative+':'+attempt['event_id'],'kind':attempt['type'],'phase':phase,
+                    kind=attempt['type'] if attempt['type']!='solver_call' or attempt.get('solver_calls',1) else 'preparation_failure'
+                    self.ledger.record({'event_id':relative+':'+attempt['event_id'],'kind':kind,'phase':phase,
                         'rate':row.rate,'outcome':attempt['status'],'elapsed_s':attempt['elapsed_s']})
         return relative

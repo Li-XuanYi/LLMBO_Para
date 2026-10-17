@@ -115,3 +115,21 @@ scripts/deploy_zju_ablation.py --prepare-only builds a local deployment bundle w
 ## Completed local ablation, 2026-10-11
 
 Four local arms each completed eight cached valid initial observations plus 25 BO attempts, using gpt-5.6-sol for enabled LLM components. All deep audits passed. Scientific interpretation and complete costs: [local ablation audit](docs/audits/local-ablation-2026-10-11.md). The high failed-candidate rate and lack of reliable superiority evidence are reported explicitly. Config: configs/21700-local-gpt56sol-20261011.json. Historical pending-state reports remain unchanged.
+# Electrothermal identification (schema v2)
+
+The independent v2 path uses `electrothermal_4e2t`, explicit `fit_rates`, voltage
+and cell-temperature RMSE. `configs/electrothermal-synthetic.json` is a software
+fixture; `configs/electrothermal-research-template.json` intentionally fails
+preflight until the recorded physical conditions and sources are confirmed.
+The current measured protocol excludes the old 3C source. Legacy schema v1
+remains a four-rate voltage problem with its existing strict cache checks.
+
+Use `python -m llmbo_para preflight CONFIG` to inspect missing research fields.
+Use `python scripts/run_electrothermal_smoke.py CONFIG --parameters points.json
+--dry-run` (or `python -m llmbo_para electrothermal-smoke ...`) to inspect a fixed
+candidate plan. `points.json` is a list of six-element physical parameter vectors.
+Real DFN run mode requires `--budget-file`: explicit approved fitting rates,
+solver call cap, retry cap, time window, wall-clock cap and known synthetic
+generation parameters. Generation and validation both consume the cap. The
+default real DFN and live LLM budgets are zero. Software/mock/analytic tests are
+not evidence of real electrothermal behavior or measured identifiability.
