@@ -19,7 +19,31 @@ def test_software_fixed_candidates_archive_recomputable_pairs(tmp_path):
     assert result['costs']['software_calls']==len(R3) and result['API_calls']==0
 
 
-def test_new_schema_does_not_enter_old_optimizer(tmp_path):
+@pytest.mark.parametrize('rates',[R3,R4])
+def test_parego_software_r3_r4_end_to_end(tmp_path,rates,monkeypatch):
+    from pathlib import Path
+    import json
     from llmbo_para.workflow import run_experiment
-    with pytest.raises(NotImplementedError,match='Stage B'):
-        run_experiment(et_config(),tmp_path)
+    from llmbo_para.optimizer import Optimizer
+    monkeypatch.setattr(Optimizer,'optimize',lambda *a,**k:pytest.fail('old optimizer entered'))
+    result=run_experiment(et_config(rates),tmp_path)
+    assert result['candidate_evaluations']==4 and result['BO_rounds']==2 and result['complete_pairs']==4
+    assert result['fit_rates']==list(rates) and result['API_calls']==0
+    assert result['costs']['software_calls']==4*len(rates) and result['pareto']
+    root=Path(result['run_directory'])
+    assert len(list((root/'mo-rounds').glob('*.json')))==2
+    for p in (root/'electrothermal-evaluations').glob('*.json'):
+        assert [r['rate'] for r in json.loads(p.read_text())['rates']]==list(rates)
+
+
+def test_training_contains_real_complete_pairs_only_and_budget_counts_failures(tmp_path):
+    from dataclasses import replace
+    from llmbo_para.electrothermal_synthetic import SyntheticElectrothermalSimulator
+    from llmbo_para.workflow import run_experiment
+    class Partial(SyntheticElectrothermalSimulator):
+        def __init__(self):self.calls=0
+        def simulate(self,p,case):
+            self.calls+=1;trace=super().simulate(p,case)
+            return replace(trace,temperature_k=None) if self.calls>6 else trace
+    result=run_experiment(et_config(),tmp_path,simulator=Partial())
+    assert result['candidate_evaluations']==4 and result['complete_pairs']==2 and result['BO_rounds']==2

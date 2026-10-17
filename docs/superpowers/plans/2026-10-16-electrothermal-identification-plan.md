@@ -218,14 +218,14 @@ build_scalarization_context(x, y, observation_ids, *, weights, objective_scales,
 WeightScheduler(weights: Sequence[Sequence[float]], seed: int).next() -> tuple[float,float]
 ~~~
 
-- [ ] 写test_weights_relabel_history_incumbent_and_local_center：
+- [x] 写test_weights_relabel_history_incumbent_and_local_center：
 ~~~python
 assert augmented_tchebycheff([[.1,2],[.2,1]],[.8,.2],[.1,1]) == pytest.approx([.86,1.69])
 assert augmented_tchebycheff([[.1,2],[.2,1]],[.2,.8],[.1,1]) == pytest.approx([1.69,.86])
 ~~~
-- [ ] 写test_constant_labels_use_one_std_and_equal_y_different_x_remain；总体std<1e-12取1，正常std不截为1，incumbent同分按稳定ID；输入矩阵后续修改不影响context。另写test_scalar_inputs_reject_nonfinite_wrong_shape_or_nonpositive_scales，覆盖权重非二维/和不为1、非有限Y及零尺度。
-- [ ] Check-ET 'B1-red' @('tests/test_scalarization.py')后实现identity物理目标、固定协议尺度、零下界与有种子无放回二维权重循环；只读过去Y，不能调用旧充电log_transform或旧LogRMSETransform。
-- [ ] Check-ET 'B1-green' @('tests/test_scalarization.py')；2文件提交。
+- [x] 写test_constant_labels_use_one_std_and_equal_y_different_x_remain；总体std<1e-12取1，正常std不截为1，incumbent同分按稳定ID；输入矩阵后续修改不影响context。另写test_scalar_inputs_reject_nonfinite_wrong_shape_or_nonpositive_scales，覆盖权重非二维/和不为1、非有限Y及零尺度。
+- [x] Check-ET 'B1-red' @('tests/test_scalarization.py')后实现identity物理目标、固定协议尺度、零下界与有种子无放回二维权重循环；只读过去Y，不能调用旧充电log_transform或旧LogRMSETransform。
+- [x] Check-ET 'B1-green' @('tests/test_scalarization.py')；2文件提交。
 
 ### B2：Pareto、固定空间HV及高斯EI
 
@@ -239,31 +239,31 @@ validate_hv_comparison(protocol_signatures: Sequence[str]) -> str
 gaussian_ei(mean, std, best: float) -> np.ndarray
 ~~~
 
-- [ ] 写test_known_front_duplicate_hv_and_fixed_metric_space：[[1,2],[2,1]]到[3,3]的HV=3，重复目标/被支配点不改变HV，不同参数同目标可保留Pareto参数；无参考点返回None且原因可归档。validate_hv_comparison只接受非空且全相同的comparison_protocol签名，不同fit_rates等导致签名不同时拒绝。
-- [ ] 写test_gaussian_ei_zero_std_and_scale_equivalence：mean=[-1,1],std=[0,0],best=0时EI=[1,0]；负std/非有限拒绝，电压V→mV且尺度×1000后标签/后验/EI决策不变。
-- [ ] Check-ET 'B2-red' @('tests/test_pareto.py','tests/test_gaussian_ei.py')后实现二维精确矩形并集与同标准化空间Gaussian EI；Matern52GP复用group=()、lengthscale_prior=None，保持predict/posterior_covariance旧契约和原log EI。
-- [ ] Check-ET 'B2-green' @('tests/test_pareto.py','tests/test_gaussian_ei.py','tests/test_core.py')；按实际改动显式提交4至5文件，未改surrogate不虚列。
+- [x] 写test_known_front_duplicate_hv_and_fixed_metric_space：[[1,2],[2,1]]到[3,3]的HV=3，重复目标/被支配点不改变HV，不同参数同目标可保留Pareto参数；无参考点返回None且原因可归档。validate_hv_comparison只接受非空且全相同的comparison_protocol签名，不同fit_rates等导致签名不同时拒绝。
+- [x] 写test_gaussian_ei_zero_std_and_scale_equivalence：mean=[-1,1],std=[0,0],best=0时EI=[1,0]；负std/非有限拒绝，电压V→mV且尺度×1000后标签/后验/EI决策不变。
+- [x] Check-ET 'B2-red' @('tests/test_pareto.py','tests/test_gaussian_ei.py')后实现二维精确矩形并集与同标准化空间Gaussian EI；Matern52GP复用group=()、lengthscale_prior=None，保持predict/posterior_covariance旧契约和原log EI。
+- [x] Check-ET 'B2-green' @('tests/test_pareto.py','tests/test_gaussian_ei.py','tests/test_core.py')；按实际改动显式提交4至5文件，未改surrogate不虚列。
 
 ### B3：唯一历史与逐轮重拟合MO优化器
 
 **Files:** Create mo_optimizer.py；Test tests/test_mo_optimizer.py。
 **Interfaces:** MOOptimizer(space,evaluator,dataset,store,options,initial_plan=None,llm_controller=None)，step()->dict、optimize(total_candidate_budget:int)->dict。MORoundContext包含B1上下文、fit_rates/签名、当前GP不可变序列化状态/指纹和候选池；每轮使用新GP对象。
 
-- [ ] 写test_failed_round_still_switches_weight_and_refits：初始两点、某轮温度失败无新Y，下一轮新权重触发全历史重标签/标准化/incumbent/局部中心/后验/EI阈值；spy GP.fit证明不是按n_train未变跳过拟合。
-- [ ] 写test_duplicate_input_not_duplicate_training_but_equal_y_distinct_parameters_are：同candidate_key重复只计一次训练，另参数相同Y保留；重复评价记录/成本仍在，目标分歧不挑较好值。
-- [ ] 写test_round_context_frozen_through_selection_and_feedback：冻结旧incumbent/尺度/统计，先按原context评价新结果改善再更新历史；没有完整对不能构造delta标签。
-- [ ] Check-ET 'B3-red' @('tests/test_mo_optimizer.py')后实现：唯一完整历史→权重→B1标签→新六维GP→Gaussian EI选点→A评价→反馈/归档→唯一Y/Pareto更新。候选用既有六维Sobol及围绕当前incumbent的局部池；global/local数量、半径和种子显式配置并在三模式一致，已有参数过滤保持同口径。
-- [ ] Check-ET 'B3-green' @('tests/test_mo_optimizer.py','tests/test_scalarization.py')；2文件提交。
+- [x] 写test_failed_round_still_switches_weight_and_refits：初始两点、某轮温度失败无新Y，下一轮新权重触发全历史重标签/标准化/incumbent/局部中心/后验/EI阈值；spy GP.fit证明不是按n_train未变跳过拟合。
+- [x] 写test_duplicate_input_not_duplicate_training_but_equal_y_distinct_parameters_are：同candidate_key重复只计一次训练，另参数相同Y保留；重复评价记录/成本仍在，目标分歧不挑较好值。
+- [x] 写test_round_context_frozen_through_selection_and_feedback：冻结旧incumbent/尺度/统计，先按原context评价新结果改善再更新历史；没有完整对不能构造delta标签。
+- [x] Check-ET 'B3-red' @('tests/test_mo_optimizer.py')后实现：唯一完整历史→权重→B1标签→新六维GP→Gaussian EI选点→A评价→反馈/归档→唯一Y/Pareto更新。候选用既有六维Sobol及围绕当前incumbent的局部池；global/local数量、半径和种子显式配置并在三模式一致，已有参数过滤保持同口径。
+- [x] Check-ET 'B3-green' @('tests/test_mo_optimizer.py','tests/test_scalarization.py')；2文件提交。
 
 ### B4：无LLM软件端到端与阶段验收
 
 **Files:** Modify electrothermal_workflow.py、configs/electrothermal-synthetic.json、cli.py；Test tests/test_electrothermal_workflow.py。
 **Interfaces:** 完善A6已定义的run_electrothermal_experiment(config,output,*,base_dir,simulator=None)->dict；mode=parego时不构造真实LLM传输。run_experiment的v2分支委托此函数。
 
-- [ ] 写test_parego_software_r3_r4_end_to_end：分别用R3和受控R4配置、2个初始点+2次BO尝试，输出双目标、每倍率曲线、轮上下文、Pareto/HV和0API；不得读取旧3C或硬编码rate计数。
-- [ ] 写test_training_contains_real_complete_pairs_only_and_budget_counts_failures：注入一次部分失败，尝试预算仍耗用且无训练惩罚；改变倍率后不能续用同一运行/初始化缓存。
-- [ ] Check-ET 'B4-red' @('tests/test_electrothermal_workflow.py')后接入MOOptimizer及软件配置，未开启LLM时任何Transport调用spy必须为0。
-- [ ] Check-ET 'B4-green' @('tests/test_electrothermal_workflow.py')后Check-ET 'B-full' @('tests')，归档B成本/数值回放和Pareto曲线独立复算；上述4文件及B审计显式提交，汇报Level1结果，Level2/3保持未运行，再推进C。
+- [x] 写test_parego_software_r3_r4_end_to_end：分别用R3和受控R4配置、2个初始点+2次BO尝试，输出双目标、每倍率曲线、轮上下文、Pareto/HV和0API；不得读取旧3C或硬编码rate计数。
+- [x] 写test_training_contains_real_complete_pairs_only_and_budget_counts_failures：注入一次部分失败，尝试预算仍耗用且无训练惩罚；改变倍率后不能续用同一运行/初始化缓存。
+- [x] Check-ET 'B4-red' @('tests/test_electrothermal_workflow.py')后接入MOOptimizer及软件配置，未开启LLM时任何Transport调用spy必须为0。
+- [x] Check-ET 'B4-green' @('tests/test_electrothermal_workflow.py')后Check-ET 'B-full' @('tests')，归档B成本/数值回放和Pareto曲线独立复算；上述4文件及B审计显式提交，汇报Level1结果，Level2/3保持未运行，再推进C。
 
 ## Stage C：接入既定LLMBO-MO与独立审计
 
