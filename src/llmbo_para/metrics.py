@@ -35,6 +35,15 @@ def mean_rate_rmse(errors: Mapping[str, float]) -> float:
     return math.fsum(values) / len(RATE_ORDER)
 
 
+def mean_selected_rmse(errors: Mapping[str,float], fit_rates) -> float:
+    from .electrothermal_config import validate_fit_rates
+    rates=validate_fit_rates(fit_rates)
+    if set(errors)!=set(rates):raise ValueError('RMSE keys must exactly match selected fitting rates')
+    values=[errors[r] for r in rates]
+    if any(type(v) not in (int,float) or not math.isfinite(v) or v<0 for v in values):raise ValueError('selected RMSE values must be finite and nonnegative')
+    return math.fsum(values)/len(rates)
+
+
 @dataclass(frozen=True)
 class LogRMSETransform:
     mean: float
