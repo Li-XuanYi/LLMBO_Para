@@ -1,0 +1,117 @@
+{
+  "result": {
+    "run_directory": "D:\\Users\\aa133\\Desktop\\LLMBO_Para\\runs\\plain-bo-two-rate\\20261017T133804Z_6ee2dad59a5e_ac97c0df",
+    "test_kind": "exploratory_real_isothermal_DFN_voltage_BO",
+    "fit_rates": [
+      "0.5C",
+      "1C"
+    ],
+    "candidate_total": 28,
+    "initial_evaluations": 8,
+    "BO_evaluations": 20,
+    "initial_valid": 1,
+    "BO_valid": 0,
+    "failed_candidates": 27,
+    "best_candidate_index": 4,
+    "best_stage": "initialization",
+    "best_BO_iteration": null,
+    "best_parameters": [
+      0.7191406250000001,
+      0.5269531250000001,
+      1.4074646633398434e-13,
+      2.329096592460546e-13,
+      215.234375,
+      0.217578125
+    ],
+    "initial_best_mean_RMSE_mV": 58.06812588359432,
+    "best_mean_RMSE_mV": 58.06812588359432,
+    "best_per_rate_RMSE_mV": {
+      "0.5C": 60.316230146092025,
+      "1C": 55.82002162109662
+    },
+    "mean_RMSE_improvement_mV": 0.0,
+    "new_BO_costs": {
+      "candidate_rate_attempts": 40,
+      "actual_DFN_solves": 40,
+      "network_attempts": 0
+    },
+    "initialization_costs": {
+      "candidate_rate_attempts": 16,
+      "actual_DFN_solves": 16,
+      "network_attempts": 0
+    },
+    "total_actual_DFN_solves": 56,
+    "linked_initialization_run": "D:\\Users\\aa133\\Desktop\\LLMBO_Para\\runs\\plain-bo-two-rate\\20261017T133336Z_68aea61392c0_7d00afb5",
+    "elapsed_s": 38.729074200004106,
+    "independent_audit_passed": true,
+    "source_unchanged": true,
+    "API_calls": 0,
+    "temperature_RMSE_evaluated": false,
+    "limitations": "one seed, fitted data only, derived current and assumed 1s time; not formal electrothermal identification"
+  },
+  "independent_raw_curve_recalculation": {
+    "0.5C": {
+      "rmse_V": 0.06031623014609203,
+      "rmse_mV": 60.31623014609203,
+      "n_points": 6781,
+      "last_residual_mV": 291.9137555014362,
+      "full_grid_coverage": true,
+      "tail_10pct_squared_error_fraction": 0.48658371114814025
+    },
+    "1C": {
+      "rmse_V": 0.05582002162109662,
+      "rmse_mV": 55.82002162109662,
+      "n_points": 3409,
+      "last_residual_mV": 145.82048274841154,
+      "full_grid_coverage": true,
+      "tail_10pct_squared_error_fraction": 0.5700601352493048
+    }
+  },
+  "independent_mean_RMSE_mV": 58.06812588359433,
+  "valid_per_rate_all_28_candidates": {
+    "0.5C": 2,
+    "1C": 1
+  },
+  "invalid_rate_failure_counts": {
+    "voltage_event_with_coverage_shortfall": 53
+  },
+  "every_BO_round_has_one_real_training_observation": true,
+  "BO_hyperparameter_learning_occurred": false,
+  "bootstrap": "fixed default ordinary Matern52 posterior from one real complete sample; no duplicate/fake labels",
+  "test_result": {
+    "tests": 9,
+    "passed": 9,
+    "failures": 0,
+    "errors": 0,
+    "exit_code": 0
+  },
+  "startup_metadata_failure": {
+    "attempt": 1,
+    "stage": "RunStore protocol validation before experiment creation",
+    "exit_code": 1,
+    "error_type": "ValueError",
+    "message": "config: inline credentials are forbidden; use an environment-variable name",
+    "cause": "Human request metadata used the reserved dictionary key authorization. No credential was present or read.",
+    "fix": "Rename metadata to user_request_evidence, retaining the existing strict credential guard.",
+    "actual_DFN_solves": 0,
+    "API_calls": 0,
+    "classification": "new one-off experiment driver metadata defect; no product source change"
+  },
+  "initialization_stop_reused_without_extra_solves": true,
+  "protection": {
+    "product_123_unchanged": true,
+    "main_index_unchanged": true,
+    "main_method_unchanged": true,
+    "main_status_unchanged": true,
+    "worktree_clean_before_audit": true
+  },
+  "evidence_sha256": {
+    "study-summary.json": "f439c6ef461739c4675ae5778e9ab7b3d4c9e2f81deee30d19ea15a17005e88e",
+    "numeric-audit.json": "9bec97c45a58e50b30c75c6560a67854a9170c76de8c2d2a9ee1e1f72ef3cc26",
+    "best-evaluation.json": "6646bcdf6b10a8f1adce212104101522ebc88abdbfc0bfe5066a433cd2971057",
+    "numeric-protocol.json": "83b20b58d4f0487cd6570ba1e9473a7aadfded11ffc1a57b85584277160590ca",
+    "stdout.log": "dd5b17786e1cfaa62a0cc7f34816e9ee7e433526e63a1825c7644962ff5a224d",
+    "stderr.log": "2fb69af1e37abe96ffd904d9cef8bd7e4b104c187d08886a1236fbe6888ffdd1",
+    "source-sha256.json": "f448f033c79c49fd5519c6861210fdf96dc295a086a5b0723633f3770ffe0b27"
+  }
+}
