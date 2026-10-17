@@ -18,6 +18,12 @@ def read_json(path):
 
 def audit_run(path, *, deep: bool = False, require_terminal: bool = True) -> dict:
     path = Path(path).resolve()
+    try:
+        if read_json(path / 'manifest.json').get('config',{}).get('schema_version')==2:
+            from .electrothermal_audit import audit_electrothermal_run
+            return audit_electrothermal_run(path,deep=deep)
+    except (OSError,ValueError):
+        pass
     issues, checks = [], []
     attempts = []
     models, acquisitions = [], []

@@ -99,6 +99,10 @@ def run_electrothermal_experiment(config,output,*,base_dir,simulator=None,llm_co
     evaluator=ElectrothermalEvaluator(prepared.space,backend,fit_rates=prepared.dataset.fit_rates,max_rate_attempts=config['optimization']['max_rate_attempts'])
     try:
         initial=prepared.initial_plan;controller=llm_controller
+        if initial is not None:
+            import shutil
+            spec=config['optimization']['initial_plan'];source=(Path(base_dir)/spec['path']).resolve()
+            destination=store.path/'inputs/initial-plan.json';destination.parent.mkdir(parents=True,exist_ok=True);shutil.copyfile(source,destination)
         if config['optimization']['mode']!='parego' and initial is None:
             from .electrothermal_llm import ElectrothermalLLMController
             controller=controller or ElectrothermalLLMController()

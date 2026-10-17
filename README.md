@@ -133,3 +133,9 @@ solver call cap, retry cap, time window, wall-clock cap and known synthetic
 generation parameters. Generation and validation both consume the cap. The
 default real DFN and live LLM budgets are zero. Software/mock/analytic tests are
 not evidence of real electrothermal behavior or measured identifiability.
+
+电热多目标代码和软件回归已经完成。`optimization.mode`支持`parego`、`warmstart_only`和`full_llmbo_mo`；默认关闭真实LLM请求。WarmStart-only/Full的Region消融通过`optimization.initial_plan={"path":"...","sha256":"..."}`导入同一有效初始化计划。输出为Pareto参数集、固定空间HV、每倍率U/T曲线和逐轮冻结上下文。
+
+从独立工作树运行：`python -m llmbo_para run configs/electrothermal-synthetic.json --output runs/electrothermal-software`，然后`python -m llmbo_para audit-run <run_directory> --deep`。这是软件合成任务。真实DFN使用独立smoke入口及明确预算文件；实测模板仍被元数据预检阻止，旧3C不参与新版拟合。
+
+阶段证据见`docs/audits/electrothermal-stage-a-2026-10-17.md`、`electrothermal-stage-b-2026-10-18.md`和`electrothermal-stage-c-2026-10-18.md`。软件通过、真实DFN合成通过及实测辨识完成须分别判断。

@@ -278,11 +278,11 @@ build_electrothermal_payload(task: str, *, prepared: PreparedElectrothermalExper
 ElectrothermalLLMController.generate_warmstart(self, prepared: PreparedElectrothermalExperiment, *, store: ElectrothermalRunStore, budgets: dict) -> InitialPlan
 ~~~
 
-- [ ] 写test_pareto_maximin_selection_is_deterministic：按R1.1的A/B/D/C例K=2选[A,B]，24种输入排列不变；同分按q/x/稳定ID，重复物理参数仅保留最小稳定ID，ID冲突内容拒绝。
-- [ ] 写test_budget_exhaustion_does_not_fill_or_start_mo：|C|<K保留全部记录、initialization.status=insufficient_initialization、terminal failed，不追加请求/Sobol或缩减K。
-- [ ] 写test_shared_valid_plan_avoids_new_warmstart_and_solves：WarmStart-only/Full使用同plan_sha256，初始化参数/真实目标一致，导入0新增solve/LLM；改fit_rates或源语义拒绝。
-- [ ] Check-ET 'C1-red' @('tests/test_electrothermal_llm.py','tests/test_electrothermal_initialization.py')后实现Pareto层级→首点平衡q→同层maximin及既定tie-break；两个英文Prompt各200–300词，含fit_rates/profile/来源/双目标语义，不沿用objective_v排序。
-- [ ] Check-ET 'C1-green' @('tests/test_electrothermal_llm.py','tests/test_electrothermal_initialization.py')，校验真实请求禁用时0付费调用；按本任务7文件显式提交。
+- [x] 写test_pareto_maximin_selection_is_deterministic：按R1.1的A/B/D/C例K=2选[A,B]，24种输入排列不变；同分按q/x/稳定ID，重复物理参数仅保留最小稳定ID，ID冲突内容拒绝。
+- [x] 写test_budget_exhaustion_does_not_fill_or_start_mo：|C|<K保留全部记录、initialization.status=insufficient_initialization、terminal failed，不追加请求/Sobol或缩减K。
+- [x] 写test_shared_valid_plan_avoids_new_warmstart_and_solves：WarmStart-only/Full使用同plan_sha256，初始化参数/真实目标一致，导入0新增solve/LLM；改fit_rates或源语义拒绝。
+- [x] Check-ET 'C1-red' @('tests/test_electrothermal_llm.py','tests/test_electrothermal_initialization.py')后实现Pareto层级→首点平衡q→同层maximin及既定tie-break；两个英文Prompt各200–300词，含fit_rates/profile/来源/双目标语义，不沿用objective_v排序。
+- [x] Check-ET 'C1-green' @('tests/test_electrothermal_llm.py','tests/test_electrothermal_initialization.py')，校验真实请求禁用时0付费调用；按本任务7文件显式提交。
 
 ### C2：权重条件Region-Lift与冻结信任反馈
 
@@ -295,11 +295,11 @@ apply_electrothermal_region(gp, context, pool, region, *, settings, trust: float
 update_electrothermal_trust(context, result, *, previous_trust, beta, adoption) -> dict
 ~~~
 
-- [ ] 写test_region_uses_current_posterior_covariance_and_changes_only_acquisition：payload含当前w/s/零ideal/Pareto/fit_rates，锚点与EI同C_t；Y、训练标签、GP状态和原方差前后逐项相等。
-- [ ] 写test_bad_low_confidence_outside_region_stale_context_and_abstention_fall_back：格式、范围、签名、低置信度、零协方差、无有效锚点、守卫不通过均回退同一plain EI；same_as_plain不算采用。
-- [ ] 写test_trust_compares_in_frozen_weight_and_does_not_reward_cache：只有实际改变选点且新评价才更新；完整失败success=0且无伪造g；回退/缓存不更新；下一权重不能复用旧posterior。
-- [ ] Check-ET 'C2-red' @('tests/test_electrothermal_region.py')后迁移已核查的heuristic_correlation机制：32锚点、0.60/0.25/0.15的log(Gaussian EI)/sigma/novelty softmax；参数沿用既有InformedSettings的明确配置，均值上限用当前标准化单位。不是调用旧scalar_log_ei或增加核/先验。
-- [ ] Check-ET 'C2-green' @('tests/test_electrothermal_region.py','tests/test_informed.py')；只按实际修改4至5文件提交。
+- [x] 写test_region_uses_current_posterior_covariance_and_changes_only_acquisition：payload含当前w/s/零ideal/Pareto/fit_rates，锚点与EI同C_t；Y、训练标签、GP状态和原方差前后逐项相等。
+- [x] 写test_bad_low_confidence_outside_region_stale_context_and_abstention_fall_back：格式、范围、签名、低置信度、零协方差、无有效锚点、守卫不通过均回退同一plain EI；same_as_plain不算采用。
+- [x] 写test_trust_compares_in_frozen_weight_and_does_not_reward_cache：只有实际改变选点且新评价才更新；完整失败success=0且无伪造g；回退/缓存不更新；下一权重不能复用旧posterior。
+- [x] Check-ET 'C2-red' @('tests/test_electrothermal_region.py')后迁移已核查的heuristic_correlation机制：32锚点、0.60/0.25/0.15的log(Gaussian EI)/sigma/novelty softmax；参数沿用既有InformedSettings的明确配置，均值上限用当前标准化单位。不是调用旧scalar_log_ei或增加核/先验。
+- [x] Check-ET 'C2-green' @('tests/test_electrothermal_region.py','tests/test_informed.py')；只按实际修改4至5文件提交。
 
 ### C3：独立审计、三模式回放与最终交付
 
@@ -310,15 +310,15 @@ update_electrothermal_trust(context, result, *, previous_trust, beta, adoption) 
 audit_electrothermal_run(run_directory: Path, *, deep: bool=False) -> dict
 ~~~
 
-- [ ] 写test_tampering_temperature_mapping_rates_weight_or_scales_fails：分别改单份温度曲线、C/V或G/A、fit_rates/来源排除、权重/尺度/上下文或共享计划后审计拒绝；只靠重算存档摘要不够，必须从原始曲线/参数/过去记录重建。
-- [ ] 写test_three_modes_share_backbone_and_region_ablation_initial_plan：ParEGO、WarmStart-only、Full均用同评价/数值骨干；后两者同有效初始化计划，Region关闭/弃权与plain选点一致；真实传输禁用下实际API=0。
-- [ ] 写test_r3_r4_protocol_comparison_is_rejected_and_old_v1_audit_unchanged：HV不能跨倍率协议混比；v1旧审计路径保持原签名要求，兼容不能通过改旧哈希实现。
-- [ ] Check-ET 'C3-red' @('tests/test_electrothermal_audit.py','tests/test_electrothermal_workflow.py')后实现从原始U/T网格/映射/真实Y/冻结ctx/GP状态独立复算RMSE、标签、EI/Region、Pareto/HV和成本；audit-run按schema分派，不修改档案、联网或重求解。
-- [ ] Check-ET 'C3-green' @('tests/test_electrothermal_audit.py','tests/test_electrothermal_workflow.py')后Check-ET 'C-full' @('tests')，三个模式软件闭环及deep audit独立出档；记录实际数量/退出码、文件/函数/接口、旧流程兼容证据、未验证项与commit。本任务6文件和阶段审计显式提交。
+- [x] 写test_tampering_temperature_mapping_rates_weight_or_scales_fails：分别改单份温度曲线、C/V或G/A、fit_rates/来源排除、权重/尺度/上下文或共享计划后审计拒绝；只靠重算存档摘要不够，必须从原始曲线/参数/过去记录重建。
+- [x] 写test_three_modes_share_backbone_and_region_ablation_initial_plan：ParEGO、WarmStart-only、Full均用同评价/数值骨干；后两者同有效初始化计划，Region关闭/弃权与plain选点一致；真实传输禁用下实际API=0。
+- [x] 写test_r3_r4_protocol_comparison_is_rejected_and_old_v1_audit_unchanged：HV不能跨倍率协议混比；v1旧审计路径保持原签名要求，兼容不能通过改旧哈希实现。
+- [x] Check-ET 'C3-red' @('tests/test_electrothermal_audit.py','tests/test_electrothermal_workflow.py')后实现从原始U/T网格/映射/真实Y/冻结ctx/GP状态独立复算RMSE、标签、EI/Region、Pareto/HV和成本；audit-run按schema分派，不修改档案、联网或重求解。
+- [x] Check-ET 'C3-green' @('tests/test_electrothermal_audit.py','tests/test_electrothermal_workflow.py')后Check-ET 'C-full' @('tests')，三个模式软件闭环及deep audit独立出档；记录实际数量/退出码、文件/函数/接口、旧流程兼容证据、未验证项与commit。本任务6文件和阶段审计显式提交。
 
 ## Level 2 / Level 3的后续门槛
 
-Level1为上述软件/mock/解析/构模/签名审计，不能宣称真实电热行为通过。A6将交付Level2入口及可检查dry-run，当前入口未实现、实际DFN预算0且未运行；之后须明确数据生成和验证分别候选数、fit_rates、最大实际solver调用、重试/时间窗/墙钟预算才执行。核验同参U/T、双向温度反馈、实际热映射、C/G扰动与积分热收支；同求解器同网格零误差仅是接口一致性。
+Level1为上述软件/mock/解析/构模/签名审计，不能宣称真实电热行为通过。A6将交付Level2入口及可检查dry-run，入口已实现；用户已批准12次实际solve/300s/R3/60s/单线程/不重试/API0的独立合成验证，软件验收完成后执行；之后须明确数据生成和验证分别候选数、fit_rates、最大实际solver调用、重试/时间窗/墙钟预算才执行。核验同参U/T、双向温度反馈、实际热映射、C/G扰动与积分热收支；同求解器同网格零误差仅是接口一致性。
 
 Level3仅在当前三倍率真实电流、T语义/测点、初态/环境/共享冷却、热范围/固定物性来源均确认且另获实测运行授权后进行。旧3C禁用；可靠3C使用新数据/配置/签名和实验归档，不追溯改旧数据或混用三倍率成绩。数据缺失不能判为模型失效。
 

@@ -74,3 +74,20 @@ Linux 将解释器改为对应虚拟环境中的 `python`。代理是执行机�
 审计器读取已保存的原始 LLM 回复，重建区域并从 GP 状态重算整个引导过程；无需联网或新仿真。它同时检查发送摘要与先前真实记录一致，保证没有未来观测泄漏。测试还会修改保存的预测均值，确认审计能够拒绝篡改结果。
 
 实现通过软件闭环不等于证明 LLM 优势。真实消融仍需共享初始化、统一仿真与 API 成本、多个随机种子，并分别报告有效候选率及 RMSE 变化。
+
+
+## Schema v2 电热 LLMBO-MO（2026-10-18）
+
+以上章节保留旧schema1电压任务。新路线是独立的electrothermal_identification与electrothermal_4e2t，不继承旧log-J、RATE_ORDER或六维电导率语义。fit_rates驱动全部评价/签名；当前R3排除旧3C，可靠R4另建协议。
+
+| 参考数值骨干 | 新电热落点与适配 |
+|---|---|
+| llmbo/optimizer.py的二维权重调度 | scalarization.WeightScheduler：显式二维网格、种子无放回循环，每轮包括失败轮重新建标签和GP |
+| llmbo/scalarization.py的增广Tchebycheff | augmented_tchebycheff：max(w*Y/s)+0.05*sum(w*Y/s)；保留物理误差，不迁移第0/2列log及maximum(value,1.0) |
+| llmbo/gp_model.py的ARD Matérn与后验 | 复用Matern52GP，group=()，lengthscale_prior=None；线性标准化及Gaussian EI，保留原始方差 |
+| Pareto/HV | pareto.py：完整真实二维目标、保留同目标不同参数、固定Y/s指标空间与固定参考点 |
+| LLM WarmStart | 新参数/Prompt/schema；顺序真实筛选后按Pareto层级+maximin确定选择；不足K停止，不补随机点 |
+| llmbo/region_lifted_gp.py的heuristic_correlation | electrothermal_llm.apply_electrothermal_region：32锚点、0.60/0.25/0.15权重、当前后验协方差、有界均值调整及守卫 |
+| 改善信任反馈 | 使用同轮冻结权重/尺度比较；仅采纳且新评价更新，缓存/回退不奖励 |
+
+没有迁移五维充电变量、第三目标、dSOC和电流单调约束，也没有新增混合核。可复现入口仍为CLI run/preflight/audit-run，加独立electrothermal-smoke。三模式由optimization.mode选择parego/warmstart_only/full_llmbo_mo；后两者消融导入同initial_plan文件及SHA256。默认llm.enabled=false、请求预算0；开启真实API需明确环境变量名、完整chat端点、模型及正请求预算，密钥不得进入配置。

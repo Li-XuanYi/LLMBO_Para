@@ -50,6 +50,7 @@ class MOOptimizer:
     def evaluate(self,point,*,phase='BO'):
         point=self.space.validate(point);key=self.key(point);cached=key in self.cache
         result=replace(self.cache[key],source_kind='validated_cache') if cached else self.evaluator.evaluate(point,self.dataset)
+        if not cached and phase=='BO':result=replace(result,evaluation_id='mo-'+key[:32])
         self.store.save_evaluation(result,phase=phase,cached=cached);self.attempts+=1;self.remember(result)
         return result,cached
 

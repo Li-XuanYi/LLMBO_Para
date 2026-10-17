@@ -1,7 +1,7 @@
 """Immutable electrothermal archives with a deduplicated event cost ledger."""
 from dataclasses import asdict,replace
 import json
-from .runstore import RunStore,canonical_json
+from .runstore import RunStore,canonical_json,digest_value
 from .electrothermal_provenance import verify_evaluation
 
 
@@ -41,6 +41,8 @@ class ElectrothermalRunStore(RunStore):
         result=replace(result,signatures=asdict(self.signatures))
         relative=f'electrothermal-evaluations/{self.evaluation_count:06d}.json';self.evaluation_count+=1
         self.write_json(relative,result.to_dict())
+        self.append_event({'type':'electrothermal_evaluation_saved','relative':relative,'content_sha256':digest_value(result.to_dict()),
+                           'evaluation_id':result.evaluation_id,'phase':phase,'cached':bool(cached)})
         if cached:
             self.ledger.record({'event_id':relative+':cache','kind':'cache_hit','phase':phase,'source_evaluation_id':result.evaluation_id})
         else:
