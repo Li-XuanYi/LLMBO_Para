@@ -1,16 +1,20 @@
 # Method — 基于 LLMBO-MO 的锂离子电池电热耦合多目标参数辨识
 
-> **论文方法草稿（中文，2026-10-16）**
+> **论文方法草稿（中文，2026-10-17；Stage 0 倍率协议修订）**
 >
 > 研究定位：将现有 LLMBO-MO 框架应用于电化学–热耦合参数辨识；本研究不声称提出新的 DFN、集总热方程、ParEGO 或高斯过程算法。本文件描述拟采用的方法，不代表电热辨识代码、实测拟合和多种子实验已经完成。
 >
-> 与项目设计的关系：以 **docs/superpowers/specs/2026-10-16-electrothermal-identification-design.md（R1）** 的物理与优化约定为依据；研究数据未确认事项以 **docs/audits/electrothermal-identification-scope-2026-10-16.md** 为准。此文是论文正文草稿，不是批准实施计划或实验结果。
+> 与项目设计的关系：以 **docs/superpowers/specs/2026-10-16-electrothermal-identification-design.md（R1.1）** 的物理与优化约定为依据。2026-10-16的scope审计保留为历史；用户2026-10-17确认旧3C数据有问题，当前新版电热拟合排除该数据。其它实测元数据仍待确认。此文是论文正文草稿，不是批准实施计划或实验结果。
 
 ## III. Method
 
 ### A. Problem Formulation
 
-本文研究锂离子电池在多倍率恒流放电条件下的电化学–热耦合参数辨识。令倍率集合为 \(\mathcal R=\{0.5\mathrm C,1\mathrm C,2\mathrm C,3\mathrm C\}\)。每一工况 \(r\in\mathcal R\) 具有外部激励和实验边界条件，包括电流 \(I_r(t)\)、环境温度 \(T_{\mathrm{amb},r}(t)\) 及初始电化学与热状态；实验观测包含端电压 \(U_r^{\mathrm{obs}}(t_i^U)\) 和电芯温度 \(T_r^{\mathrm{obs}}(t_j^T)\)，允许两类观测使用不同时间网格。
+本文研究锂离子电池在多倍率恒流放电条件下的电化学–热耦合参数辨识。令 \(\mathcal R_{\mathrm{fit}}\) 为实验协议在候选评价前指定的非空有效拟合倍率集合，由新版配置的 `fit_rates` 决定。每一工况 \(r\in\mathcal R_{\mathrm{fit}}\) 具有外部激励和实验边界条件，包括电流 \(I_r(t)\)、环境温度 \(T_{\mathrm{amb},r}(t)\) 及初始电化学与热状态；实验观测包含端电压 \(U_r^{\mathrm{obs}}(t_i^U)\) 和电芯温度 \(T_r^{\mathrm{obs}}(t_j^T)\)，允许两类观测使用不同时间网格。
+
+当前拟采用 \(\mathcal R_{\mathrm{fit}}=\{0.5\mathrm C,1\mathrm C,2\mathrm C\}\)，不使用用户已确认存在问题的旧3C数据。待获得可靠3C观测及其电流、温度和边界元数据后，可另建配置采用 \(\{0.5\mathrm C,1\mathrm C,2\mathrm C,3\mathrm C\}\)，无需修改优化算法。三倍率仍须经过完整实测预检，排除3C不代表其它输入已确认。
+
+倍率成员及执行顺序、选中数据的身份/哈希、观测映射和排除原因进入协议、数据、缓存和最终归档签名。当前三倍率与未来四倍率属于不同实验协议；候选级评价缓存、初始化计划和GP状态不得跨协议直接复用，平均误差和HV也不能直接拼成同一比较曲线。旧原始XLSX、实验、缓存及schema_version=1的四倍率电压流程全部保留。新版不以旧RATE_ORDER推断拟合集合，也不因单个候选失败临时删除某一选中倍率。
 
 第一版选择四个电化学参数和两个热参数构成辨识向量：
 
@@ -117,7 +121,7 @@ E_{T,r}(\boldsymbol\theta)=
 \tag{7}
 \]
 
-四种倍率下两类误差分别等权汇总，形成两个最小化目标：
+对预先冻结的有效倍率集合分别等权汇总两类误差，形成两个最小化目标：
 
 \[
 \boxed{
@@ -129,18 +133,18 @@ F_U(\boldsymbol\theta)\\
 F_T(\boldsymbol\theta)
 \end{bmatrix},
 \quad
-F_U(\boldsymbol\theta)=\frac{1}{|\mathcal R|}
-\sum_{r\in\mathcal R}E_{U,r}(\boldsymbol\theta),
+F_U(\boldsymbol\theta)=\frac{1}{|\mathcal R_{\mathrm{fit}}|}
+\sum_{r\in\mathcal R_{\mathrm{fit}}}E_{U,r}(\boldsymbol\theta),
 \quad
-F_T(\boldsymbol\theta)=\frac{1}{|\mathcal R|}
-\sum_{r\in\mathcal R}E_{T,r}(\boldsymbol\theta).
+F_T(\boldsymbol\theta)=\frac{1}{|\mathcal R_{\mathrm{fit}}|}
+\sum_{r\in\mathcal R_{\mathrm{fit}}}E_{T,r}(\boldsymbol\theta).
 }
 \tag{8}
 \]
 
 \(F_U\) 的单位为 V，\(F_T\) 的单位为 K。温度目标衡量**温度预测误差**，不将电池温度越低视为辨识越准确。实验输入包括已知电流、边界和初始状态；不能把整个实测电芯温度轨迹作为热模型的输入，再以它作为预测目标。
 
-对任何参数候选，只有模型预测完整覆盖其应评价的电压和温度时间网格，且两类残差均有限有效时，才保存真实完整目标对 \([F_U,F_T]\)。无法覆盖的分量设为缺失，不补零、不外推、不采用人为惩罚伪造可训练目标。部分工况的有效曲线和失败诊断应完整保留。
+对任何参数候选，只有 \(\mathcal R_{\mathrm{fit}}\) 中全部工况的模型预测完整覆盖各自电压和温度时间网格，且两类残差均有限有效时，才保存真实完整目标对 \([F_U,F_T]\)。任一选中工况失败，完整目标对即缺失，不能缩小分母、补零、外推或采用人为惩罚伪造可训练目标。部分工况的有效曲线和失败诊断应完整保留；未选工况不读取为拟合观测、不参与完整性判定。倍率是工况，不增加优化目标个数。
 
 ### D. LLM-Informed Initialization
 
@@ -306,7 +310,7 @@ g_t(\boldsymbol\theta_t^{\mathrm{best}})
 
 ### G. Pareto Updating and Overall Procedure
 
-电热模型每次评价后，只有签名和目标有效性均通过检查的完整 \([F_U,F_T]\) 观测，才加入用于下一轮模型拟合的历史数据。二维非支配筛选维护 Pareto 参数集，并保留各倍率的原始电压曲线、温度曲线、误差、终止状态和求解成本。
+电热模型每次评价后，只有同一拟合倍率集合下、签名和目标有效性均通过检查的完整 \([F_U,F_T]\) 观测，才加入用于下一轮模型拟合的历史数据。同一参数输入的重复评价保留记录和成本，但不重复加入GP训练集；不同参数即使目标相同，仍是不同训练样本。二维非支配筛选维护Pareto参数集，并保留选中各倍率的原始电压曲线、温度曲线、误差、终止状态和求解成本。
 
 为比较不同方法的多目标辨识效率，在事先固定的指标空间
 
@@ -318,11 +322,12 @@ g_t(\boldsymbol\theta_t^{\mathrm{best}})
 \right]^\top
 \]
 
-内使用统一参考点 \(\boldsymbol r_{\mathrm{HV}}\) 计算二维 Hypervolume（HV）。不同对照路线与随机种子须保持同一目标尺度、评价窗口和参考点；HV 不跟随当前最优值动态改变。正式指标参考点未确认时，保留 Pareto 集，但不虚报 HV 数值。
+内使用统一参考点 \(\boldsymbol r_{\mathrm{HV}}\) 计算二维Hypervolume（HV）。同一比较协议下的对照路线与随机种子须保持同一拟合倍率集合、数据、目标尺度、评价窗口和参考点；HV不跟随当前最优值动态改变。三倍率和未来四倍率不因尺度/参考点相同就成为同一指标协议。正式指标参考点未确认时，保留Pareto集，但不虚报HV数值。
 
 **Algorithm 1. Electrochemical–Thermal Parameter Identification with LLMBO-MO**
 
-    Input: Current/ambient-temperature trajectories, initial states, voltage and cell-temperature observations;
+    Input: Configured fitting-rate set R_fit and dataset/protocol identities;
+           current/ambient-temperature trajectories, initial states, voltage and cell-temperature observations;
            coupled DFN–lumped-thermal model; parameter domain Θ;
            fixed objective scales s; reproducible weight schedule {w_t}; budgets.
     1: Obtain LLM-proposed electrochemical–thermal parameter candidates.
@@ -335,7 +340,7 @@ g_t(\boldsymbol\theta_t^{\mathrm{best}})
     8:     Generate parameter candidates; compute plain Gaussian EI in context C_t.
     9:     Query weight-conditioned LLM region and form bounded posterior Region-Lift.
     10:    Use lifted EI only when the acceptance checks pass; otherwise use plain EI.
-    11:    Evaluate selected parameters at four rates with coupled DFN–thermal solves.
+    11:    For each r in R_fit, evaluate selected parameters with one coupled DFN–thermal solve.
     12:    Compute valid F_U and F_T; preserve partial failures and actual costs.
     13:    Update the Pareto set and Region-Lift trust under frozen C_t, then advance context.
     14: Return the non-dominated parameter set, per-rate errors and trajectories,
@@ -344,8 +349,8 @@ g_t(\boldsymbol\theta_t^{\mathrm{best}})
 ## 研究实施边界（不属于论文 Method 正文）
 
 1. **研究定位**：本文件描述现有 LLMBO-MO 用于电热耦合参数辨识的应用路线，并非提出新的多目标优化算法。ParEGO、WarmStart 和 Region-Lift 的方法归属在正式论文中应按原论文引用。
-2. **模型范围**：原型是 4 个电化学参数＋2 个热参数、四倍率、共同冷却边界的 DFN–集总热模型。参数范围、固定电导率、热几何、温度物性/活化能和观测映射仍须核实。
-3. **当前数据限制**：既有 XLSX 的电流列无可用实测电流；温度 T 列的单位、测点和 3C 冷却工况尚未获实验组确认。实测联合辨识暂不能假定这些输入已经可靠。
+2. **模型范围**：原型是4个电化学参数＋2个热参数、配置驱动倍率集合、共同冷却边界的DFN–集总热模型。当前拟用0.5C/1C/2C，可靠3C以后通过新配置加入；不改变六参数、两个误差目标或优化骨干。参数范围、固定电导率、热几何、温度物性/活化能和观测映射仍须核实。
+3. **当前数据限制**：用户已确认旧3C数据有问题，当前新版电热实测拟合禁用该数据；原数据和旧四倍率任务保留。0.5C/1C/2C实际电流、T列单位/测点、初态及共享冷却条件仍须科研组确认，不能把缺失数据自动解释为模型失效。
 4. **实验层级**：将软件与解析测试、真实 DFN 合成数据测试和实测辨识分开，不从某一层的成功推论另外一层已验证，更不能将本文 Method 描述当作已得到实测结果。
-5. **公平比较**：数值 ParEGO、WarmStart-only、完整 LLMBO-MO 使用统一物理参数域、尺度、权重、评价口径和成本台账；Region-Lift 消融须保持相同初始化，包含所有筛选评价成本。
+5. **公平比较**：数值ParEGO、WarmStart-only、完整LLMBO-MO在同一倍率/数据协议中使用统一物理参数域、尺度、权重、评价口径和成本台账；WarmStart-only与Full的Region-Lift消融使用同一经核验有效初始化计划及其指纹，完整归属所有筛选成本。后续加入可靠3C另建配置、签名及实验归档，不覆盖当前三倍率协议。
 6. **代码实现状态**：这是论文 Method 文本，不代表开发工作树已完成相应接口；正式提交时应再次与生效源码、固定物性和实验日志逐项核对。

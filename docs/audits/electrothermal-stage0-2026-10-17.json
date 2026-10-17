@@ -1,0 +1,172 @@
+{
+  "stage": "Stage 0 only",
+  "client_date": "2026-10-17 Asia/Shanghai",
+  "review_base": "0e01af26b3fac8a6754165421d0eca3b0b4dab9e",
+  "branch": "codex/electrothermal-mo-20261016",
+  "document_checks": [
+    {
+      "name": "worktree_was_clean",
+      "passed": true
+    },
+    {
+      "name": "no_formal_plan_before_stage0",
+      "passed": true
+    },
+    {
+      "name": "no_electrothermal_modules_before_stage0",
+      "passed": true
+    },
+    {
+      "name": "method_uses_general_R_fit",
+      "passed": true
+    },
+    {
+      "name": "method_has_no_bare_R_or_fixed_four_rate_algorithm",
+      "passed": true
+    },
+    {
+      "name": "method_current_three_future_four_protocols",
+      "passed": true
+    },
+    {
+      "name": "spec_explicit_current_fit_rates",
+      "passed": true
+    },
+    {
+      "name": "spec_future_fit_rates",
+      "passed": true
+    },
+    {
+      "name": "spec_records_confirmed_old_3c_exclusion",
+      "passed": true
+    },
+    {
+      "name": "spec_dynamic_denominator_budget",
+      "passed": true
+    },
+    {
+      "name": "spec_keeps_v1_strict_four_rate_contract",
+      "passed": true
+    },
+    {
+      "name": "spec_has_no_stale_four_rate_requirement",
+      "passed": true
+    },
+    {
+      "name": "spec_shared_initial_plan_semantic_signature",
+      "passed": true
+    },
+    {
+      "name": "spec_distinguishes_repeated_x_and_equal_y",
+      "passed": true
+    },
+    {
+      "name": "plan_has_14_ordered_owned_tasks",
+      "passed": true
+    },
+    {
+      "name": "plan_tasks_remain_unexecuted",
+      "passed": true
+    },
+    {
+      "name": "plan_has_13_explicit_red_and_green_commands",
+      "passed": true
+    },
+    {
+      "name": "plan_requires_new_baseline_and_stage_full_regressions",
+      "passed": true
+    },
+    {
+      "name": "plan_has_interfaces_for_each_owned_task",
+      "passed": true
+    },
+    {
+      "name": "plan_has_no_unresolved_TODO_or_TBD",
+      "passed": true
+    },
+    {
+      "name": "markdown_code_fences_are_balanced",
+      "passed": true
+    },
+    {
+      "name": "plan_has_all_three_validation_levels",
+      "passed": true
+    },
+    {
+      "name": "plan_has_explicit_approval_stop",
+      "passed": true
+    },
+    {
+      "name": "all_123_product_files_unchanged",
+      "passed": true
+    },
+    {
+      "name": "reference_source_unchanged",
+      "passed": true
+    },
+    {
+      "name": "main_head_and_index_unchanged",
+      "passed": true
+    },
+    {
+      "name": "main_user_method_unchanged",
+      "passed": true
+    },
+    {
+      "name": "worktree_head_still_matches_review_base",
+      "passed": true
+    },
+    {
+      "name": "all_four_document_destinations_match_before_edit",
+      "passed": true
+    }
+  ],
+  "counts": {
+    "total": 29,
+    "passed": 29,
+    "failed": 0
+  },
+  "exit_code": 0,
+  "product_tests_run": 0,
+  "DFN_solver_calls": 0,
+  "paid_API_requests": 0,
+  "measured_BO_runs": 0,
+  "server_tasks": 0,
+  "protected_product_files": 123,
+  "planned_tasks": [
+    "A0",
+    "A1",
+    "A2",
+    "A3",
+    "A4",
+    "A5",
+    "A6",
+    "B1",
+    "B2",
+    "B3",
+    "B4",
+    "C1",
+    "C2",
+    "C3"
+  ],
+  "planned_named_test_scenarios": 21,
+  "evidence_directory": "D:\\Users\\aa133\\Desktop\\LLMBO_Para\\bo-repair-work\\20261017_electrothermal_stage0\\validation-20261017T125146764798Z",
+  "documents": {
+    "docs/Method.md": "910cc9c4542e244fb02c0298de398c763b57e20239a193d6b1d86cc89ab2895e",
+    "docs/superpowers/specs/2026-10-16-electrothermal-identification-design.md": "67b319c112dd6e677be63ba8a9444903e44c864d75d6b8fe6befc128c82767f2",
+    "docs/proposals/electrothermal-identification-stages-2026-10-16.md": "0d29743fb3b161a49abc4d6cf48519e55c5c1b0009620fe395469414117c1a04",
+    "docs/audits/electrothermal-identification-migration-2026-10-16.md": "2044466a0772f41e88f73ba05c46b495eae011cc4dc1497030630a0c112c4d75"
+  },
+  "plan_sha256": "d66dfb135e8fdaa5a6a14a0ff1b68da86d2c26d47adfafed67ea0a913fa165d5",
+  "previous_document_check_attempts": [
+    {
+      "directory": "D:\\Users\\aa133\\Desktop\\LLMBO_Para\\bo-repair-work\\20261017_electrothermal_stage0\\validation-20261017T125042390680Z",
+      "counts": {
+        "total": 29,
+        "passed": 28,
+        "failed": 1
+      },
+      "exit_code": 1
+    }
+  ]
+}
