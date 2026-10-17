@@ -104,7 +104,10 @@ def run_electrothermal_experiment(config,output,*,base_dir,simulator=None,llm_co
             controller=controller or ElectrothermalLLMController()
             controller.evaluator=evaluator;controller.solver_budget=budget
             initial=controller.generate_warmstart(prepared,store=store,budgets=config['budgets'])
-        optimizer=MOOptimizer(prepared.space,evaluator,prepared.dataset,store,config['optimization'],initial_plan=initial)
+        if config['optimization']['mode']=='full_llmbo_mo':
+            from .electrothermal_llm import ElectrothermalLLMController
+            controller=controller or ElectrothermalLLMController();controller.prepared=prepared
+        optimizer=MOOptimizer(prepared.space,evaluator,prepared.dataset,store,config['optimization'],initial_plan=initial,llm_controller=controller)
         result=optimizer.optimize(config['optimization']['total_candidate_budget'])
         result['initial_plan_sha256']=initial.plan_sha256 if initial is not None else None
         store.write_json('electrothermal-summary.json',result);store.finish('completed',result);return result

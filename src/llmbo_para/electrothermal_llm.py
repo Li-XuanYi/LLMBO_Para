@@ -53,18 +53,25 @@ def build_electrothermal_payload(task,*,prepared,history,context=None):
     rows=[{'evaluation_id':r.evaluation_id,'parameters':list(r.parameters),'objectives':r.objectives,'complete_pair_valid':r.complete_pair_valid,
            'objective_components':r.objective_components,'rates':{q.rate:{'voltage_valid':q.voltage.valid,'temperature_valid':q.cell_temperature.valid,
            'rmse_v':q.voltage.rmse_v,'rmse_k':q.cell_temperature.rmse_k,'failure':q.cell_temperature.reason or q.voltage.reason} for q in r.rates}} for r in selected.values()]
-    return {'task':task,'schema_version':2,'parameter_profile':prepared.space.profile,'fit_rates':list(prepared.dataset.fit_rates),
+    payload={'task':task,'schema_version':2,'parameter_profile':prepared.space.profile,'fit_rates':list(prepared.dataset.fit_rates),
         'signatures':asdict(prepared.signatures),'parameters':[{'name':s.name,'unit':s.unit,'lower':s.lower,'upper':s.upper,'transform':s.transform} for s in prepared.space.specs],
         'fixed':cfg['fixed'],'property_law':cfg['property_law'],'conditions_by_rate':cfg['conditions_by_rate'],
         'objective_scales':cfg['optimization']['objective_scales'],'objective_order':['F_U_V','F_T_K'],
         'history':rows,'pareto':[{'evaluation_id':r.evaluation_id,'objectives':r.objectives} for r in front],
         'instructions':(Path(__file__).parent/'prompts'/(task+'.txt')).read_text(encoding='utf8')}
+    if context is not None:
+        c=context.scalarization
+        payload['context_id']=context.context_id
+        payload['context']={'weights':list(c.weights),'objective_scales':list(c.objective_scales),'ideal':list(c.ideal),'rho_aug':c.rho_aug,
+            'mean':c.mean,'std':c.std,'incumbent_id':c.incumbent_id,'best':c.best,'history_ids':list(c.observation_ids),
+            'current_scalar_top':[{'evaluation_id':c.observation_ids[i],'g':c.raw_labels[i]} for i in sorted(range(len(c.y)),key=lambda i:(c.raw_labels[i],c.observation_ids[i]))[:8]]}
+    return payload
 
 
 def validate_warmstart_response(response,*,prepared):
     required={'schema_version','parameter_profile','fit_rates','signatures','candidates'}
     if not isinstance(response,dict) or set(response)!=required:raise ValueError('new electrothermal response schema required')
-    if type(response['schema_version']) is not int or response['schema_version']!=2 or response['parameter_profile']!=prepared.space.profile or response['fit_rates']!=list(prepared.dataset.fit_rates) or response['signatures']!=asdict(prepared.signatures):raise ValueError('stale or mismatched electrothermal response')
+    if type(response['schema_version']) is not int or response['schema_version']!=2 or response['parameter_profile']!=prepared.space.profile or response['fit_rates']!=list(prepared.dataset.fit_rates) or digest_value(response['signatures'])!=digest_value(asdict(prepared.signatures)):raise ValueError('stale or mismatched electrothermal response')
     if not isinstance(response['candidates'],list):raise ValueError('candidate list required')
     return response['candidates']
 
@@ -124,3 +131,81 @@ class ElectrothermalLLMController:
             store.write_json('initialization.json',details);raise ValueError('insufficient_initialization: no additional requests or random fillers permitted')
         path=store.path/'initial-plan.json';write_initial_plan(path,selected,signatures=prepared.signatures)
         return load_initial_plan(path,space=prepared.space,dataset=prepared.dataset,signatures=prepared.signatures)
+
+    def request_region(self,prepared,history,context,store):
+        payload=build_electrothermal_payload('region_preference_electrothermal',prepared=prepared,history=history,context=context)
+        return self.request(payload,prepared=prepared,store=store,budgets=prepared.config['budgets'],
+                            request_cap=prepared.config['optimization']['warmstart']['max_requests'])
+
+
+def validate_electrothermal_region(response,*,expected_context_id,expected_signatures):
+    from .informed import validate_region_response
+    if not isinstance(response,dict) or set(response)!={'schema_version','parameter_profile','fit_rates','signatures','context_id','region'}:raise ValueError('electrothermal region envelope required')
+    if type(response['schema_version']) is not int or response['schema_version']!=2 or response['parameter_profile']!='electrothermal_4e2t' or response['context_id']!=expected_context_id or digest_value(response['signatures'])!=digest_value(expected_signatures) or response['fit_rates']!=list(expected_signatures['fit_rates']):raise ValueError('stale or incompatible region context')
+    region=validate_region_response(response['region'])
+    return {**response,'region':region}
+
+
+def apply_electrothermal_region(gp,context,pool,region,*,settings,trust,space):
+    from .acquisition import gaussian_ei
+    from .sobol import Sobol6
+    x=np.asarray(pool,dtype=float);mean,std=gp.predict(x);ei=gaussian_ei(mean,std,context.scalarization.best);plain=int(np.argmax(ei))
+    result={'accepted':False,'selected_index':plain,'plain_index':plain,'fallback_reason':None,'context_id':context.context_id,
+            'mean':mean.tolist(),'std':std.tolist(),'shift':np.zeros(len(x)).tolist(),'adjusted_mean':mean.tolist(),
+            'plain_ei':ei.tolist(),'effective_ei':ei.tolist(),'response':None,'trust_before':float(trust)}
+    def fallback(reason):result['fallback_reason']=reason;return result
+    try:validated=validate_electrothermal_region(region,expected_context_id=context.context_id,expected_signatures=json_load(context.signatures_json))
+    except (ValueError,TypeError,KeyError):return fallback('invalid_response')
+    # Archive only the checked envelope; remove free text from untrusted providers.
+    validated['region']={**validated['region'],'reason':'structured_region_response'};result['response']=validated
+    p=validated['region']
+    if p['kind']=='none':return fallback('abstention')
+    if p['confidence']<settings.min_confidence:return fallback('low_confidence')
+    if context.ordinal>=settings.active_until:return fallback('inactive')
+    lb=np.asarray(p['lb']);ub=np.asarray(p['ub']);width=ub-lb
+    if np.any(width<settings.min_width) or np.any(width>settings.max_width):return fallback('invalid_width')
+    anchors=lb+Sobol6(1).draw(settings.n_anchors)*width;keep=[]
+    for a in anchors:
+        try:space.denormalize(a);keep.append(True)
+        except ValueError:keep.append(False)
+    result['feasible_anchor_ratio']=float(np.mean(keep))
+    if not any(keep) or np.mean(keep)<settings.min_feasible_anchor_ratio:return fallback('insufficient_legal_anchors')
+    anchors=anchors[np.asarray(keep)];novelty=np.linalg.norm(anchors[:,None,:]-np.asarray(gp.x)[None,:,:],axis=2).min(axis=1)
+    result['close_fraction']=float(np.mean(novelty<settings.close_distance))
+    if result['close_fraction']>settings.max_close_fraction:return fallback('too_close_to_observed')
+    ma,sa=gp.predict(anchors);ae=gaussian_ei(ma,sa,context.scalarization.best)
+    def z(v):return (v-v.mean())/max(float(v.std()),1e-12)
+    signal=.60*z(np.log(np.maximum(ae,1e-12)))+.25*z(sa)+.15*z(novelty)
+    logits=signal/settings.anchor_temperature;weights=np.exp(logits-logits.max());weights/=weights.sum()
+    entropy=-float(np.sum(weights*np.log(weights+1e-12)))
+    consistency=float(np.clip(.55*(1-entropy/np.log(len(weights)))+.45*np.tanh(signal.std()),0,1)) if len(weights)>1 else 0.
+    kgg=gp.posterior_covariance(anchors)+np.eye(len(anchors))*1e-6;kxg=gp.posterior_covariance(x,anchors);norm=float(weights@kgg@weights)
+    if not np.isfinite(norm) or norm<=1e-12 or np.any(~np.isfinite(kxg)):return fallback('degenerate_posterior_covariance')
+    corr=np.clip((kxg@weights)/np.sqrt(np.maximum(std**2*norm,1e-12)),-1,1)
+    anneal=max(0.,1-context.ordinal/settings.active_until)
+    shift=np.clip(settings.lambda_max*anneal*p['confidence']*trust*consistency*np.maximum(corr,0),0,settings.max_shift_std)
+    adjusted=mean-shift;lifted_ei=gaussian_ei(adjusted,std,context.scalarization.best);lifted=int(np.argmax(lifted_ei))
+    gap=float(np.log(max(ei[plain],1e-12))-np.log(max(ei[lifted],1e-12)));sigma_ratio=float(std[lifted]/max(std[plain],1e-12))
+    result.update(anchors=anchors.tolist(),anchor_weights=weights.tolist(),anchor_consistency=consistency,correlation=corr.tolist(),
+        kernel_norm_sq=norm,anneal=anneal,shift=shift.tolist(),adjusted_mean=adjusted.tolist(),lifted_ei=lifted_ei.tolist(),
+        lifted_index=lifted,plain_log_ei_gap=gap,sigma_ratio=sigma_ratio)
+    if not np.any(shift>1e-12):return fallback('zero_shift')
+    if lifted==plain:return fallback('same_as_plain')
+    if gap>settings.max_plain_log_ei_gap:return fallback('plain_ei_gap')
+    if np.any(x[lifted]<lb) or np.any(x[lifted]>ub):return fallback('outside_region')
+    if sigma_ratio<settings.min_sigma_ratio:return fallback('low_sigma_ratio')
+    result.update(accepted=True,selected_index=lifted,effective_ei=lifted_ei.tolist());return result
+
+
+def json_load(value):
+    import json
+    return json.loads(value)
+
+
+def update_electrothermal_trust(context,result,*,previous_trust,beta,adoption):
+    if not 0<=previous_trust<=1 or not 0<=beta<=1:raise ValueError('bounded trust and beta required')
+    c=context.scalarization;new=float(c.scalarize([result.objectives])[0]) if result.complete_pair_valid else None
+    success=int(new is not None and new<min(c.raw_labels));adopted=bool(adoption.get('accepted') and not adoption.get('cached'))
+    return {'context_id':context.context_id,'previous_best':min(c.raw_labels),'new_scalar':new,'success':success,
+            'adopted':adopted,'trust_before':float(previous_trust),'trust_after':float((1-beta)*previous_trust+beta*success if adopted else previous_trust),
+            'reason':'complete_pair' if new is not None else 'incomplete_pair_no_scalar'}

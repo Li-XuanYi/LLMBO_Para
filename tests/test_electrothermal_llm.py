@@ -83,3 +83,14 @@ def test_chat_retries_use_distinct_immutable_http_artifacts():
     for suffix in ('a','b'):
         client.post({'task':'warm_start_electrothermal','artifact_task':'warm_start_electrothermal_request_'+suffix,'instructions':'Structured JSON'})
     assert len(set(client.tasks))==2
+
+
+def test_warmstart_accepts_actual_json_wire_signature_types(tmp_path):
+    import json
+    from llmbo_para.electrothermal_llm import build_electrothermal_payload,validate_warmstart_response
+    from llmbo_para.electrothermal_workflow import prepare_electrothermal_experiment
+    _,p=prepare_electrothermal_experiment(et_config(),base_dir=tmp_path)
+    payload=build_electrothermal_payload('warm_start_electrothermal',prepared=p,history=[])
+    reply=Proposed(p.space,[[.2]*6]).post(payload)
+    reply=json.loads(json.dumps(reply))
+    assert len(validate_warmstart_response(reply,prepared=p))==1

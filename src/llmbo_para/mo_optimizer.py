@@ -35,6 +35,8 @@ class MOOptimizer:
         if options['initial_count']<2 or options['total_candidate_budget']<options['initial_count'] or options['global_pool_size']<1:raise ValueError('at least two initial points and nonempty pool required')
         self.scheduler=WeightScheduler(options['weights'],options['seed']);self.rng=np.random.default_rng(options['seed']);self.sobol=Sobol6(1)
         self.initialized=False;self.gp=None;self.last_context=None
+        from .informed import InformedSettings
+        self.region_settings=InformedSettings.parse(options['region']);self.trust=self.region_settings.trust_init
 
     def key(self,parameters):return candidate_key(parameters,self.space.profile,self.store.signatures)
 
@@ -100,12 +102,23 @@ class MOOptimizer:
         context=MORoundContext(scalar,self.dataset.fit_rates,canonical_json(asdict(self.store.signatures)).decode(),canonical_json(state).decode(),
                                pool,len(self.rounds)+1,digest_value(context_data));self.last_context=context
         mean,std=self.gp.predict(pool);ei=gaussian_ei(mean,std,scalar.best);index=int(np.argmax(ei))
+        region=None
+        if self.options['mode']=='full_llmbo_mo':
+            from .electrothermal_llm import apply_electrothermal_region
+            response=self.llm_controller.request_region(self.llm_controller.prepared,self.history,context,self.store) if self.llm_controller is not None else None
+            region=apply_electrothermal_region(self.gp,context,pool,response,settings=self.region_settings,trust=self.trust,space=self.space)
+            index=region['selected_index']
         old_best=min(scalar.raw_labels)
         result,cached=self.evaluate(self.space.denormalize(pool[index]))
         new=float(scalar.scalarize([result.objectives])[0]) if result.complete_pair_valid else None
         feedback={'context_id':context.context_id,'previous_best':old_best,'new_scalar':new,'improved':new is not None and new<old_best,'cached':cached}
+        if region is not None:
+            from .electrothermal_llm import update_electrothermal_trust
+            feedback['trust']=update_electrothermal_trust(context,result,previous_trust=self.trust,beta=self.region_settings.trust_beta,
+                adoption={'accepted':region['accepted'],'cached':cached})
+            self.trust=feedback['trust']['trust_after']
         event={'context':context.to_dict(),'mean':mean.tolist(),'std':std.tolist(),'ei':ei.tolist(),'selected_index':index,
-               'evaluation_id':result.evaluation_id,'feedback':feedback,'result_complete':result.complete_pair_valid}
+               'evaluation_id':result.evaluation_id,'feedback':feedback,'result_complete':result.complete_pair_valid,'region':region}
         self.rounds.append(event);self.store.write_json(f'mo-rounds/{len(self.rounds):06d}.json',event)
         return event
 
