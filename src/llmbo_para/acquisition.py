@@ -10,6 +10,18 @@ import numpy as np
 from .metrics import RATE_ORDER, LogRMSETransform
 
 
+def gaussian_ei(mean, std, best: float) -> np.ndarray:
+    """Minimization EI in the current linearly standardized scalar space."""
+    mean=np.asarray(mean,dtype=float);std=np.asarray(std,dtype=float)
+    if mean.ndim!=1 or mean.shape!=std.shape or np.any(~np.isfinite(mean)) or np.any(~np.isfinite(std)) or np.any(std<0) or not math.isfinite(best):
+        raise ValueError('finite aligned Gaussian posterior and threshold required')
+    improvement=best-mean;positive=std>0;ei=np.maximum(improvement,0.)
+    z=improvement[positive]/std[positive]
+    cdf=np.array([.5*math.erfc(-float(v)/math.sqrt(2)) for v in z])
+    ei[positive]=improvement[positive]*cdf+std[positive]*np.exp(-.5*z*z)/math.sqrt(2*math.pi)
+    return np.maximum(ei,0.)
+
+
 def scalar_log_ei(mean, std, transform: LogRMSETransform, best_objective_v: float) -> np.ndarray:
     """Exact EI in volts for J=max(exp(log(J+epsilon))-epsilon, 0).
 
