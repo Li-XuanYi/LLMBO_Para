@@ -1,0 +1,109 @@
+{
+  "date": "2026-10-17 Asia/Shanghai",
+  "tested_head": "3c6a305ece3d8f68faaddeb6e1070495ec9eb434",
+  "settings": {
+    "transport": "openai_chat_completions",
+    "endpoint": "https://api.878784112.xyz/v1/chat/completions",
+    "model": "deepseek-v4.1-flash 1017",
+    "api_key_env": "LLMBO_EPHEMERAL_PROBE_CREDENTIAL",
+    "json_mode": true,
+    "probe_max_tokens": 64,
+    "probe_timeout_s": 25,
+    "scope": "connection settings only; not an approved MO experiment configuration"
+  },
+  "model_list_probe": {
+    "HTTP_requests": 1,
+    "generation_requests": 0,
+    "DFN_solves": 0,
+    "electrothermal_MO_tested": false,
+    "status": "failed",
+    "error_type": "TimeoutError",
+    "elapsed_s": 21.229577599995537,
+    "message": "The read operation timed out"
+  },
+  "chat_probe": {
+    "HTTP_requests": 1,
+    "generation_requests": 1,
+    "total_HTTP_requests_including_parent": 2,
+    "DFN_solves": 0,
+    "electrothermal_MO_tested": false,
+    "requested_model": "deepseek-v4.1-flash 1017",
+    "status": "passed",
+    "structured_reply": {
+      "ok": true
+    },
+    "elapsed_s": 4.531459499994526
+  },
+  "response_model": "deepseek-v4.1-flash 1017",
+  "provider_usage_verbatim": {
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 0,
+    "cached_tokens": 0,
+    "completion_thinking_tokens": 17,
+    "completion_tokens": 23,
+    "completion_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "cached_tokens": 0,
+      "reasoning_tokens": 17,
+      "rejected_prediction_tokens": 0
+    },
+    "cost": 1e-05,
+    "credit": 0,
+    "prompt_cache_hit_tokens": 0,
+    "prompt_cache_miss_tokens": 114,
+    "prompt_cache_write_tokens": 0,
+    "prompt_tokens": 55,
+    "prompt_tokens_details": {
+      "accepted_prediction_tokens": 0,
+      "audio_tokens": 0,
+      "cached_tokens": 0,
+      "reasoning_tokens": 0,
+      "rejected_prediction_tokens": 0
+    },
+    "total_tokens": 137
+  },
+  "total_HTTP_requests": 2,
+  "generation_requests": 1,
+  "DFN_solves": 0,
+  "battery_data_sent": false,
+  "transport_mock_tests": {
+    "tests": 12,
+    "passed": 12,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "exit_code": 0
+  },
+  "initial_transport_test_attempt": {
+    "completed": false,
+    "pytest_exit_code": -1,
+    "action": "stopped task-owned processes after non-escalated run did not complete; rerun with worktree write access",
+    "not_counted_as_passed": true
+  },
+  "credential_file_scan": {
+    "files_scanned": 410,
+    "64_hex_credential_pattern_hits": 0,
+    "input_mode": "hidden msvcrt.getwch; key absent from argv and persistent configuration",
+    "credential_process_environment_removed_on_exit": true
+  },
+  "protection": {
+    "product_123_unchanged": true,
+    "main_index_unchanged": true,
+    "main_user_method_unchanged": true,
+    "main_status_unchanged": true
+  },
+  "electrothermal_MO_implemented": false,
+  "electrothermal_MO_run": false,
+  "new_electrothermal_RMSE_available": false,
+  "implementation_plan_approval": "pending user reply",
+  "evidence_sha256": {
+    "D:\\Users\\aa133\\Desktop\\LLMBO_Para\\runs\\llmbo-mo-api-precheck\\20261017T134814Z_39230911e86d_139567a9\\probe-result.json": "32bd31a5295897ce1dbe1bf67347ec6040f0bc570177ef0e487782bbafff2cef",
+    "D:\\Users\\aa133\\Desktop\\LLMBO_Para\\runs\\llmbo-mo-api-precheck\\20261017T144259Z_48308b0b67f3_b00cb91a\\probe-result.json": "6ef7c67ce14eb4bd50ea7393cda7f0d67763dce639020919864e3db5e54918ea",
+    "D:\\Users\\aa133\\Desktop\\LLMBO_Para\\runs\\llmbo-mo-api-precheck\\20261017T144259Z_48308b0b67f3_b00cb91a\\http\\connectivity_probe.request.json": "4c2e7fe60bb3bea9f31f078c678599bef0e9ed207a3584d2faac469bd323cde4",
+    "D:\\Users\\aa133\\Desktop\\LLMBO_Para\\runs\\llmbo-mo-api-precheck\\20261017T144259Z_48308b0b67f3_b00cb91a\\http\\connectivity_probe.response.json": "d33c5e806633e740093a08ee6fa9c03258fe7cd6b4de44e128bfcac343c3cf86",
+    "D:\\Users\\aa133\\Desktop\\LLMBO_Para\\bo-repair-work\\20261017_llmbo_mo_api_precheck\\transport-02-pytest.log": "3c52b18028e5fbf6e09881cb8ed8c747d82aef2dd54c9c8e8f945e0b98d1a2b6",
+    "D:\\Users\\aa133\\Desktop\\LLMBO_Para\\bo-repair-work\\20261017_llmbo_mo_api_precheck\\transport-02-junit.xml": "92d7363fe57d1d5d56e698fba057fde64607469a63fe5af9bed921d789afc260",
+    "D:\\Users\\aa133\\Desktop\\LLMBO_Para\\bo-repair-work\\20261017_llmbo_mo_api_precheck\\transport-02-exit-code.txt": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354"
+  }
+}
