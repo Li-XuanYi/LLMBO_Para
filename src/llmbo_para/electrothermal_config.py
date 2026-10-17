@@ -99,6 +99,13 @@ def electrothermal_configuration_errors(config):
     if model.get('options')!={'thermal':'lumped','use lumped thermal capacity':'true','surface temperature':'ambient'}:errors.append('verified lumped thermal options required')
     opt=section('optimization');strict(opt,('mode','initial_count','total_candidate_budget','seed','gp_sweeps','global_pool_size','local_pool_size','local_radius','max_rate_attempts','parallel_workers','objective_scales','rho_aug','weights','hv_reference','warmstart','region','initial_plan'),'optimization')
     if opt.get('mode') not in ('parego','warmstart_only','full_llmbo_mo'):errors.append('invalid MO mode')
+    warm=opt.get('warmstart')
+    if not isinstance(warm,dict):errors.append('warmstart must be an object')
+    else:
+        strict(warm,('count','pool_size','max_requests','max_candidates','max_evaluations'),'warmstart')
+        for name in ('count','pool_size','max_requests','max_candidates','max_evaluations'):numeric(warm.get(name),'warmstart.'+name,integer=True)
+        if warm.get('count')!=opt.get('initial_count'):errors.append('warmstart count must equal initial_count')
+        if type(warm.get('pool_size')) is int and type(opt.get('initial_count')) is int and warm['pool_size']<opt['initial_count']:errors.append('warmstart pool smaller than seed count')
     for name in ('initial_count','total_candidate_budget','seed','gp_sweeps','global_pool_size','local_pool_size','max_rate_attempts'):
         numeric(opt.get(name),'optimization.'+name,positive=name not in ('seed','gp_sweeps','local_pool_size'),integer=True)
     if type(opt.get('initial_count')) is int and opt['initial_count']<2:errors.append('initial_count must be >=2')

@@ -91,16 +91,22 @@ def run_electrothermal_experiment(config,output,*,base_dir,simulator=None,llm_co
     from .mo_optimizer import MOOptimizer
     report,prepared=prepare_electrothermal_experiment(config,base_dir=base_dir)
     if prepared is None:raise ValueError('; '.join(report['errors']))
-    if config['optimization']['mode']!='parego':raise NotImplementedError('Stage C LLM initialization/controller not implemented yet')
     if config['model']['provider']=='pybamm' and any(c.voltage.provenance.get('kind')=='generation_grid_only_not_observations' for c in prepared.dataset.cases.values()):
         raise ValueError('DFN synthetic templates are not measured observations; use explicit generation entry')
     budget=SolverBudget(config['budgets']['max_solver_calls'],config['budgets']['wall_clock_s'])
     backend=simulator or make_electrothermal_backend(config,budget=budget)
     store=ElectrothermalRunStore(output,config,dataset=prepared.dataset,signatures=prepared.signatures,command='electrothermal multiobjective BO')
     evaluator=ElectrothermalEvaluator(prepared.space,backend,fit_rates=prepared.dataset.fit_rates,max_rate_attempts=config['optimization']['max_rate_attempts'])
-    optimizer=MOOptimizer(prepared.space,evaluator,prepared.dataset,store,config['optimization'],initial_plan=prepared.initial_plan)
     try:
+        initial=prepared.initial_plan;controller=llm_controller
+        if config['optimization']['mode']!='parego' and initial is None:
+            from .electrothermal_llm import ElectrothermalLLMController
+            controller=controller or ElectrothermalLLMController()
+            controller.evaluator=evaluator;controller.solver_budget=budget
+            initial=controller.generate_warmstart(prepared,store=store,budgets=config['budgets'])
+        optimizer=MOOptimizer(prepared.space,evaluator,prepared.dataset,store,config['optimization'],initial_plan=initial)
         result=optimizer.optimize(config['optimization']['total_candidate_budget'])
+        result['initial_plan_sha256']=initial.plan_sha256 if initial is not None else None
         store.write_json('electrothermal-summary.json',result);store.finish('completed',result);return result
     except Exception as exc:
         store.finish('failed',{'message':str(exc),'costs':store.ledger.summary()});raise

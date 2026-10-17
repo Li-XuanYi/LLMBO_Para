@@ -146,7 +146,7 @@ class ChatCompletionsTransport(HttpJsonTransport):
             wire["response_format"] = {"type": "json_object"}
         if self.thinking is not None:
             wire["thinking"] = {"type": self.thinking}
-        result = self._post_json(wire, task=payload["task"])
+        result = self._post_json(wire, task=payload.get("artifact_task", payload["task"]))
         try:
             choice = result["choices"][0]
             if choice.get("finish_reason") != "stop":
