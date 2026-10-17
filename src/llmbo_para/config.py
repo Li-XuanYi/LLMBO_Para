@@ -19,6 +19,9 @@ def load_json(path: str | Path) -> dict:
 
 
 def parameter_space_from_config(config: dict) -> ParameterSpace:
+    if config.get("schema_version") == 2:
+        from .electrothermal_config import electrothermal_space_from_config
+        return electrothermal_space_from_config(config)
     parameters = config.get("parameters")
     if not isinstance(parameters, dict):
         raise ValueError("configuration requires a parameters object")
@@ -54,6 +57,9 @@ def configuration_errors(config: dict) -> list[str]:
     from .runstore import reject_inline_secrets
 
     reject_inline_secrets(config)
+    if config.get("schema_version") == 2:
+        from .electrothermal_config import electrothermal_configuration_errors
+        return electrothermal_configuration_errors(config)
     errors = []
     allowed = {"schema_version", "status", "run_kind", "cell_id", "cell_format", "nominal_capacity_ah", "rates", "parameters", "physical_constraints", "conditions_by_rate", "data", "model", "optimization", "llm"}
     for key in sorted(set(config) - allowed):

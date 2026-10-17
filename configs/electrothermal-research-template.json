@@ -1,0 +1,248 @@
+{
+  "schema_version": 2,
+  "problem_type": "electrothermal_identification",
+  "parameter_profile": "electrothermal_4e2t",
+  "run_kind": "research",
+  "cell_id": "artificial_not_a_measured_cell",
+  "fit_rates": [
+    "0.5C",
+    "1C",
+    "2C"
+  ],
+  "parameters": {
+    "eps_s_n": {
+      "lower": 0.3,
+      "upper": 0.7,
+      "unit": "1",
+      "transform": "linear",
+      "source": "synthetic_fixture_only"
+    },
+    "eps_s_p": {
+      "lower": 0.3,
+      "upper": 0.65,
+      "unit": "1",
+      "transform": "linear",
+      "source": "synthetic_fixture_only"
+    },
+    "D_s_n_ref": {
+      "lower": 1e-15,
+      "upper": 1e-12,
+      "unit": "m2.s-1",
+      "transform": "log10",
+      "source": "synthetic_fixture_only"
+    },
+    "D_s_p_ref": {
+      "lower": 1e-15,
+      "upper": 1e-12,
+      "unit": "m2.s-1",
+      "transform": "log10",
+      "source": "synthetic_fixture_only"
+    },
+    "C_th": {
+      "lower": null,
+      "upper": null,
+      "unit": "J.K-1",
+      "transform": "log10",
+      "source": "pending"
+    },
+    "G_th": {
+      "lower": null,
+      "upper": null,
+      "unit": "W.K-1",
+      "transform": "log10",
+      "source": "pending"
+    }
+  },
+  "fixed": {
+    "cell_volume_m3": null,
+    "cooling_area_m2": null,
+    "negative_porosity": null,
+    "positive_porosity": null,
+    "negative_conductivity_s_m": null,
+    "positive_conductivity_s_m": null,
+    "electrolyte_diffusivity_multiplier": null,
+    "sources": {
+      "cell_volume_m3": "pending",
+      "cooling_area_m2": "pending",
+      "negative_porosity": "pending",
+      "positive_porosity": "pending",
+      "negative_conductivity_s_m": "pending",
+      "positive_conductivity_s_m": "pending",
+      "electrolyte_diffusivity_multiplier": "pending"
+    }
+  },
+  "property_law": {
+    "kind": "arrhenius_diffusion_v1",
+    "reference_temperature_k": null,
+    "activation_energy_n_j_mol": null,
+    "activation_energy_p_j_mol": null,
+    "sources": {
+      "reference_temperature_k": "pending",
+      "activation_energy_n_j_mol": "pending",
+      "activation_energy_p_j_mol": "pending"
+    }
+  },
+  "conditions_by_rate": {
+    "0.5C": {
+      "initial_state": null,
+      "initial_temperature_k": null,
+      "voltage_cutoff_v": 2.5,
+      "cooling_group_id": null
+    },
+    "1C": {
+      "initial_state": null,
+      "initial_temperature_k": null,
+      "voltage_cutoff_v": 2.5,
+      "cooling_group_id": null
+    },
+    "2C": {
+      "initial_state": null,
+      "initial_temperature_k": null,
+      "voltage_cutoff_v": 2.5,
+      "cooling_group_id": null
+    }
+  },
+  "data": {
+    "kind": "xlsx",
+    "by_rate": {
+      "0.5C": {
+        "source_id": "xlsx:6c796b3f08156229636b033d3e6ff036ad8ae143525e86c5de16983e5a1483a7:0.5C",
+        "path": "REPLACE_WITH_CONFIRMED_FILE.xlsx",
+        "sha256": "6c796b3f08156229636b033d3e6ff036ad8ae143525e86c5de16983e5a1483a7",
+        "sheet": "0.5C",
+        "columns": {
+          "time": null,
+          "current": null,
+          "ambient_temperature": null,
+          "voltage": "U",
+          "cell_temperature": "T"
+        },
+        "temperature_unit": null
+      },
+      "1C": {
+        "source_id": "xlsx:6c796b3f08156229636b033d3e6ff036ad8ae143525e86c5de16983e5a1483a7:1C",
+        "path": "REPLACE_WITH_CONFIRMED_FILE.xlsx",
+        "sha256": "6c796b3f08156229636b033d3e6ff036ad8ae143525e86c5de16983e5a1483a7",
+        "sheet": "1C",
+        "columns": {
+          "time": null,
+          "current": null,
+          "ambient_temperature": null,
+          "voltage": "U",
+          "cell_temperature": "T"
+        },
+        "temperature_unit": null
+      },
+      "2C": {
+        "source_id": "xlsx:6c796b3f08156229636b033d3e6ff036ad8ae143525e86c5de16983e5a1483a7:2C",
+        "path": "REPLACE_WITH_CONFIRMED_FILE.xlsx",
+        "sha256": "6c796b3f08156229636b033d3e6ff036ad8ae143525e86c5de16983e5a1483a7",
+        "sheet": "2C",
+        "columns": {
+          "time": null,
+          "current": null,
+          "ambient_temperature": null,
+          "voltage": "U",
+          "cell_temperature": "T"
+        },
+        "temperature_unit": null
+      }
+    },
+    "exclusions": [
+      {
+        "source_id": "xlsx:6c796b3f08156229636b033d3e6ff036ad8ae143525e86c5de16983e5a1483a7:3C",
+        "reason": "user_confirmed_unreliable_2026-10-17"
+      }
+    ]
+  },
+  "model": {
+    "provider": "pybamm",
+    "name": "DFN",
+    "parameterization_id": "Chen2020",
+    "pybamm_version": "25.10.2",
+    "options": {
+      "thermal": "lumped",
+      "use lumped thermal capacity": "true",
+      "surface temperature": "ambient"
+    },
+    "mesh_points": {
+      "x_n": 8,
+      "x_s": 8,
+      "x_p": 8,
+      "r_n": 8,
+      "r_p": 8
+    },
+    "solver": {
+      "rtol": 1e-06,
+      "atol": 1e-06,
+      "dt_max": 60.0,
+      "num_threads": 1
+    }
+  },
+  "optimization": {
+    "mode": "parego",
+    "initial_count": 2,
+    "total_candidate_budget": 4,
+    "seed": 17,
+    "gp_sweeps": 1,
+    "global_pool_size": 16,
+    "local_pool_size": 8,
+    "local_radius": 0.2,
+    "max_rate_attempts": 1,
+    "parallel_workers": 1,
+    "objective_scales": [
+      0.1,
+      1.0
+    ],
+    "rho_aug": 0.05,
+    "weights": [
+      [
+        0.8,
+        0.2
+      ],
+      [
+        0.2,
+        0.8
+      ],
+      [
+        0.5,
+        0.5
+      ]
+    ],
+    "hv_reference": [
+      10.0,
+      10.0
+    ],
+    "warmstart": {
+      "count": 2,
+      "pool_size": 4,
+      "max_requests": 3,
+      "max_candidates": 8,
+      "max_evaluations": 8
+    },
+    "region": {}
+  },
+  "budgets": {
+    "max_solver_calls": 0,
+    "max_llm_requests": 0,
+    "wall_clock_s": 60.0
+  },
+  "llm": {
+    "enabled": false,
+    "endpoint": null,
+    "api_key_env": null,
+    "model": null,
+    "max_tokens": 2048,
+    "timeout_s": 30.0,
+    "json_mode": true
+  },
+  "research_confirmations": {
+    "current": false,
+    "time": false,
+    "temperature_unit": false,
+    "temperature_probe": false,
+    "initial_state": false,
+    "ambient_temperature": false,
+    "cooling": false
+  }
+}

@@ -39,9 +39,12 @@ class ParameterSpace:
     negative_porosity: float | None = None
     positive_porosity: float | None = None
     tolerance: float = 1e-12
+    profile: str = "voltage_6p"
 
     def __post_init__(self) -> None:
-        if tuple(s.name for s in self.specs) != PARAMETER_NAMES:
+        from .electrothermal_parameters import ELECTROTHERMAL_NAMES
+        expected = {"voltage_6p": PARAMETER_NAMES, "electrothermal_4e2t": ELECTROTHERMAL_NAMES}.get(self.profile)
+        if expected is None or tuple(s.name for s in self.specs) != expected:
             raise ValueError("parameter specs must use the documented six-parameter order")
         if any(s.lower <= 0 for s in self.specs) or any(s.upper > 1 for s in self.specs[:2]):
             raise ValueError("all six parameters must be positive; solid volume fractions cannot exceed one")
@@ -61,16 +64,19 @@ class ParameterSpace:
         *,
         negative_porosity: float | None = None,
         positive_porosity: float | None = None,
+        profile: str = "voltage_6p",
     ) -> "ParameterSpace":
         specs = []
-        for name in PARAMETER_NAMES:
+        from .electrothermal_parameters import ELECTROTHERMAL_NAMES
+        names = ELECTROTHERMAL_NAMES if profile == "electrothermal_4e2t" else PARAMETER_NAMES
+        for name in names:
             if name not in bounds or name not in transforms or name not in units:
                 raise ValueError(f"missing parameter definition: {name}")
             lo, hi = bounds[name]
             if isinstance(lo, bool) or isinstance(hi, bool):
                 raise ValueError("parameter bounds cannot be booleans")
             specs.append(ParameterSpec(name, float(lo), float(hi), transforms[name], units[name]))
-        return cls(tuple(specs), negative_porosity, positive_porosity)
+        return cls(tuple(specs), negative_porosity, positive_porosity, profile=profile)
 
     @property
     def dimension(self) -> int:
