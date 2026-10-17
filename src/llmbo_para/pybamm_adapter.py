@@ -202,3 +202,53 @@ def build_simulator(config: dict) -> PyBaMMSimulator:
         output_at_measured_times=solver["name"] == "IDAKLUSolver",
         fixed_electrolyte_diffusivity_multiplier=model.get("fixed_electrolyte_diffusivity_multiplier", 1.0),
     )
+
+
+class ElectrothermalPyBaMMSimulator:
+    """Independent v2 adapter: it never invokes four-rate legacy validation."""
+    backend_kind='dfn'
+
+    def __init__(self,config):
+        from .electrothermal_config import electrothermal_configuration_errors
+        errors=electrothermal_configuration_errors(config)
+        if errors:raise ValueError('; '.join(errors))
+        self.config=config
+
+    def simulate(self,parameters,case):
+        import pybamm
+        import uuid
+        from .electrothermal_evaluation import ElectrothermalTrace
+        from .electrothermal_parameters import apply_electrothermal_parameters
+        if pybamm.__version__!=self.config['model']['pybamm_version']:raise ValueError('PyBaMM version differs')
+        if case.rate not in self.config['fit_rates']:raise ValueError('unselected rate')
+        fixed={**self.config['fixed'],'property_law':self.config['property_law']}
+        applied=apply_electrothermal_parameters(pybamm.ParameterValues('Chen2020'),parameters,fixed)
+        base=applied.parameter_values;settings=self.config['model'];condition=self.config['conditions_by_rate'][case.rate]
+        base.update({'Initial temperature [K]':case.initial_state['temperature_k'],
+                     'Lower voltage cut-off [V]':condition['voltage_cutoff_v'],
+                     'Current function [A]':pybamm.Interpolant(np.asarray(case.current_a.time_s),np.asarray(case.current_a.values),pybamm.t,extrapolate=False),
+                     'Ambient temperature [K]':pybamm.Interpolant(np.asarray(case.ambient_temperature_k.time_s),np.asarray(case.ambient_temperature_k.values),pybamm.t,extrapolate=False)},check_already_exists=True)
+        model=pybamm.lithium_ion.DFN(options=settings['options'])
+        solver_options=settings['solver']
+        solver=pybamm.IDAKLUSolver(rtol=solver_options['rtol'],atol=solver_options['atol'],
+                options={'num_threads':1,'num_solvers':1,'dt_max':solver_options['dt_max']})
+        points={getattr(pybamm.standard_spatial_vars,k):v for k,v in settings['mesh_points'].items()}
+        simulation=pybamm.Simulation(model,parameter_values=base,solver=solver,var_pts=points)
+        horizon=max(case.voltage.time_s[-1],case.cell_temperature_k.time_s[-1])
+        times=np.unique(np.r_[0.,case.voltage.time_s,case.cell_temperature_k.time_s,
+            [t for t in case.current_a.time_s if t<=horizon],[t for t in case.ambient_temperature_k.time_s if t<=horizon]])
+        kwargs={'t_eval':[0.,horizon],'t_interp':times}
+        if case.initial_state['mode']=='explicit_soc':kwargs['initial_soc']=case.initial_state['soc']
+        from .pybamm_compat import electrode_soh_numpy_compat
+        with electrode_soh_numpy_compat():solution=simulation.solve(**kwargs)
+        thermal={}
+        for key in ('Ohmic heating [W]','Irreversible electrochemical heating [W]','Reversible heating [W]','Surface total cooling [W]'):
+            try:thermal[key]=solution[key].entries
+            except KeyError:pass
+        return ElectrothermalTrace(solution['Time [s]'].entries,solution['Terminal voltage [V]'].entries,
+            solution['Volume-averaged cell temperature [K]'].entries,solution['Total heating [W]'].entries,
+            str(solution.termination),'dfn-'+uuid.uuid4().hex,applied.mapping,heat_diagnostics=thermal)
+
+
+def build_electrothermal_simulator(config):
+    return ElectrothermalPyBaMMSimulator(config)
