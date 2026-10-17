@@ -1,0 +1,213 @@
+{
+  "created_utc": "2026-10-17T13:21:50.432519+00:00",
+  "tested_head": "cf84d59986345debdb7bb95cda1c05bec3e1973c",
+  "branch": "codex/electrothermal-mo-20261016",
+  "worktree": "C:\\Users\\aa133\\.codex\\worktrees\\electrothermal-refactor\\LLMBO_Para",
+  "test_runs": {
+    "baseline": {
+      "evidence": "D:\\Users\\aa133\\Desktop\\LLMBO_Para\\bo-repair-work\\20261017_rmse_readiness\\baseline-1017131324322466",
+      "pytest_args": [
+        "tests",
+        "-q",
+        "--basetemp",
+        "D:\\Users\\aa133\\Desktop\\LLMBO_Para\\bo-repair-work\\t1017131324322466",
+        "--junitxml",
+        "D:\\Users\\aa133\\Desktop\\LLMBO_Para\\bo-repair-work\\20261017_rmse_readiness\\baseline-1017131324322466\\junit.xml"
+      ],
+      "exit_code": 0,
+      "elapsed_s": 346.6313988000038,
+      "junit_counts": {
+        "tests": 215,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 215
+      },
+      "boundary": {
+        "network_attempts": 0,
+        "battery_solve_attempts": 0,
+        "allowed_nonbattery_simulation_calls": 2
+      },
+      "product_files_unchanged": true,
+      "main_index_unchanged": true,
+      "main_method_unchanged": true,
+      "worktree_status_after": "",
+      "finished_utc": "2026-10-17T13:19:14.552583+00:00",
+      "evidence_sha256": {
+        "pytest.log": "39c5ed2984877339092f246b4349c06fa2c6c6f09c78900613c46d9340509744",
+        "junit.xml": "eb6c0b36f0dd3b3b9c08afd0cdd3ba14318fdc8d2644991a88d08b5a4a43542e",
+        "exit-code.txt": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+        "manifest-before.json": "c78f1e6611cb750be8248372ee463edd4d1d65ac1c508ce87d21498d6ba53a58",
+        "result.json": "cca6f3fdfc5134a433ed3d19e5e38a9f131de90e030c3962cee22fd7ef7642ed"
+      }
+    },
+    "rmse": {
+      "evidence": "D:\\Users\\aa133\\Desktop\\LLMBO_Para\\bo-repair-work\\20261017_rmse_readiness\\rmse-1017131939237801",
+      "pytest_args": [
+        "D:\\Users\\aa133\\Desktop\\LLMBO_Para\\bo-repair-work\\20261017_rmse_readiness\\test_rmse_readiness.py",
+        "-q",
+        "--basetemp",
+        "D:\\Users\\aa133\\Desktop\\LLMBO_Para\\bo-repair-work\\t1017131939237801",
+        "--junitxml",
+        "D:\\Users\\aa133\\Desktop\\LLMBO_Para\\bo-repair-work\\20261017_rmse_readiness\\rmse-1017131939237801\\junit.xml"
+      ],
+      "exit_code": 0,
+      "elapsed_s": 7.944615299988072,
+      "junit_counts": {
+        "tests": 22,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "passed": 22
+      },
+      "boundary": {
+        "network_attempts": 0,
+        "battery_solve_attempts": 0,
+        "allowed_nonbattery_simulation_calls": 0
+      },
+      "product_files_unchanged": true,
+      "main_index_unchanged": true,
+      "main_method_unchanged": true,
+      "worktree_status_after": "",
+      "finished_utc": "2026-10-17T13:19:48.737305+00:00",
+      "evidence_sha256": {
+        "pytest.log": "3c94a6aeeb5903c1822b1f72485cfb3ab5853e406a785f74fe49420c4675198f",
+        "junit.xml": "1e155a5e5a1bb9b38e31441974f5fd94da0dfc348938261d68f76224d37da904",
+        "exit-code.txt": "13bf7b3039c63bf5a50491fa3cfd8eb4e699d1ba1436315aef9cbe5711530354",
+        "manifest-before.json": "833a22299c993ec290dd7227ce9798552a8e178b1e32bb3720b0ab72693af2a8",
+        "result.json": "85f738ae13e7cc64f602b82656e63eb273d4e427854a99c3ec9751b6d099b9dc"
+      }
+    }
+  },
+  "rmse_test_scope": {
+    "existing_metrics_and_compatibility": 14,
+    "specification_oracle_only": 8
+  },
+  "r3_artificial_reference": {
+    "fit_rates": [
+      "0.5C",
+      "1C",
+      "2C"
+    ],
+    "per_rate": [
+      {
+        "rate": "0.5C",
+        "u": {
+          "valid": true,
+          "rmse": 0.01000000000000012
+        },
+        "t": {
+          "valid": true,
+          "rmse": 1.0
+        }
+      },
+      {
+        "rate": "1C",
+        "u": {
+          "valid": true,
+          "rmse": 0.020000000000000018
+        },
+        "t": {
+          "valid": true,
+          "rmse": 2.0
+        }
+      },
+      {
+        "rate": "2C",
+        "u": {
+          "valid": true,
+          "rmse": 0.03000000000000047
+        },
+        "t": {
+          "valid": true,
+          "rmse": 3.0
+        }
+      }
+    ],
+    "complete": true,
+    "objectives": [
+      0.0200000000000002,
+      2.0
+    ],
+    "scope": "test oracle, not evidence that the product v2 evaluator exists"
+  },
+  "r4_artificial_reference": {
+    "fit_rates": [
+      "0.5C",
+      "1C",
+      "2C",
+      "3C"
+    ],
+    "per_rate": [
+      {
+        "rate": "0.5C",
+        "u": {
+          "valid": true,
+          "rmse": 0.01000000000000012
+        },
+        "t": {
+          "valid": true,
+          "rmse": 1.0
+        }
+      },
+      {
+        "rate": "1C",
+        "u": {
+          "valid": true,
+          "rmse": 0.020000000000000018
+        },
+        "t": {
+          "valid": true,
+          "rmse": 2.0
+        }
+      },
+      {
+        "rate": "2C",
+        "u": {
+          "valid": true,
+          "rmse": 0.03000000000000047
+        },
+        "t": {
+          "valid": true,
+          "rmse": 3.0
+        }
+      },
+      {
+        "rate": "3C",
+        "u": {
+          "valid": true,
+          "rmse": 0.0800000000000004
+        },
+        "t": {
+          "valid": true,
+          "rmse": 4.0
+        }
+      }
+    ],
+    "complete": true,
+    "objectives": [
+      0.03500000000000025,
+      2.5
+    ],
+    "scope": "test oracle, not evidence that the product v2 evaluator exists"
+  },
+  "product_implementation_changed": false,
+  "new_electrothermal_evaluator_implemented": false,
+  "new_electrothermal_mo_implemented": false,
+  "level2_real_DFN_run": false,
+  "level3_measured_identification_run": false,
+  "old_measured_3c_used": false,
+  "current_approved_real_DFN_budget": 0,
+  "plan_approval_inferred_from_testing_request": false,
+  "next": "Approve the existing implementation plan before Stage A product edits; approve explicit solve budget before Level 2.",
+  "prepared_evidence_sha256": {
+    "run_checks.py": "95b0ac79acf072aaa87f7c99cff938056b098336182504f6dac9ad8e957a62df",
+    "test_rmse_readiness.py": "7c98264055101532b9894bc74b536235d33041c9d9f957afcb8d124fefbbcf53",
+    "rmse_oracle.py": "037108d4a3e5f7d533acadc8ea1ca4805450af1451c1cfecf4da4589beda5971",
+    "rmse-test-protocol.md": "d92b31d5452d4c3d1641493d2e3ed08f7d6bb62e9367d935ace7592bae72a7fc",
+    "dfn-rmse-budget-proposal.json": "ad5485dd12e672832bf1b204ebc92f92e25d43764f8adac3bfe5e0f585ebc31c",
+    "rmse-reference-fixture.json": "98e858facdd09ece00ceb485c9330d94e8d064ad018876c347857eed4c437177",
+    "rmse-reference-r3.json": "0c22f4350fb2cbb4ff13f8a9d518d9dbfd8ef8705fd2ece795a2aa295b6f87fb",
+    "rmse-reference-r4.json": "e2c66d52d491cd5bd87a775fa1e4183e1d77304c8642b97e0f7bfc8576308b98"
+  }
+}
