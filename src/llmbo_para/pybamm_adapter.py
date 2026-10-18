@@ -215,8 +215,16 @@ class ElectrothermalPyBaMMSimulator:
         self.config=config
         self.before_solve=None
         self.native_solver_calls=0
+        self.execution_budget=None
 
     def simulate(self,parameters,case):
+        if self.execution_budget is None:return self._simulate_in_process(parameters,case)
+        from .electrothermal_execution import run_with_deadline
+        def started():
+            self.before_solve();self.native_solver_calls+=1
+        return run_with_deadline(_electrothermal_native_worker,(self.config,parameters,case),deadline=self.execution_budget.deadline,on_solve_start=started)
+
+    def _simulate_in_process(self,parameters,case):
         import pybamm
         import uuid
         from .electrothermal_evaluation import ElectrothermalTrace
@@ -239,6 +247,7 @@ class ElectrothermalPyBaMMSimulator:
         horizon=max(case.voltage.time_s[-1],case.cell_temperature_k.time_s[-1])
         times=np.unique(np.r_[0.,case.voltage.time_s,case.cell_temperature_k.time_s,
             [t for t in case.current_a.time_s if t<=horizon],[t for t in case.ambient_temperature_k.time_s if t<=horizon]])
+        if settings.get('output_period_s') is not None:times=np.unique(np.r_[times,np.arange(0.,horizon,settings['output_period_s'])])
         kwargs={'t_eval':[0.,horizon],'t_interp':times}
         if case.initial_state['mode']=='explicit_soc':kwargs['initial_soc']=case.initial_state['soc']
         from .pybamm_compat import electrode_soh_numpy_compat
@@ -256,3 +265,17 @@ class ElectrothermalPyBaMMSimulator:
 
 def build_electrothermal_simulator(config):
     return ElectrothermalPyBaMMSimulator(config)
+
+
+def _electrothermal_native_worker(config,parameters,case,connection):
+    """Build and solve in the owned process; parent authorizes the actual call."""
+    try:
+        simulator=ElectrothermalPyBaMMSimulator(config)
+        def started():
+            connection.send(('solve_started',None))
+            if connection.recv()!='continue':raise RuntimeError('native solve not authorized')
+        simulator.before_solve=started
+        connection.send(('result',simulator._simulate_in_process(parameters,case)))
+    except Exception as exc:
+        connection.send(('error',type(exc).__name__+': '+str(exc)))
+    finally:connection.close()

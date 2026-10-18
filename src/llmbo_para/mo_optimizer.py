@@ -27,9 +27,10 @@ class MORoundContext:
 
 
 class MOOptimizer:
-    def __init__(self,space,evaluator,dataset,store,options,initial_plan=None,llm_controller=None):
+    def __init__(self,space,evaluator,dataset,store,options,initial_plan=None,llm_controller=None,execution_budget=None):
         self.space=space;self.evaluator=evaluator;self.dataset=dataset;self.store=store;self.options=options
         self.initial_plan=initial_plan;self.llm_controller=llm_controller;self.history=[];self.cache={};self.rounds=[];self.attempts=0
+        self.execution_budget=execution_budget
         for k in ('initial_count','total_candidate_budget','global_pool_size','local_pool_size','gp_sweeps','seed'):
             if type(options[k]) is not int or options[k]<0:raise ValueError('nonnegative integer '+k+' required')
         if options['initial_count']<2 or options['total_candidate_budget']<options['initial_count'] or options['global_pool_size']<1:raise ValueError('at least two initial points and nonempty pool required')
@@ -49,12 +50,15 @@ class MOOptimizer:
 
     def evaluate(self,point,*,phase='BO'):
         point=self.space.validate(point);key=self.key(point);cached=key in self.cache
+        if self.execution_budget is not None:
+            self.execution_budget.require_candidate(len(self.dataset.fit_rates)*self.evaluator.max_rate_attempts if not cached and getattr(self.evaluator.simulator,'backend_kind',None)=='dfn' else 0)
         result=replace(self.cache[key],source_kind='validated_cache') if cached else self.evaluator.evaluate(point,self.dataset)
         if not cached and phase=='BO':result=replace(result,evaluation_id='mo-'+key[:32])
         self.store.save_evaluation(result,phase=phase,cached=cached);self.attempts+=1;self.remember(result)
         return result,cached
 
     def initialize(self):
+        if self.execution_budget is not None:self.execution_budget.require_candidate(0)
         if self.initialized:return
         if self.initial_plan is not None:
             if len(self.initial_plan.records)!=self.options['initial_count']:raise ValueError('initial plan size differs from initial_count')
@@ -92,6 +96,7 @@ class MOOptimizer:
         return tuple(points)
 
     def step(self):
+        if self.execution_budget is not None:self.execution_budget.require_candidate(0)
         self.initialize()
         scalar=build_scalarization_context([self.space.normalize(r.parameters) for r in self.history],[r.objectives for r in self.history],
             [r.evaluation_id for r in self.history],weights=self.scheduler.next(),objective_scales=self.options['objective_scales'],

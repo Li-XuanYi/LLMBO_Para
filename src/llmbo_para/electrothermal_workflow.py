@@ -37,6 +37,7 @@ def prepare_electrothermal_experiment(config,*,base_dir):
             spec=config['optimization']['initial_plan'];path=(Path(base_dir)/spec['path']).resolve()
             if sha256_file(path)!=spec['sha256']:raise ValueError('initial plan file hash differs')
             initial=load_initial_plan(path,space=space,dataset=dataset,signatures=signatures)
+            if config['optimization']['mode']!='parego' and initial.history_evidence is None:raise ValueError('LLM comparison initial plan requires full historical screening cost evidence')
         report.update(ready=True,fit_rates=list(dataset.fit_rates),signatures=asdict(signatures))
         return report,PreparedElectrothermalExperiment(config,space,dataset,signatures,initial)
     except (ValueError,KeyError,TypeError,OSError) as exc:
@@ -46,10 +47,14 @@ def prepare_electrothermal_experiment(config,*,base_dir):
 class SolverBudget:
     def __init__(self,max_calls,wall_clock_s):
         if type(max_calls) is not int or max_calls<0 or type(wall_clock_s) not in (int,float) or not math.isfinite(wall_clock_s) or wall_clock_s<=0:raise ValueError('explicit finite solver budget required')
-        self.maximum=max_calls;self.calls=0;self.started=time.perf_counter();self.wall_clock_s=wall_clock_s
+        self.maximum=max_calls;self.calls=0;self.started=time.monotonic();self.wall_clock_s=wall_clock_s;self.deadline=self.started+wall_clock_s
+
+    def require_candidate(self,calls):
+        if time.monotonic()>=self.deadline:raise RuntimeError('run deadline budget exhausted')
+        if self.maximum-self.calls<calls:raise RuntimeError('insufficient solver budget for complete candidate reservation')
 
     def before_solve(self):
-        if self.calls>=self.maximum or time.perf_counter()-self.started>=self.wall_clock_s:raise RuntimeError('actual solver call/wall-clock budget exhausted')
+        self.require_candidate(1)
         self.calls+=1
 
 
@@ -59,7 +64,7 @@ def make_electrothermal_backend(config,*,budget=None):
         return SyntheticElectrothermalSimulator()
     if budget is None or budget.maximum<=0:raise ValueError('explicit positive DFN solver budget required')
     from .pybamm_adapter import build_electrothermal_simulator
-    backend=build_electrothermal_simulator(config);backend.before_solve=budget.before_solve
+    backend=build_electrothermal_simulator(config);backend.before_solve=budget.before_solve;backend.execution_budget=budget
     return backend
 
 
@@ -78,6 +83,7 @@ def run_electrothermal_fixed_candidates(prepared,candidates,output,*,simulator=N
     records=[]
     try:
         for point in candidates:
+            if budget is not None:budget.require_candidate(len(prepared.dataset.fit_rates)*config['optimization']['max_rate_attempts'] if config['model']['provider']=='pybamm' else 0)
             record=evaluator.evaluate(point,prepared.dataset);store.save_evaluation(record,phase='fixed');records.append(record)
         result={'run_directory':str(store.path),'fit_rates':list(prepared.dataset.fit_rates),'complete_pairs':sum(r.complete_pair_valid for r in records),
                 'candidate_evaluations':len(records),'objectives':[r.objectives for r in records],'costs':store.ledger.summary(),'API_calls':0}
@@ -111,9 +117,14 @@ def run_electrothermal_experiment(config,output,*,base_dir,simulator=None,llm_co
         if config['optimization']['mode']=='full_llmbo_mo':
             from .electrothermal_llm import ElectrothermalLLMController
             controller=controller or ElectrothermalLLMController();controller.prepared=prepared
-        optimizer=MOOptimizer(prepared.space,evaluator,prepared.dataset,store,config['optimization'],initial_plan=initial,llm_controller=controller)
+        if controller is not None:controller.execution_budget=budget
+        optimizer=MOOptimizer(prepared.space,evaluator,prepared.dataset,store,config['optimization'],initial_plan=initial,llm_controller=controller,execution_budget=budget)
         result=optimizer.optimize(config['optimization']['total_candidate_budget'])
         result['initial_plan_sha256']=initial.plan_sha256 if initial is not None else None
+        evidence=initial.history_evidence if initial is not None else None
+        result['initialization_cost_attribution']={'origin_run_id':evidence['origin_run_id'] if evidence else None,
+            'historical_costs':evidence['costs'] if evidence else None,'included_in_current_costs':bool(evidence and evidence['origin_run_id']==store.run_id),
+            'plan_sha256':initial.plan_sha256 if initial is not None else None,'status':'verified_history' if evidence else 'not_applicable_or_not_supplied'}
         store.write_json('electrothermal-summary.json',result);store.finish('completed',result);return result
     except Exception as exc:
         store.finish('failed',{'message':str(exc),'costs':store.ledger.summary()});raise
@@ -164,8 +175,8 @@ def run_electrothermal_smoke(config,candidates,output,*,base_dir,budget=None,dry
                 trace=backend.simulate(mapping,case);session.write_json('generation/'+rate+'.json',trace.to_dict())
                 if trace.time_s[-1]<horizon:raise ValueError('synthetic generation did not cover the requested window')
                 source={'kind':'real_DFN_synthetic_generation','solution_id':trace.solution_id,'parameters':theta}
-                cases[rate]=replace(case,voltage=replace(case.voltage,values=tuple(np.interp(case.voltage.time_s,trace.time_s,trace.voltage_v)),provenance=source),
-                    cell_temperature_k=replace(case.cell_temperature_k,values=tuple(np.interp(case.cell_temperature_k.time_s,trace.time_s,trace.temperature_k)),provenance=source))
+                cases[rate]=replace(case,voltage=replace(case.voltage,values=tuple(map(float,np.interp(case.voltage.time_s,trace.time_s,trace.voltage_v))),provenance=source),
+                    cell_temperature_k=replace(case.cell_temperature_k,values=tuple(map(float,np.interp(case.cell_temperature_k.time_s,trace.time_s,trace.temperature_k))),provenance=source))
             dataset=ElectrothermalDataset(prepared.dataset.fit_rates,cases)
             prepared=replace(prepared,dataset=dataset,signatures=build_electrothermal_signatures(config,dataset))
         result=run_electrothermal_fixed_candidates(prepared,candidates,session.path/'validation',simulator=backend,budget=controller)

@@ -92,9 +92,11 @@ def electrothermal_configuration_errors(config):
     for rate,item in by_rate.items():
         if not isinstance(item,dict) or not item.get('source_id'):errors.append(rate+' data source_id required')
         elif item['source_id'] in excluded:errors.append(rate+' selected source is excluded')
-    model=section('model');strict(model,('provider','name','parameterization_id','pybamm_version','options','mesh_points','solver'),'model')
+    model=section('model');strict(model,('provider','name','parameterization_id','pybamm_version','options','mesh_points','solver','output_period_s'),'model')
+    if 'output_period_s' in model:numeric(model['output_period_s'],'model.output_period_s')
     if model.get('provider') not in ('software','pybamm') or model.get('name')!='DFN' or model.get('parameterization_id')!='Chen2020':errors.append('explicit DFN/Chen2020 model required')
     if config.get('run_kind')=='synthetic_software' and model.get('provider')!='software':errors.append('software fixture must not silently use a DFN backend')
+    if config.get('run_kind') in ('research','synthetic_dfn') and model.get('provider')!='pybamm':errors.append('model.provider must be pybamm for research/synthetic_dfn')
     if model.get('pybamm_version')!='25.10.2':errors.append('locked PyBaMM 25.10.2 required')
     if model.get('options')!={'thermal':'lumped','use lumped thermal capacity':'true','surface temperature':'ambient'}:errors.append('verified lumped thermal options required')
     opt=section('optimization');strict(opt,('mode','initial_count','total_candidate_budget','seed','gp_sweeps','global_pool_size','local_pool_size','local_radius','max_rate_attempts','parallel_workers','objective_scales','rho_aug','weights','hv_reference','warmstart','region','initial_plan'),'optimization')

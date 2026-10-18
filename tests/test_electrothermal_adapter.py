@@ -4,7 +4,8 @@ import pytest
 from electrothermal_fixtures import et_config,R3,NAMES
 
 
-def test_single_solution_contains_cell_temperature_and_heat(monkeypatch):
+@pytest.mark.parametrize('period',[None,.5])
+def test_single_solution_contains_cell_temperature_and_heat(monkeypatch,period):
     import pybamm
     from llmbo_para.pybamm_adapter import build_electrothermal_simulator
     from llmbo_para.electrothermal_synthetic import make_synthetic_dataset
@@ -24,11 +25,13 @@ def test_single_solution_contains_cell_temperature_and_heat(monkeypatch):
             return Solution()
     monkeypatch.setattr(pybamm,'Simulation',Simulation)
     cfg=et_config();cfg['model']['provider']='pybamm';cfg['run_kind']='synthetic_dfn'
+    if period is not None:cfg['model']['output_period_s']=period
     sim=build_electrothermal_simulator(cfg)
     trace=sim.simulate(dict(zip(NAMES,[.5,.5,1e-13,2e-13,40,.1])),make_synthetic_dataset(R3).cases['1C'])
     assert len(calls)==1 and trace.temperature_k[-1]==303
     assert trace.heat_generation_w[-1]==1 and trace.solution_id
     assert set([0,1,2,4])<=set(calls[0]['t_interp'])
+    if period is not None:assert {.5,1.5,2.5,3.5}<=set(calls[0]['t_interp'])
 
 
 def test_native_model_is_constructible_without_solving():

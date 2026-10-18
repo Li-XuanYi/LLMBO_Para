@@ -1,6 +1,7 @@
 """Electrothermal-only LLM contracts, bounded requests and Pareto/diversity seeds."""
 from dataclasses import asdict
 from pathlib import Path
+import json
 import time
 import numpy as np
 from .scalarization import augmented_tchebycheff
@@ -65,6 +66,33 @@ def build_electrothermal_payload(task,*,prepared,history,context=None):
         payload['context']={'weights':list(c.weights),'objective_scales':list(c.objective_scales),'ideal':list(c.ideal),'rho_aug':c.rho_aug,
             'mean':c.mean,'std':c.std,'incumbent_id':c.incumbent_id,'best':c.best,'history_ids':list(c.observation_ids),
             'current_scalar_top':[{'evaluation_id':c.observation_ids[i],'g':c.raw_labels[i]} for i in sorted(range(len(c.y)),key=lambda i:(c.raw_labels[i],c.observation_ids[i]))[:8]]}
+    properties={key:{'const':value} for key,value in (('schema_version',2),('parameter_profile',prepared.space.profile),
+        ('fit_rates',list(prepared.dataset.fit_rates)),('signatures',json.loads(json.dumps(asdict(prepared.signatures)))))}
+    if task=='warm_start_electrothermal':
+        names=[s.name for s in prepared.space.specs]
+        parameters={'type':'object','additionalProperties':False,'required':names,
+            'properties':{s.name:{'type':'number','minimum':s.lower,'maximum':s.upper} for s in prepared.space.specs}}
+        properties['candidates']={'type':'array','minItems':1,'maxItems':cfg['optimization']['warmstart']['max_candidates'],
+            'items':{'type':'object','additionalProperties':False,'required':['parameters'],'properties':{'parameters':parameters}}}
+        payload['requested_candidate_count']=max(0,cfg['optimization']['warmstart']['pool_size']-len(valid))
+    else:
+        if context is None:raise ValueError('frozen context required for Region request')
+        properties['context_id']={'const':context.context_id}
+        base={'kind':{'enum':['region','none']},'coordinate_space':{'const':'normalized'},
+              'confidence':{'type':'number','minimum':0,'maximum':1},'reason':{'type':'string','maxLength':2000}}
+        bounds={'type':'array','minItems':6,'maxItems':6,'items':{'type':'number','minimum':0,'maximum':1}}
+        properties['region']={'oneOf':[{'type':'object','additionalProperties':False,'required':list(base),
+            'properties':{**base,'kind':{'const':'none'}}},{'type':'object','additionalProperties':False,'required':[*base,'lb','ub'],
+            'properties':{**base,'kind':{'const':'region'},'lb':bounds,'ub':bounds}}]}
+    payload['simulation_kind']=cfg['run_kind'];payload['model_provider']=cfg['model']['provider']
+    def summary(signal):
+        return {'first':signal.values[0],'last':signal.values[-1],'minimum':min(signal.values),'maximum':max(signal.values),
+                'sample_count':len(signal.values),'time_span_s':[signal.time_s[0],signal.time_s[-1]],'unit':signal.unit}
+    payload['case_summaries']={rate:{'current_A':summary(case.current_a),'ambient_temperature_K':summary(case.ambient_temperature_k),
+        'initial_temperature_K':case.initial_state['temperature_k'],'voltage_target_V':summary(case.voltage),
+        'temperature_target_K':summary(case.cell_temperature_k),'cooling_group_id':case.cooling_group_id}
+        for rate,case in prepared.dataset.cases.items()}
+    payload['response_contract']={'type':'object','additionalProperties':False,'required':list(properties),'properties':properties}
     return payload
 
 
@@ -78,17 +106,20 @@ def validate_warmstart_response(response,*,prepared):
 
 class ElectrothermalLLMController:
     def __init__(self,*,transport=None,is_mock=False,evaluator=None,solver_budget=None):
-        self.transport=transport;self.is_mock=is_mock;self.evaluator=evaluator;self.solver_budget=solver_budget;self.requests=0
+        self.transport=transport;self.is_mock=is_mock;self.evaluator=evaluator;self.solver_budget=solver_budget;self.requests=0;self.task_requests={}
 
     def request(self,payload,*,prepared,store,budgets,request_cap):
-        if self.requests>=request_cap:return None
+        task=payload['task']
+        if self.task_requests.get(task,0)>=request_cap:return None
+        execution=getattr(self,'execution_budget',None) or self.solver_budget
+        if execution is not None:execution.require_candidate(0)
         if not self.is_mock and (not prepared.config['llm']['enabled'] or self.requests>=budgets['max_llm_requests']):return None
         if self.transport is None:
             if self.is_mock:return None
             from .llm import ChatCompletionsTransport
             llm=prepared.config['llm'];self.transport=ChatCompletionsTransport(llm['endpoint'],llm['api_key_env'],model=llm['model'],
                 max_tokens=llm['max_tokens'],json_mode=llm['json_mode'],timeout_s=llm['timeout_s'],run_store=store)
-        ordinal=self.requests;self.requests+=1
+        ordinal=self.requests;self.requests+=1;self.task_requests[task]=self.task_requests.get(task,0)+1
         payload={**payload,'artifact_task':payload['task']+'_request_'+'a'*(ordinal+1)}
         store.ledger.record({'event_id':f'llm:{ordinal}','kind':'mock_llm_request' if self.is_mock else 'llm_request','phase':payload['task']})
         store.write_json(f'llm/{ordinal:06d}.payload.json',payload)
@@ -98,7 +129,7 @@ class ElectrothermalLLMController:
 
     def generate_warmstart(self,prepared,*,store,budgets):
         options=prepared.config['optimization'];settings=options['warmstart'];records=[];cache={};returned=0;evaluations=0;started=time.perf_counter();reason='request_budget'
-        while len([r for r in records if r.complete_pair_valid])<settings['pool_size'] and self.requests<settings['max_requests']:
+        while len([r for r in records if r.complete_pair_valid])<settings['pool_size'] and self.task_requests.get('warm_start_electrothermal',0)<settings['max_requests']:
             if time.perf_counter()-started>=budgets['wall_clock_s']:reason='wall_clock_budget';break
             if returned>=settings['max_candidates'] or evaluations>=settings['max_evaluations']:reason='candidate_or_evaluation_budget';break
             payload=build_electrothermal_payload('warm_start_electrothermal',prepared=prepared,history=records)
@@ -129,13 +160,15 @@ class ElectrothermalLLMController:
         store.write_json('warmstart-selection.json',details)
         if status!='completed':
             store.write_json('initialization.json',details);raise ValueError('insufficient_initialization: no additional requests or random fillers permitted')
-        path=store.path/'initial-plan.json';write_initial_plan(path,selected,signatures=prepared.signatures)
+        evidence={'origin_run_id':store.run_id,'screening_records':[{**r.to_dict(),'signatures':asdict(prepared.signatures)} for r in records],
+                  'selection':details,'cost_events':list(store.ledger.events.values()),'costs':store.ledger.summary()}
+        path=store.path/'initial-plan.json';write_initial_plan(path,selected,signatures=prepared.signatures,history_evidence=evidence)
         return load_initial_plan(path,space=prepared.space,dataset=prepared.dataset,signatures=prepared.signatures)
 
     def request_region(self,prepared,history,context,store):
         payload=build_electrothermal_payload('region_preference_electrothermal',prepared=prepared,history=history,context=context)
         return self.request(payload,prepared=prepared,store=store,budgets=prepared.config['budgets'],
-                            request_cap=prepared.config['optimization']['warmstart']['max_requests'])
+                            request_cap=prepared.config['optimization']['total_candidate_budget']-prepared.config['optimization']['initial_count'])
 
 
 def validate_electrothermal_region(response,*,expected_context_id,expected_signatures):
@@ -198,7 +231,6 @@ def apply_electrothermal_region(gp,context,pool,region,*,settings,trust,space):
 
 
 def json_load(value):
-    import json
     return json.loads(value)
 
 

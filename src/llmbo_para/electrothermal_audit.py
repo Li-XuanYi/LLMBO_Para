@@ -83,6 +83,8 @@ def audit_electrothermal_run(run_directory,*,deep=False):
         require(len(list((root/'llm').glob('*.payload.json')))==sum(e['kind'] in ('llm_request','mock_llm_request') for e in cost_events.values()),'LLM payload/request count differs')
         summary=read('electrothermal-summary.json');equal(summary['costs'],ledger.summary(),'summary costs differ');checks.append('actual_cache_screening_request_costs')
         round_files=sorted((root/'mo-rounds').glob('*.json'))
+        if manifest['command']=='electrothermal multiobjective BO' or 'BO_rounds' in summary or round_files:
+            require((root/'initialization.json').is_file(),'required MO initialization archive is missing')
         if (root/'initialization.json').exists():
             initial=read('initialization.json');selected=initial['selected_ids'];history=[by_id[i] for i in selected]
             require(len(history)>=2 and all(r.complete_pair_valid for r in history),'invalid initialization')
@@ -91,6 +93,10 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                 plan=load_initial_plan(planfile,space=space,dataset=dataset,signatures=signatures)
                 equal(plan.plan_sha256,initial['plan_sha256'],'shared initialization plan digest differs')
                 equal(selected,[r.evaluation_id for r in plan.records],'selected plan IDs differ')
+                evidence=plan.history_evidence
+                equal(summary['initialization_cost_attribution'],{'origin_run_id':evidence['origin_run_id'] if evidence else None,
+                    'historical_costs':evidence['costs'] if evidence else None,'included_in_current_costs':bool(evidence and evidence['origin_run_id']==manifest['run_id']),
+                    'plan_sha256':plan.plan_sha256,'status':'verified_history' if evidence else 'not_applicable_or_not_supplied'},'initialization historical cost attribution differs')
             if (root/'warmstart-selection.json').exists():
                 from .electrothermal_llm import warmstart_selection_details
                 saved=read('warmstart-selection.json');pool=[by_id[i] for i in saved['pool_ids']]

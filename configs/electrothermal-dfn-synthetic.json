@@ -320,6 +320,7 @@
     "name": "DFN",
     "parameterization_id": "Chen2020",
     "pybamm_version": "25.10.2",
+    "output_period_s": 1.0,
     "options": {
       "thermal": "lumped",
       "use lumped thermal capacity": "true",

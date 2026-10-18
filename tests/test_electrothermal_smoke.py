@@ -16,3 +16,16 @@ def test_software_smoke_does_not_need_physical_solve_budget():
     from llmbo_para.electrothermal_workflow import plan_electrothermal_smoke
     plan=plan_electrothermal_smoke(et_config(),[[.5,.5,1e-13,1e-13,40,.1]],None)
     assert plan['ready'] and plan['maximum_solver_calls']==0
+
+
+def test_dfn_generation_bridge_normalizes_numpy_without_relaxing_data_contract(tmp_path_factory,monkeypatch):
+    from llmbo_para.electrothermal_workflow import run_electrothermal_smoke
+    from llmbo_para.electrothermal_synthetic import SyntheticElectrothermalSimulator
+    cfg=et_config();cfg['model']['provider']='pybamm';cfg['run_kind']='synthetic_dfn'
+    monkeypatch.setattr('llmbo_para.electrothermal_workflow.make_electrothermal_backend',lambda *a,**k:SyntheticElectrothermalSimulator())
+    point=[.5,.5,1e-13,2e-13,40.,.1]
+    budget={'approved':True,'fit_rates':list(R3),'max_solver_calls':6,'wall_clock_s':60,'max_rate_attempts':1,
+            'generation_parameters':point,'time_window_s':[0,4]}
+    output=tmp_path_factory.mktemp('b')
+    result=run_electrothermal_smoke(cfg,[point],output,base_dir=output,budget=budget)
+    assert result['complete_pairs']==1 and result['objectives'][0]==pytest.approx([0,0])

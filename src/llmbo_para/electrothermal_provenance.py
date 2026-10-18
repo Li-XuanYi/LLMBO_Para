@@ -99,13 +99,14 @@ class InitialPlan:
     fit_rates:tuple
     signatures:dict
     plan_sha256:str
+    history_evidence:dict|None=None
 
 
-def write_initial_plan(path,records,*,signatures):
+def write_initial_plan(path,records,*,signatures,history_evidence=None):
     if len(records)<2 or any(not r.complete_pair_valid for r in records):raise ValueError('initial plan needs >=2 complete evaluated records')
     signed=[replace(r,signatures=asdict(signatures)).to_dict() for r in records]
     payload={'schema_version':2,'parameter_profile':'electrothermal_4e2t','fit_rates':signatures.fit_rates,
-             'signatures':asdict(signatures),'records':signed}
+             'signatures':asdict(signatures),'records':signed,'history_evidence':history_evidence}
     payload['plan_sha256']=digest_value(payload)
     with Path(path).open('x',encoding='utf-8') as stream:json.dump(payload,stream,ensure_ascii=False,indent=2,allow_nan=False)
     return payload['plan_sha256']
@@ -125,4 +126,27 @@ def load_initial_plan(path,*,space,dataset,signatures):
         if key in keys:raise ValueError('initial plan duplicates physical inputs')
         keys.add(key);records.append(record)
     if len(records)<2:raise ValueError('insufficient complete initial records')
-    return InitialPlan(tuple(records),dataset.fit_rates,payload['signatures'],claimed)
+    evidence=payload.get('history_evidence')
+    if evidence is not None:
+        from .electrothermal_store import CostLedger
+        from .electrothermal_llm import warmstart_selection_details
+        pool=[];pool_by_id={}
+        if not isinstance(evidence,dict) or set(evidence)!={'origin_run_id','screening_records','selection','cost_events','costs'}:raise ValueError('complete historical initialization evidence required')
+        for raw in evidence['screening_records']:
+            record=result_from_dict(raw);space.validate(record.parameters);verify_evaluation(record,dataset)
+            if not record.signatures or any(record.signatures.get(k)!=getattr(signatures,k) for k in ('data','model_evaluation','evaluation_protocol','initialization_compatibility','source')):raise ValueError('screening semantic signatures differ')
+            if record.evaluation_id in pool_by_id:raise ValueError('duplicate screening ID')
+            pool.append(record);pool_by_id[record.evaluation_id]=record
+        selection=evidence['selection'];details=warmstart_selection_details(pool,space=space,count=len(records),objective_scales=selection['objective_scales'],rho_aug=selection['rho_aug'])
+        for key,value in details.items():
+            if digest_value(selection[key])!=digest_value(value):raise ValueError('historical selection does not reproduce')
+        if details['selected_ids']!=[r.evaluation_id for r in records]:raise ValueError('historical selected records differ')
+        for record in records:
+            original=pool_by_id[record.evaluation_id]
+            if digest_value([record.parameters,record.objectives,record.to_dict()['rates']])!=digest_value([original.parameters,original.objectives,original.to_dict()['rates']]):raise ValueError('selected record is not from screening pool')
+        costs=CostLedger()
+        for event in evidence['cost_events']:costs.record(event)
+        if costs.summary()!=evidence['costs']:raise ValueError('historical cost attribution differs')
+        actual=sum(e['kind']=='solver_call' for e in costs.events.values());software=sum(e['kind']=='software_call' for e in costs.events.values())
+        if actual!=sum(r.costs['solver_calls'] for r in pool) or software!=sum(r.costs['software_calls'] for r in pool):raise ValueError('historical costs do not match screening evaluations')
+    return InitialPlan(tuple(records),dataset.fit_rates,payload['signatures'],claimed,evidence)
