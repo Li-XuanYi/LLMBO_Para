@@ -91,3 +91,11 @@ Linux 将解释器改为对应虚拟环境中的 `python`。代理是执行机�
 | 改善信任反馈 | 使用同轮冻结权重/尺度比较；仅采纳且新评价更新，缓存/回退不奖励 |
 
 没有迁移五维充电变量、第三目标、dSOC和电流单调约束，也没有新增混合核。可复现入口仍为CLI run/preflight/audit-run，加独立electrothermal-smoke。三模式由optimization.mode选择parego/warmstart_only/full_llmbo_mo；后两者消融导入同initial_plan文件及SHA256。默认llm.enabled=false、请求预算0；开启真实API需明确环境变量名、完整chat端点、模型及正请求预算，密钥不得进入配置。
+
+### Region 请求与诊断（2026-10-18）
+
+v2 可选 `llm.task_options` 为 `warm_start_electrothermal` 和 `region_preference_electrothermal` 分别指定 timeout_s/max_tokens；缺省继承全局值，不能超过全局上限。真实 Chat 请求由电热专用受控子进程执行，硬截止取任务限制与剩余运行预算的较小值，不自动重试。每次归档实际限制、上下文、HTTP 是否启动及分类结果。请求失败、低置信度、数值守卫拒绝和成功采纳分开记录；summary.region_diagnostics 提供请求尝试、响应、失败、采纳与回退计数。generic 注入传输明确标记不具备硬截止保证。
+
+Region 摘要按当轮 scalar top4、双目标极值和 recent3 稳定去重，最多9条；incumbent 在首位，提供物理参数、计算好的归一化坐标及 linear/log10 公式。完整真实历史、原 GP 标签和方差仍保留。部分结果不产生标量目标；inactive 阶段不再请求。置信门槛与原均值调整/EI 守卫不变，合法宽度边界采用1e-12浮点容差。审计交叉核验 outcome、payload、context 与成本事件，旧记录保留原重放路径与签名校验。
+
+旧20轮实验的 Region 采纳0/20，包含19次传输失败和1次正常低置信度回退；不构成Region增益检验。本轮只修复软件与请求契约，真实服务成功率和物理RMSE改善仍待独立预算验证。详见 `docs/audits/region-lift-diagnosis-2026-10-18.md`。

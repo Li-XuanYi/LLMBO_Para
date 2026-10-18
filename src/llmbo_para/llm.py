@@ -138,6 +138,10 @@ class ChatCompletionsTransport(HttpJsonTransport):
         instructions = payload.get("instructions")
         if not isinstance(instructions, str) or not instructions.strip():
             raise ValueError("chat transport needs the versioned task instructions")
+        if self.json_mode:
+            # Some OpenAI-compatible providers reject JSON mode unless a message
+            # explicitly mentions JSON. Keep this wire contract in the transport.
+            instructions += "\nReturn exactly one JSON object matching the supplied response contract."
         wire = {"model": self.model, "messages": [
                     {"role": "system", "content": instructions},
                     {"role": "user", "content": json.dumps({k: v for k, v in payload.items() if k != "instructions"}, ensure_ascii=False, allow_nan=False)}
@@ -159,7 +163,8 @@ class ChatCompletionsTransport(HttpJsonTransport):
                 raise ValueError("chat completion content must be a JSON object")
         except (KeyError, IndexError, TypeError, ValueError) as exc:
             if self.store:
-                self.store.write_json(f"http/{payload['task']}.parse-error.json", {"error_type": type(exc).__name__, "reason": str(exc)})
+                task = payload.get("artifact_task", payload["task"])
+                self.store.write_json(f"http/{task}.parse-error.json", {"error_type": type(exc).__name__, "reason": str(exc)})
             raise ValueError("chat response failed the strict JSON completion contract; see archived response") from None
         return decoded
 

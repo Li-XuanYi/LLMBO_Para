@@ -50,10 +50,27 @@ def build_electrothermal_payload(task,*,prepared,history,context=None):
     if task not in ('warm_start_electrothermal','region_preference_electrothermal'):raise ValueError('unknown electrothermal LLM task')
     cfg=prepared.config;valid=[r for r in history if r.complete_pair_valid]
     front=[valid[i] for i in pareto_indices([r.objectives for r in valid])]
-    selected={r.evaluation_id:r for r in [*front[:8],*history[-8:]]}
+    is_region=task=='region_preference_electrothermal'
+    scalar_by_id={}
+    if is_region:
+        if context is None:raise ValueError('frozen context required for Region request')
+        c=context.scalarization;by_id={r.evaluation_id:r for r in history}
+        scalar_by_id=dict(zip(c.observation_ids,c.raw_labels))
+        top=sorted(c.observation_ids,key=lambda i:(scalar_by_id[i],i))[:4]
+        extremes=[min(valid,key=lambda r:(r.objectives[j],r.evaluation_id)) for j in range(2)] if valid else []
+        # Stable bounded union: current incumbent/top four, two extremes, recent
+        # three. A Pareto-prefix truncation can omit the current best parameters.
+        selected={r.evaluation_id:r for r in [*[by_id[i] for i in top],*extremes,*history[-3:]]}
+    else:
+        selected={r.evaluation_id:r for r in [*front[:8],*history[-8:]]}
     rows=[{'evaluation_id':r.evaluation_id,'parameters':list(r.parameters),'objectives':r.objectives,'complete_pair_valid':r.complete_pair_valid,
            'objective_components':r.objective_components,'rates':{q.rate:{'voltage_valid':q.voltage.valid,'temperature_valid':q.cell_temperature.valid,
            'rmse_v':q.voltage.rmse_v,'rmse_k':q.cell_temperature.rmse_k,'failure':q.cell_temperature.reason or q.voltage.reason} for q in r.rates}} for r in selected.values()]
+    if is_region:
+        for row in rows:
+            row.pop('objective_components')
+            row['normalized_parameters']=[round(float(x),6) for x in prepared.space.normalize(row['parameters'])]
+            row['current_scalar_g']=scalar_by_id.get(row['evaluation_id']) if row['complete_pair_valid'] else None
     payload={'task':task,'schema_version':2,'parameter_profile':prepared.space.profile,'fit_rates':list(prepared.dataset.fit_rates),
         'signatures':asdict(prepared.signatures),'parameters':[{'name':s.name,'unit':s.unit,'lower':s.lower,'upper':s.upper,'transform':s.transform} for s in prepared.space.specs],
         'fixed':cfg['fixed'],'property_law':cfg['property_law'],'conditions_by_rate':cfg['conditions_by_rate'],
@@ -66,6 +83,17 @@ def build_electrothermal_payload(task,*,prepared,history,context=None):
         payload['context']={'weights':list(c.weights),'objective_scales':list(c.objective_scales),'ideal':list(c.ideal),'rho_aug':c.rho_aug,
             'mean':c.mean,'std':c.std,'incumbent_id':c.incumbent_id,'best':c.best,'history_ids':list(c.observation_ids),
             'current_scalar_top':[{'evaluation_id':c.observation_ids[i],'g':c.raw_labels[i]} for i in sorted(range(len(c.y)),key=lambda i:(c.raw_labels[i],c.observation_ids[i]))[:8]]}
+        if is_region:
+            payload['context'].pop('history_ids')
+            payload['context'].update(history_count=len(c.observation_ids),history_digest=digest_value(list(c.observation_ids)))
+            payload['context']['current_scalar_top']=payload['context']['current_scalar_top'][:4]
+            from .informed import InformedSettings
+            settings=InformedSettings.parse(cfg['optimization']['region'])
+            payload['region_requirements']={'min_confidence':settings.min_confidence,'min_width':settings.min_width,'max_width':settings.max_width}
+            payload['coordinate_mapping']={'space':'normalized','order':[s.name for s in prepared.space.specs],
+                'linear':'x=(theta-lower)/(upper-lower)',
+                'log10':'x=(log10(theta)-log10(lower))/(log10(upper)-log10(lower))',
+                'bounds':'Use each named parameter definition and its transform; history includes computed normalized coordinates.'}
     properties={key:{'const':value} for key,value in (('schema_version',2),('parameter_profile',prepared.space.profile),
         ('fit_rates',list(prepared.dataset.fit_rates)),('signatures',json.loads(json.dumps(asdict(prepared.signatures)))))}
     if task=='warm_start_electrothermal':
@@ -107,25 +135,59 @@ def validate_warmstart_response(response,*,prepared):
 class ElectrothermalLLMController:
     def __init__(self,*,transport=None,is_mock=False,evaluator=None,solver_budget=None):
         self.transport=transport;self.is_mock=is_mock;self.evaluator=evaluator;self.solver_budget=solver_budget;self.requests=0;self.task_requests={}
+        self.last_request_outcome=None
 
     def request(self,payload,*,prepared,store,budgets,request_cap):
+        from .electrothermal_requests import request_controls,BoundedChatCompletionsTransport,LLMRequestFailure
+        from .llm import ChatCompletionsTransport
         task=payload['task']
-        if self.task_requests.get(task,0)>=request_cap:return None
+        controls=request_controls(prepared.config,task)
         execution=getattr(self,'execution_budget',None) or self.solver_budget
+        remaining=max(0.,execution.deadline-time.monotonic()) if execution is not None else controls['timeout_s']
+        outcome={'task':task,'context_id':payload.get('context_id'),'requested_timeout_s':controls['timeout_s'],
+            'effective_timeout_s':min(controls['timeout_s'],remaining),'max_tokens':controls['max_tokens'],
+            'http_request_started':False,'hard_deadline_enforced':False}
+        self.last_request_outcome=outcome
+        def skipped(reason):
+            outcome.update(status='skipped',reason=reason)
+            store.append_event({'type':'electrothermal_llm_skipped',**outcome});return None
+        if self.task_requests.get(task,0)>=request_cap:return skipped('task_budget')
+        if not self.is_mock and not prepared.config['llm']['enabled']:return skipped('disabled')
+        if not self.is_mock and self.requests>=budgets['max_llm_requests']:return skipped('global_budget')
         if execution is not None:execution.require_candidate(0)
-        if not self.is_mock and (not prepared.config['llm']['enabled'] or self.requests>=budgets['max_llm_requests']):return None
-        if self.transport is None:
-            if self.is_mock:return None
-            from .llm import ChatCompletionsTransport
-            llm=prepared.config['llm'];self.transport=ChatCompletionsTransport(llm['endpoint'],llm['api_key_env'],model=llm['model'],
-                max_tokens=llm['max_tokens'],json_mode=llm['json_mode'],timeout_s=llm['timeout_s'],run_store=store)
+        transport=self.transport
+        if transport is None:
+            if self.is_mock:return skipped('missing_mock_transport')
+            llm=prepared.config['llm'];transport=BoundedChatCompletionsTransport(llm['endpoint'],llm['api_key_env'],model=llm['model'],
+                json_mode=llm['json_mode'],run_store=store,**controls)
+        elif isinstance(transport,ChatCompletionsTransport):
+            # Resolve controls for each task without mutating an injected client
+            # or carrying its previous task's timeout, tokens or archive path.
+            transport=BoundedChatCompletionsTransport(transport.endpoint,transport.api_key_env,model=transport.model,
+                json_mode=transport.json_mode,thinking=transport.thinking,run_store=store,**controls)
+        outcome['hard_deadline_enforced']=isinstance(transport,BoundedChatCompletionsTransport)
         ordinal=self.requests;self.requests+=1;self.task_requests[task]=self.task_requests.get(task,0)+1
+        outcome['ordinal']=ordinal
         payload={**payload,'artifact_task':payload['task']+'_request_'+'a'*(ordinal+1)}
         store.ledger.record({'event_id':f'llm:{ordinal}','kind':'mock_llm_request' if self.is_mock else 'llm_request','phase':payload['task']})
         store.write_json(f'llm/{ordinal:06d}.payload.json',payload)
-        try:return self.transport.post(payload)
+        try:
+            response=transport.post(payload,deadline=execution.deadline if execution is not None else None) if isinstance(transport,BoundedChatCompletionsTransport) else transport.post(payload)
+            outcome.update(status='received',reason='response_received')
+            if isinstance(transport,BoundedChatCompletionsTransport):
+                outcome['http_request_started']=transport.last_request_diagnostic['http_request_started']
+                outcome['effective_timeout_s']=transport.last_request_diagnostic['effective_timeout_s']
+            return response
         except Exception as exc:
-            store.write_json(f'llm/{ordinal:06d}.error.json',{'error_type':type(exc).__name__});return None
+            reason=exc.kind if isinstance(exc,LLMRequestFailure) else 'timeout' if isinstance(exc,TimeoutError) else 'protocol_error' if isinstance(exc,ValueError) else 'transport_error'
+            outcome.update(status='failed',reason=reason,error_type=type(exc).__name__)
+            if isinstance(exc,LLMRequestFailure):
+                outcome['http_request_started']=bool(exc.diagnostic.get('http_request_started'))
+                outcome['http_status']=exc.diagnostic.get('http_status')
+                outcome['effective_timeout_s']=exc.diagnostic.get('effective_timeout_s',outcome['effective_timeout_s'])
+            store.write_json(f'llm/{ordinal:06d}.error.json',{'error_type':type(exc).__name__,'reason':reason});return None
+        finally:
+            store.write_json(f'llm/{ordinal:06d}.outcome.json',outcome)
 
     def generate_warmstart(self,prepared,*,store,budgets):
         options=prepared.config['optimization'];settings=options['warmstart'];records=[];cache={};returned=0;evaluations=0;started=time.perf_counter();reason='request_budget'
@@ -179,7 +241,7 @@ def validate_electrothermal_region(response,*,expected_context_id,expected_signa
     return {**response,'region':region}
 
 
-def apply_electrothermal_region(gp,context,pool,region,*,settings,trust,space):
+def apply_electrothermal_region(gp,context,pool,region,*,settings,trust,space,request_outcome=None):
     from .acquisition import gaussian_ei
     from .sobol import Sobol6
     x=np.asarray(pool,dtype=float);mean,std=gp.predict(x);ei=gaussian_ei(mean,std,context.scalarization.best);plain=int(np.argmax(ei))
@@ -187,6 +249,11 @@ def apply_electrothermal_region(gp,context,pool,region,*,settings,trust,space):
             'mean':mean.tolist(),'std':std.tolist(),'shift':np.zeros(len(x)).tolist(),'adjusted_mean':mean.tolist(),
             'plain_ei':ei.tolist(),'effective_ei':ei.tolist(),'response':None,'trust_before':float(trust)}
     def fallback(reason):result['fallback_reason']=reason;return result
+    if request_outcome is not None:result['request_outcome']=dict(request_outcome)
+    if region is None and request_outcome is not None:
+        if request_outcome.get('context_id')!=context.context_id:return fallback('stale_request_outcome')
+        if request_outcome.get('reason')=='inactive' and context.ordinal>=settings.active_until:return fallback('inactive')
+        if request_outcome.get('status') in ('failed','skipped'):return fallback('request_'+request_outcome['reason'])
     try:validated=validate_electrothermal_region(region,expected_context_id=context.context_id,expected_signatures=json_load(context.signatures_json))
     except (ValueError,TypeError,KeyError):return fallback('invalid_response')
     # Archive only the checked envelope; remove free text from untrusted providers.
@@ -196,7 +263,7 @@ def apply_electrothermal_region(gp,context,pool,region,*,settings,trust,space):
     if p['confidence']<settings.min_confidence:return fallback('low_confidence')
     if context.ordinal>=settings.active_until:return fallback('inactive')
     lb=np.asarray(p['lb']);ub=np.asarray(p['ub']);width=ub-lb
-    if np.any(width<settings.min_width) or np.any(width>settings.max_width):return fallback('invalid_width')
+    if np.any(width<settings.min_width-1e-12) or np.any(width>settings.max_width+1e-12):return fallback('invalid_width')
     anchors=lb+Sobol6(1).draw(settings.n_anchors)*width;keep=[]
     for a in anchors:
         try:space.denormalize(a);keep.append(True)

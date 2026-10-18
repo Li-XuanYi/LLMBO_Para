@@ -111,8 +111,14 @@ class MOOptimizer:
         region=None
         if self.options['mode']=='full_llmbo_mo':
             from .electrothermal_llm import apply_electrothermal_region
-            response=self.llm_controller.request_region(self.llm_controller.prepared,self.history,context,self.store) if self.llm_controller is not None else None
-            region=apply_electrothermal_region(self.gp,context,pool,response,settings=self.region_settings,trust=self.trust,space=self.space)
+            response=None;request_outcome=None
+            if context.ordinal<self.region_settings.active_until and self.llm_controller is not None:
+                response=self.llm_controller.request_region(self.llm_controller.prepared,self.history,context,self.store)
+                request_outcome=getattr(self.llm_controller,'last_request_outcome',None)
+            elif context.ordinal>=self.region_settings.active_until:
+                request_outcome={'status':'skipped','reason':'inactive','context_id':context.context_id}
+            region=apply_electrothermal_region(self.gp,context,pool,response,settings=self.region_settings,trust=self.trust,space=self.space,
+                request_outcome=request_outcome)
             index=region['selected_index']
         old_best=min(scalar.raw_labels)
         result,cached=self.evaluate(self.space.denormalize(pool[index]))
@@ -129,12 +135,20 @@ class MOOptimizer:
         return event
 
     def summary(self):
+        from collections import Counter
         front=pareto_indices([r.objectives for r in self.history]);hv=hypervolume_2d([r.objectives for r in self.history],
             objective_scales=self.options['objective_scales'],reference_point=self.options['hv_reference'])
+        regions=[r['region'] for r in self.rounds if r['region'] is not None]
+        outcomes=[r.get('request_outcome') or {} for r in regions]
+        diagnostics={'rounds':len(regions),'request_attempts':sum('ordinal' in o for o in outcomes),
+            'responses':sum(o.get('status')=='received' or not o and r['response'] is not None for r,o in zip(regions,outcomes)),
+            'accepted':sum(r['accepted'] for r in regions),'request_failures':sum(o.get('status')=='failed' for o in outcomes),
+            'fallback_counts':dict(Counter(r['fallback_reason'] for r in regions if r['fallback_reason'] is not None))}
         return {'fit_rates':list(self.dataset.fit_rates),'complete_pairs':len(self.history),'candidate_evaluations':self.attempts,
                 'BO_rounds':len(self.rounds),'pareto':[{'evaluation_id':self.history[i].evaluation_id,'parameters':self.history[i].parameters,'objectives':self.history[i].objectives} for i in front],
                 'HV':hv,'HV_reason':None if hv is not None else 'no_fixed_reference','comparison_protocol':self.store.signatures.comparison_protocol,
-                'costs':self.store.ledger.summary(),'API_calls':self.store.ledger.summary()['llm_requests'],'run_directory':str(self.store.path)}
+                'costs':self.store.ledger.summary(),'API_calls':self.store.ledger.summary()['llm_requests'],
+                'region_diagnostics':diagnostics,'run_directory':str(self.store.path)}
 
     def optimize(self,total_candidate_budget):
         if type(total_candidate_budget) is not int or total_candidate_budget<self.options['initial_count']:raise ValueError('explicit total attempt budget required')

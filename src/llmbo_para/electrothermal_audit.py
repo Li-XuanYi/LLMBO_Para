@@ -134,7 +134,17 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                 require(feedback['improved']==(new is not None and new<float(raw.min())),'improvement differs')
                 if event.get('region') is not None:
                     c=MORoundContext(context,dataset.fit_rates,canonical_json(asdict(signatures)).decode(),canonical_json(state).decode(),tuple(map(tuple,pool)),ordinal,saved['context_id'])
-                    region=apply_electrothermal_region(gp,c,pool,event['region']['response'],settings=settings,trust=trust,space=space)
+                    outcome=event['region'].get('request_outcome')
+                    if outcome is not None:
+                        equal(outcome.get('context_id'),saved['context_id'],'request outcome context differs')
+                        if 'ordinal' in outcome:
+                            n=outcome['ordinal'];require(type(n) is int and n>=0,'invalid request ordinal')
+                            equal(read(f'llm/{n:06d}.outcome.json'),outcome,'independent request outcome differs')
+                            payload=read(f'llm/{n:06d}.payload.json')
+                            require(payload['task']=='region_preference_electrothermal' and payload['context_id']==saved['context_id'],'request payload context differs')
+                            require(cost_events.get(f'llm:{n}',{}).get('phase')==payload['task'],'request outcome lacks matching cost event')
+                    request_details={'request_outcome':event['region']['request_outcome']} if 'request_outcome' in event['region'] else {}
+                    region=apply_electrothermal_region(gp,c,pool,event['region']['response'],settings=settings,trust=trust,space=space,**request_details)
                     equal(region,event['region'],'Region-Lift replay differs');index=region['selected_index']
                     tf=update_electrothermal_trust(c,record,previous_trust=trust,beta=settings.trust_beta,adoption={'accepted':region['accepted'],'cached':feedback['cached']})
                     equal(tf,feedback['trust'],'frozen trust feedback differs');trust=tf['trust_after']
@@ -144,6 +154,15 @@ def audit_electrothermal_run(run_directory,*,deep=False):
             front=pareto_indices([r.objectives for r in history]);expected=[{'evaluation_id':history[i].evaluation_id,'parameters':history[i].parameters,'objectives':history[i].objectives} for i in front]
             equal(summary['pareto'],expected,'Pareto parameter set differs');equal(summary['HV'],hypervolume_2d([r.objectives for r in history],objective_scales=opt['objective_scales'],reference_point=opt['hv_reference']),'fixed HV differs')
             require(summary['complete_pairs']==len(history) and summary['BO_rounds']==len(round_files),'history summary differs')
+            if 'region_diagnostics' in summary:
+                from collections import Counter
+                regions=[json.loads(f.read_text(encoding='utf8'))['region'] for f in round_files]
+                regions=[r for r in regions if r is not None];outcomes=[r.get('request_outcome') or {} for r in regions]
+                expected_diagnostics={'rounds':len(regions),'request_attempts':sum('ordinal' in o for o in outcomes),
+                    'responses':sum(o.get('status')=='received' or not o and r['response'] is not None for r,o in zip(regions,outcomes)),
+                    'accepted':sum(r['accepted'] for r in regions),'request_failures':sum(o.get('status')=='failed' for o in outcomes),
+                    'fallback_counts':dict(Counter(r['fallback_reason'] for r in regions if r['fallback_reason'] is not None))}
+                equal(summary['region_diagnostics'],expected_diagnostics,'Region request/adoption summary differs')
             checks.append('past_only_context_labels_GP_EI_Region_Pareto_HV')
         terminal=read('terminal.json');equal(terminal['summary'],summary,'terminal/summary mismatch')
         require(terminal['status'] in ('completed','completed_with_failures'),'run not completed')

@@ -124,8 +124,13 @@ def electrothermal_configuration_errors(config):
     budget=section('budgets');strict(budget,('max_solver_calls','max_llm_requests','wall_clock_s'),'budgets')
     for key in ('max_solver_calls','max_llm_requests'):numeric(budget.get(key),'budgets.'+key,positive=False,integer=True)
     numeric(budget.get('wall_clock_s'),'budgets.wall_clock_s')
-    llm=section('llm');strict(llm,('enabled','endpoint','api_key_env','model','max_tokens','timeout_s','json_mode'),'llm')
+    llm=section('llm');strict(llm,('enabled','endpoint','api_key_env','model','max_tokens','timeout_s','json_mode','task_options'),'llm')
     if type(llm.get('enabled')) is not bool:errors.append('llm.enabled must be boolean')
+    if type(llm.get('json_mode')) is not bool:errors.append('llm.json_mode must be boolean')
+    from .electrothermal_requests import request_controls
+    try:
+        for task in ('warm_start_electrothermal','region_preference_electrothermal'):request_controls(config,task)
+    except (ValueError,TypeError,KeyError):errors.append('invalid LLM task limits or global ceilings')
     if llm.get('enabled'):
         from urllib.parse import urlsplit
         url=urlsplit(llm.get('endpoint') or '')
