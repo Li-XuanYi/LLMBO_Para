@@ -5,6 +5,7 @@ Qualification reproduces the existing EI/sigma guards, including their floors.
 """
 import json
 import math
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -18,29 +19,42 @@ SHORTLIST_LIMIT = 12
 EI_LOG_FLOOR = 1e-12
 
 
-def candidate_region_requirements(settings):
-    return {'min_confidence': settings.min_confidence,
+def candidate_region_requirements(settings, *, selection_mode='global_lift_v1'):
+    requirements={'min_confidence': settings.min_confidence,
             'min_width': settings.min_width, 'max_width': settings.max_width,
             'max_plain_log_ei_gap': settings.max_plain_log_ei_gap,
             'min_sigma_ratio': settings.min_sigma_ratio, 'ei_log_floor': EI_LOG_FLOOR,
             'must_cover_eligible_alternative': True}
+    if selection_mode=='eligible_region_v1':
+        requirements.update(selection_policy=selection_mode,competition_scope='all_qualified_inside_region',
+                            plain_baseline='original_EI',tie_rule='plain_first_then_stable_ID')
+    elif selection_mode!='global_lift_v1':raise ValueError('invalid Region selection policy')
+    return requirements
 
 
-def build_region_candidate_advice(context, *, space, settings):
-    """Restore the frozen posterior and select plain, then Max–Min alternatives.
+@dataclass(frozen=True)
+class QualifiedRegionPool:
+    pool:np.ndarray
+    mean:np.ndarray
+    std:np.ndarray
+    ei:np.ndarray
+    plain:int
+    gap:np.ndarray
+    sigma_ratio:np.ndarray
+    physical:dict
+    eligible:tuple
+    identities:tuple
 
-    Distances use all six normalized coordinates, including configured log10
-    transforms. Exact ties use higher original EI, then a context-bound stable ID.
-    Full precision is kept for both the provider and subsequent coverage checks.
-    """
+
+def qualify_region_pool(context, *, space, settings, mean, std):
+    """One original-guard definition shared by advice and regional competition."""
     pool = np.asarray(context.pool, dtype=float)
     if pool.ndim != 2 or pool.shape[1] != 6 or not len(pool):
         raise ValueError('nonempty six-dimensional frozen pool required')
     if np.any(~np.isfinite(pool)) or np.any((pool < 0) | (pool > 1)):
         raise ValueError('frozen pool must contain finite normalized coordinates')
-    state = json.loads(context.gp_state_json)
-    gp = Matern52GP.from_state(state)
-    mean, std = gp.predict(pool)
+    mean=np.asarray(mean,dtype=float);std=np.asarray(std,dtype=float)
+    if mean.shape!=(len(pool),) or std.shape!=mean.shape:raise ValueError('posterior and frozen pool must align')
     ei = gaussian_ei(mean, std, context.scalarization.best)
     plain = int(np.argmax(ei))
     gap = np.log(max(ei[plain], EI_LOG_FLOOR)) - np.log(np.maximum(ei, EI_LOG_FLOOR))
@@ -65,8 +79,22 @@ def build_region_candidate_advice(context, *, space, settings):
             eligible.append(i)
     if plain not in physical:
         raise ValueError('plain candidate violates the physical parameter space')
+    return QualifiedRegionPool(pool,mean,std,ei,plain,gap,sigma_ratio,physical,tuple(eligible),tuple(identities))
+
+
+def build_region_candidate_advice(context, *, space, settings):
+    """Restore the frozen posterior and select plain, then Max–Min alternatives.
+
+    Distances use normalized coordinates, including configured log10 transforms.
+    Exact ties use higher original EI, then a context-bound stable ID.
+    """
+    state=json.loads(context.gp_state_json);gp=Matern52GP.from_state(state)
+    mean,std=gp.predict(context.pool)
+    q=qualify_region_pool(context,space=space,settings=settings,mean=mean,std=std)
+    pool,ei,plain,gap,sigma_ratio=q.pool,q.ei,q.plain,q.gap,q.sigma_ratio
+    physical,eligible,identities=q.physical,q.eligible,q.identities
     selected = [plain]
-    remaining = eligible[:]
+    remaining = list(eligible)
     while remaining and len(selected) < SHORTLIST_LIMIT:
         distances = {i: min(float(np.linalg.norm(pool[i]-pool[j])/math.sqrt(6)) for j in selected)
                      for i in remaining}

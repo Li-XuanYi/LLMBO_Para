@@ -110,6 +110,7 @@ def audit_electrothermal_run(run_directory,*,deep=False):
             from .electrothermal_llm import apply_electrothermal_region,update_electrothermal_trust
             opt=cfg['optimization'];scheduler=WeightScheduler(opt['weights'],opt['seed']);settings=InformedSettings.parse(opt['region']);trust=settings.trust_init
             advice_mode=opt.get('region_advice','legacy_v1');region_request_references=set()
+            selection_mode=opt.get('region_selection','global_lift_v1')
             for ordinal,file in enumerate(round_files,1):
                 event=json.loads(file.read_text(encoding='utf8'));saved=event['context'];weights=scheduler.next()
                 y=np.asarray([r.objectives for r in history]);w=np.asarray(weights);a=w*(y/np.asarray(opt['objective_scales']));raw=a.max(axis=1)+opt['rho_aug']*a.sum(axis=1)
@@ -167,10 +168,11 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                                 require(n not in region_request_references,'Region request referenced more than once')
                                 region_request_references.add(n)
                                 equal(payload['candidate_advice'],advice,'request candidate advice differs')
-                                equal(payload['region_requirements'],candidate_region_requirements(settings),'request Region gates differ')
+                                equal(payload['region_requirements'],candidate_region_requirements(settings,selection_mode=selection_mode),'request Region gates differ')
                                 equal(payload['signatures'],asdict(signatures),'request signatures differ')
                     request_details={'request_outcome':event['region']['request_outcome']} if 'request_outcome' in event['region'] else {}
-                    region=apply_electrothermal_region(gp,c,pool,event['region']['response'],settings=settings,trust=trust,space=space,advice_mode=advice_mode,**request_details)
+                    region=apply_electrothermal_region(gp,c,pool,event['region']['response'],settings=settings,trust=trust,space=space,
+                        advice_mode=advice_mode,selection_mode=selection_mode,**request_details)
                     equal(region,event['region'],'Region-Lift replay differs');index=region['selected_index']
                     tf=update_electrothermal_trust(c,record,previous_trust=trust,beta=settings.trust_beta,adoption={'accepted':region['accepted'],'cached':feedback['cached']})
                     equal(tf,feedback['trust'],'frozen trust feedback differs');trust=tf['trust_after']

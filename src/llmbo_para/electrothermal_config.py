@@ -99,9 +99,11 @@ def electrothermal_configuration_errors(config):
     if config.get('run_kind') in ('research','synthetic_dfn') and model.get('provider')!='pybamm':errors.append('model.provider must be pybamm for research/synthetic_dfn')
     if model.get('pybamm_version')!='25.10.2':errors.append('locked PyBaMM 25.10.2 required')
     if model.get('options')!={'thermal':'lumped','use lumped thermal capacity':'true','surface temperature':'ambient'}:errors.append('verified lumped thermal options required')
-    opt=section('optimization');strict(opt,('mode','initial_count','total_candidate_budget','seed','gp_sweeps','global_pool_size','local_pool_size','local_radius','max_rate_attempts','parallel_workers','objective_scales','rho_aug','weights','hv_reference','warmstart','region','region_advice','initial_plan'),'optimization')
+    opt=section('optimization');strict(opt,('mode','initial_count','total_candidate_budget','seed','gp_sweeps','global_pool_size','local_pool_size','local_radius','max_rate_attempts','parallel_workers','objective_scales','rho_aug','weights','hv_reference','warmstart','region','region_advice','region_selection','initial_plan'),'optimization')
     if opt.get('mode') not in ('parego','warmstart_only','full_llmbo_mo'):errors.append('invalid MO mode')
     if opt.get('region_advice','legacy_v1') not in ('legacy_v1','candidate_aware_v1'):errors.append('invalid Region advice policy')
+    if opt.get('region_selection','global_lift_v1') not in ('global_lift_v1','eligible_region_v1'):errors.append('invalid Region selection policy')
+    if opt.get('region_selection')=='eligible_region_v1' and opt.get('region_advice')!='candidate_aware_v1':errors.append('eligible regional selection requires candidate-aware advice')
     warm=opt.get('warmstart')
     if not isinstance(warm,dict):errors.append('warmstart must be an object')
     else:

@@ -95,7 +95,7 @@ def build_electrothermal_payload(task,*,prepared,history,context=None):
             if candidate_aware:
                 from .electrothermal_region_advice import build_region_candidate_advice,candidate_region_requirements
                 payload['candidate_advice']=build_region_candidate_advice(context,space=prepared.space,settings=settings)
-                payload['region_requirements']=candidate_region_requirements(settings)
+                payload['region_requirements']=candidate_region_requirements(settings,selection_mode=cfg['optimization'].get('region_selection','global_lift_v1'))
             payload['coordinate_mapping']={'space':'normalized','order':[s.name for s in prepared.space.specs],
                 'linear':'x=(theta-lower)/(upper-lower)',
                 'log10':'x=(log10(theta)-log10(lower))/(log10(upper)-log10(lower))',
@@ -252,7 +252,7 @@ def validate_electrothermal_region(response,*,expected_context_id,expected_signa
     return {**response,'region':region}
 
 
-def apply_electrothermal_region(gp,context,pool,region,*,settings,trust,space,request_outcome=None,advice_mode='legacy_v1'):
+def apply_electrothermal_region(gp,context,pool,region,*,settings,trust,space,request_outcome=None,advice_mode='legacy_v1',selection_mode='global_lift_v1'):
     from .acquisition import gaussian_ei
     from .sobol import Sobol6
     x=np.asarray(pool,dtype=float);mean,std=gp.predict(x);ei=gaussian_ei(mean,std,context.scalarization.best);plain=int(np.argmax(ei))
@@ -261,6 +261,10 @@ def apply_electrothermal_region(gp,context,pool,region,*,settings,trust,space,re
             'plain_ei':ei.tolist(),'effective_ei':ei.tolist(),'response':None,'trust_before':float(trust)}
     def fallback(reason):result['fallback_reason']=reason;return result
     if advice_mode not in ('legacy_v1','candidate_aware_v1'):raise ValueError('invalid Region advice policy')
+    if selection_mode not in ('global_lift_v1','eligible_region_v1'):raise ValueError('invalid Region selection policy')
+    if selection_mode=='eligible_region_v1':
+        if advice_mode!='candidate_aware_v1':raise ValueError('eligible regional selection requires candidate-aware advice')
+        result['selection_policy']=selection_mode
     advice=None
     if advice_mode=='candidate_aware_v1':
         if not np.array_equal(x,np.asarray(context.pool,dtype=float)):raise ValueError('acquisition pool differs from frozen advice pool')
@@ -306,6 +310,13 @@ def apply_electrothermal_region(gp,context,pool,region,*,settings,trust,space,re
     anneal=max(0.,1-context.ordinal/settings.active_until)
     shift=np.clip(settings.lambda_max*anneal*p['confidence']*trust*consistency*np.maximum(corr,0),0,settings.max_shift_std)
     adjusted=mean-shift;lifted_ei=gaussian_ei(adjusted,std,context.scalarization.best);lifted=int(np.argmax(lifted_ei))
+    if selection_mode=='eligible_region_v1':
+        from .electrothermal_region_selection import eligible_region_competition
+        result['raw_shift']=shift.tolist()
+        competition=eligible_region_competition(context,p,mean=mean,std=std,raw_shift=shift,space=space,settings=settings)
+        result['selection_details']={k:v for k,v in competition.items() if k not in ('shift','adjusted_mean','lifted_ei')}
+        shift=np.asarray(competition['shift']);adjusted=np.asarray(competition['adjusted_mean'])
+        lifted_ei=np.asarray(competition['lifted_ei']);lifted=competition['selected_index']
     gap=float(np.log(max(ei[plain],1e-12))-np.log(max(ei[lifted],1e-12)));sigma_ratio=float(std[lifted]/max(std[plain],1e-12))
     result.update(anchors=anchors.tolist(),anchor_weights=weights.tolist(),anchor_consistency=consistency,correlation=corr.tolist(),
         kernel_norm_sq=norm,anneal=anneal,shift=shift.tolist(),adjusted_mean=adjusted.tolist(),lifted_ei=lifted_ei.tolist(),
