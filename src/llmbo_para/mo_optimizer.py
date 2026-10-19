@@ -118,7 +118,7 @@ class MOOptimizer:
             elif context.ordinal>=self.region_settings.active_until:
                 request_outcome={'status':'skipped','reason':'inactive','context_id':context.context_id}
             region=apply_electrothermal_region(self.gp,context,pool,response,settings=self.region_settings,trust=self.trust,space=self.space,
-                request_outcome=request_outcome)
+                request_outcome=request_outcome,advice_mode=self.options.get('region_advice','legacy_v1'))
             index=region['selected_index']
         old_best=min(scalar.raw_labels)
         result,cached=self.evaluate(self.space.denormalize(pool[index]))

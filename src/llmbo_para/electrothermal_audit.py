@@ -109,6 +109,7 @@ def audit_electrothermal_run(run_directory,*,deep=False):
             from .mo_optimizer import MORoundContext
             from .electrothermal_llm import apply_electrothermal_region,update_electrothermal_trust
             opt=cfg['optimization'];scheduler=WeightScheduler(opt['weights'],opt['seed']);settings=InformedSettings.parse(opt['region']);trust=settings.trust_init
+            advice_mode=opt.get('region_advice','legacy_v1');region_request_references=set()
             for ordinal,file in enumerate(round_files,1):
                 event=json.loads(file.read_text(encoding='utf8'));saved=event['context'];weights=scheduler.next()
                 y=np.asarray([r.objectives for r in history]);w=np.asarray(weights);a=w*(y/np.asarray(opt['objective_scales']));raw=a.max(axis=1)+opt['rho_aug']*a.sum(axis=1)
@@ -132,9 +133,28 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                 feedback=event['feedback'];equal(feedback['context_id'],saved['context_id'],'feedback context differs')
                 equal(feedback['previous_best'],float(raw.min()),'frozen incumbent differs');equal(feedback['new_scalar'],new,'frozen feedback scalar differs')
                 require(feedback['improved']==(new is not None and new<float(raw.min())),'improvement differs')
+                if advice_mode=='candidate_aware_v1' and opt['mode']=='full_llmbo_mo':
+                    require(isinstance(event.get('region'),dict),'candidate-aware round requires Region precheck evidence')
                 if event.get('region') is not None:
                     c=MORoundContext(context,dataset.fit_rates,canonical_json(asdict(signatures)).decode(),canonical_json(state).decode(),tuple(map(tuple,pool)),ordinal,saved['context_id'])
                     outcome=event['region'].get('request_outcome')
+                    if advice_mode=='candidate_aware_v1':
+                        from .electrothermal_region_advice import build_region_candidate_advice,candidate_region_requirements
+                        advice=build_region_candidate_advice(c,space=space,settings=settings)
+                        equal(event['region']['candidate_advice'],advice,'Region candidate advice differs')
+                        require(isinstance(outcome,dict),'candidate-aware Region requires request outcome')
+                        require(outcome.get('status') in ('received','failed','skipped'),'invalid Region request status')
+                        require(('ordinal' in outcome)==(outcome['status'] in ('received','failed')),'Region request ordinal/status differs')
+                        if ordinal>=settings.active_until:
+                            equal(outcome,{'status':'skipped','reason':'inactive','context_id':saved['context_id']},'inactive Region outcome differs')
+                        elif not advice['eligible_alternative_count']:
+                            equal(outcome,{'task':'region_preference_electrothermal','context_id':saved['context_id'],
+                                           'status':'skipped','reason':'no_eligible_alternative'},'no-alternative Region outcome differs')
+                        else:
+                            require(outcome.get('reason')!='no_eligible_alternative','false no-alternative skip')
+                            if outcome['status']=='skipped':
+                                require(outcome.get('reason') in ('disabled','global_budget','task_budget','missing_mock_transport'),'invalid active Region skip reason')
+                            if outcome.get('status') in ('received','failed'):require('ordinal' in outcome,'Region request is missing ordinal')
                     if outcome is not None:
                         equal(outcome.get('context_id'),saved['context_id'],'request outcome context differs')
                         if 'ordinal' in outcome:
@@ -143,13 +163,23 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                             payload=read(f'llm/{n:06d}.payload.json')
                             require(payload['task']=='region_preference_electrothermal' and payload['context_id']==saved['context_id'],'request payload context differs')
                             require(cost_events.get(f'llm:{n}',{}).get('phase')==payload['task'],'request outcome lacks matching cost event')
+                            if advice_mode=='candidate_aware_v1':
+                                require(n not in region_request_references,'Region request referenced more than once')
+                                region_request_references.add(n)
+                                equal(payload['candidate_advice'],advice,'request candidate advice differs')
+                                equal(payload['region_requirements'],candidate_region_requirements(settings),'request Region gates differ')
+                                equal(payload['signatures'],asdict(signatures),'request signatures differ')
                     request_details={'request_outcome':event['region']['request_outcome']} if 'request_outcome' in event['region'] else {}
-                    region=apply_electrothermal_region(gp,c,pool,event['region']['response'],settings=settings,trust=trust,space=space,**request_details)
+                    region=apply_electrothermal_region(gp,c,pool,event['region']['response'],settings=settings,trust=trust,space=space,advice_mode=advice_mode,**request_details)
                     equal(region,event['region'],'Region-Lift replay differs');index=region['selected_index']
                     tf=update_electrothermal_trust(c,record,previous_trust=trust,beta=settings.trust_beta,adoption={'accepted':region['accepted'],'cached':feedback['cached']})
                     equal(tf,feedback['trust'],'frozen trust feedback differs');trust=tf['trust_after']
                 require(event['selected_index']==index,'EI selection differs')
                 if record.complete_pair_valid and tuple(record.parameters) not in {tuple(r.parameters) for r in history}:history.append(record)
+            if advice_mode=='candidate_aware_v1':
+                actual_region_requests={int(e['event_id'].split(':')[1]) for e in cost_events.values()
+                    if e['kind'] in ('llm_request','mock_llm_request') and e.get('phase')=='region_preference_electrothermal'}
+                equal(sorted(region_request_references),sorted(actual_region_requests),'orphan Region request cost')
             from .pareto import pareto_indices,hypervolume_2d
             front=pareto_indices([r.objectives for r in history]);expected=[{'evaluation_id':history[i].evaluation_id,'parameters':history[i].parameters,'objectives':history[i].objectives} for i in front]
             equal(summary['pareto'],expected,'Pareto parameter set differs');equal(summary['HV'],hypervolume_2d([r.objectives for r in history],objective_scales=opt['objective_scales'],reference_point=opt['hv_reference']),'fixed HV differs')

@@ -99,3 +99,19 @@ v2 可选 `llm.task_options` 为 `warm_start_electrothermal` 和 `region_prefere
 Region 摘要按当轮 scalar top4、双目标极值和 recent3 稳定去重，最多9条；incumbent 在首位，提供物理参数、计算好的归一化坐标及 linear/log10 公式。完整真实历史、原 GP 标签和方差仍保留。部分结果不产生标量目标；inactive 阶段不再请求。置信门槛与原均值调整/EI 守卫不变，合法宽度边界采用1e-12浮点容差。审计交叉核验 outcome、payload、context 与成本事件，旧记录保留原重放路径与签名校验。
 
 旧20轮实验的 Region 采纳0/20，包含19次传输失败和1次正常低置信度回退；不构成Region增益检验。本轮只修复软件与请求契约，真实服务成功率和物理RMSE改善仍待独立预算验证。详见 `docs/audits/region-lift-diagnosis-2026-10-18.md`。
+
+### 候选信息对齐（2026-10-19）
+
+schema v2 的可选 `optimization.region_advice` 严格取 `legacy_v1` 或 `candidate_aware_v1`。缺省为legacy，旧配置不补写新键，旧归档按其配置重放；schema v1不变。新电热模板显式选择candidate策略，但仍为parego模式、LLM关闭、真实API与DFN预算0。策略进入现有算法/配置签名，所有新模块和Prompt进入源码指纹；没有放宽缓存、LLM回复或初始化计划校验。同一源码下WarmStart-only/Full仍可共享兼容的已冻结初始化计划。
+
+candidate策略从当轮冻结的GP状态恢复后验，不优化超参数，使用同一pool、best、权重和目标尺度。资格逐字采用原守卫：`log(max(EI_plain,1e-12))-log(max(EI_i,1e-12)) <= max_plain_log_ei_gap`，以及 `sigma_i/max(sigma_plain,1e-12) >= min_sigma_ratio`。排除plain、已观测/重复点和参数空间不合法点；不以未经取下限的EI比值代替资格判断。
+
+没有合格替代点时，在任何transport调用前记录当前context的`no_eligible_alternative`跳过；不增加请求、任务计数或LLM成本，不生成请求ordinal。inactive优先于此预检；在活跃且存在替代点时，仍执行原disabled/任务/总预算检查。旧outcome不会沿用到新轮。
+
+提供最多12条候选摘要，plain首先，其余从合格替代点中按归一化六维Max–Min选择（距离除sqrt(6)；精确同分按较高原EI、再context绑定的稳定candidate ID）。摘要保留完整精度坐标、物理值、当前标准化mean/std、原EI、实际EI比率、带下限的log-EI差及sigma比率，并携带context/池/GP状态指纹。实际EI比率仅用于阅读：EI_plain>0时为EI_i/EI_plain，否则明确为null；资格始终以带下限的log-EI差为准。返回合格替代总数与上限，不能把未列出的点伪称已发送给LLM。
+
+独立英文Prompt为`region_preference_candidate_aware_electrothermal.txt`，要求在权重与物理关系下选择覆盖至少一个已提供合格替代点的矩形，或者弃权。仅覆盖plain不够。代码用原始完整精度坐标、包含端点的边界判断覆盖；不自动扩框、裁剪或补点。未覆盖时记录`no_eligible_candidate_in_region`。之后的锚点、协方差相关性、Lift公式和最终守卫全部沿用原版本，真实目标、标签和原方差不变。此版本没有实现“区域内竞争”的另一个采集变体。
+
+每轮保存`candidate_advice`，请求payload保存同一摘要与全部门槛。新模式审计从冻结后验独立重建，逐字段核验摘要、覆盖、跳过原因及请求outcome/成本的一一对应；删除摘要、改预测/索引/数量/门槛或伪造无ordinal跳过均拒绝。legacy输出与旧审计重放路径保持原语义。
+
+本改动的软件测试通过只说明契约和数值实现正确，不证明LLM建议质量或RMSE/HV提升。真实效果需后续同初始化、等预算、多种子配对实验；本轮新增实际API/DFN预算保持0。2026-10-19既有真实消融仍保留原结论：7个合法框均无守卫合格池内候选、0次改变选点，两臂轨迹一致，不能用新预检反推未求解点的RMSE。

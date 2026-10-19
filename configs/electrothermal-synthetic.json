@@ -188,7 +188,8 @@
       "max_candidates": 8,
       "max_evaluations": 8
     },
-    "region": {}
+    "region": {},
+    "region_advice": "candidate_aware_v1"
   },
   "budgets": {
     "max_solver_calls": 0,

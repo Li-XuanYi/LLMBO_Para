@@ -51,6 +51,8 @@ def build_electrothermal_payload(task,*,prepared,history,context=None):
     cfg=prepared.config;valid=[r for r in history if r.complete_pair_valid]
     front=[valid[i] for i in pareto_indices([r.objectives for r in valid])]
     is_region=task=='region_preference_electrothermal'
+    candidate_aware=is_region and cfg['optimization'].get('region_advice','legacy_v1')=='candidate_aware_v1'
+    prompt_name='region_preference_candidate_aware_electrothermal' if candidate_aware else task
     scalar_by_id={}
     if is_region:
         if context is None:raise ValueError('frozen context required for Region request')
@@ -76,7 +78,7 @@ def build_electrothermal_payload(task,*,prepared,history,context=None):
         'fixed':cfg['fixed'],'property_law':cfg['property_law'],'conditions_by_rate':cfg['conditions_by_rate'],
         'objective_scales':cfg['optimization']['objective_scales'],'objective_order':['F_U_V','F_T_K'],
         'history':rows,'pareto':[{'evaluation_id':r.evaluation_id,'objectives':r.objectives} for r in front],
-        'instructions':(Path(__file__).parent/'prompts'/(task+'.txt')).read_text(encoding='utf8')}
+        'instructions':(Path(__file__).parent/'prompts'/(prompt_name+'.txt')).read_text(encoding='utf8')}
     if context is not None:
         c=context.scalarization
         payload['context_id']=context.context_id
@@ -90,6 +92,10 @@ def build_electrothermal_payload(task,*,prepared,history,context=None):
             from .informed import InformedSettings
             settings=InformedSettings.parse(cfg['optimization']['region'])
             payload['region_requirements']={'min_confidence':settings.min_confidence,'min_width':settings.min_width,'max_width':settings.max_width}
+            if candidate_aware:
+                from .electrothermal_region_advice import build_region_candidate_advice,candidate_region_requirements
+                payload['candidate_advice']=build_region_candidate_advice(context,space=prepared.space,settings=settings)
+                payload['region_requirements']=candidate_region_requirements(settings)
             payload['coordinate_mapping']={'space':'normalized','order':[s.name for s in prepared.space.specs],
                 'linear':'x=(theta-lower)/(upper-lower)',
                 'log10':'x=(log10(theta)-log10(lower))/(log10(upper)-log10(lower))',
@@ -229,6 +235,11 @@ class ElectrothermalLLMController:
 
     def request_region(self,prepared,history,context,store):
         payload=build_electrothermal_payload('region_preference_electrothermal',prepared=prepared,history=history,context=context)
+        if 'candidate_advice' in payload and not payload['candidate_advice']['eligible_alternative_count']:
+            self.last_request_outcome={'task':payload['task'],'context_id':context.context_id,
+                                       'status':'skipped','reason':'no_eligible_alternative'}
+            store.append_event({'type':'electrothermal_llm_skipped',**self.last_request_outcome})
+            return None
         return self.request(payload,prepared=prepared,store=store,budgets=prepared.config['budgets'],
                             request_cap=prepared.config['optimization']['total_candidate_budget']-prepared.config['optimization']['initial_count'])
 
@@ -241,7 +252,7 @@ def validate_electrothermal_region(response,*,expected_context_id,expected_signa
     return {**response,'region':region}
 
 
-def apply_electrothermal_region(gp,context,pool,region,*,settings,trust,space,request_outcome=None):
+def apply_electrothermal_region(gp,context,pool,region,*,settings,trust,space,request_outcome=None,advice_mode='legacy_v1'):
     from .acquisition import gaussian_ei
     from .sobol import Sobol6
     x=np.asarray(pool,dtype=float);mean,std=gp.predict(x);ei=gaussian_ei(mean,std,context.scalarization.best);plain=int(np.argmax(ei))
@@ -249,11 +260,20 @@ def apply_electrothermal_region(gp,context,pool,region,*,settings,trust,space,re
             'mean':mean.tolist(),'std':std.tolist(),'shift':np.zeros(len(x)).tolist(),'adjusted_mean':mean.tolist(),
             'plain_ei':ei.tolist(),'effective_ei':ei.tolist(),'response':None,'trust_before':float(trust)}
     def fallback(reason):result['fallback_reason']=reason;return result
+    if advice_mode not in ('legacy_v1','candidate_aware_v1'):raise ValueError('invalid Region advice policy')
+    advice=None
+    if advice_mode=='candidate_aware_v1':
+        if not np.array_equal(x,np.asarray(context.pool,dtype=float)):raise ValueError('acquisition pool differs from frozen advice pool')
+        from .electrothermal_region_advice import build_region_candidate_advice,region_covers_advised_alternative
+        advice=build_region_candidate_advice(context,space=space,settings=settings)
+        result['candidate_advice']=advice
     if request_outcome is not None:result['request_outcome']=dict(request_outcome)
     if region is None and request_outcome is not None:
         if request_outcome.get('context_id')!=context.context_id:return fallback('stale_request_outcome')
         if request_outcome.get('reason')=='inactive' and context.ordinal>=settings.active_until:return fallback('inactive')
+        if advice is not None and not advice['eligible_alternative_count']:return fallback('no_eligible_alternative')
         if request_outcome.get('status') in ('failed','skipped'):return fallback('request_'+request_outcome['reason'])
+    if advice is not None and not advice['eligible_alternative_count']:return fallback('no_eligible_alternative')
     try:validated=validate_electrothermal_region(region,expected_context_id=context.context_id,expected_signatures=json_load(context.signatures_json))
     except (ValueError,TypeError,KeyError):return fallback('invalid_response')
     # Archive only the checked envelope; remove free text from untrusted providers.
@@ -264,6 +284,7 @@ def apply_electrothermal_region(gp,context,pool,region,*,settings,trust,space,re
     if context.ordinal>=settings.active_until:return fallback('inactive')
     lb=np.asarray(p['lb']);ub=np.asarray(p['ub']);width=ub-lb
     if np.any(width<settings.min_width-1e-12) or np.any(width>settings.max_width+1e-12):return fallback('invalid_width')
+    if advice is not None and not region_covers_advised_alternative(advice,p):return fallback('no_eligible_candidate_in_region')
     anchors=lb+Sobol6(1).draw(settings.n_anchors)*width;keep=[]
     for a in anchors:
         try:space.denormalize(a);keep.append(True)
