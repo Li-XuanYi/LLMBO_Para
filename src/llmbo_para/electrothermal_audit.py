@@ -191,7 +191,7 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                             payload=read(f'llm/{n:06d}.payload.json')
                             require(payload['task']=='region_preference_electrothermal' and payload['context_id']==saved['context_id'],'request payload context differs')
                             require(cost_events.get(f'llm:{n}',{}).get('phase')==payload['task'],'request outcome lacks matching cost event')
-                            if opt.get('region_evidence','legacy_v1') in ('signed_residual_v1','decision_geometry_v2'):
+                            if opt.get('region_evidence','legacy_v1') in ('signed_residual_v1','decision_geometry_v2','dynamic_decision_v3'):
                                 from .electrothermal_residuals import residual_evidence_contract,signed_record_summary
                                 equal(payload.get('history_evidence'),residual_evidence_contract(),'signed residual evidence contract differs')
                                 past={r.evaluation_id:r for r in history};seen=set()
@@ -200,7 +200,7 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                                     seen.add(ident);equal(row.get('signed_residuals'),signed_record_summary(past[ident]),'signed residual evidence differs from curves')
                                 require(bool(seen) and context.incumbent_id in seen,'signed residual evidence omits current incumbent')
                                 prompt='region_preference_residual_electrothermal'
-                                if opt.get('region_evidence')=='decision_geometry_v2':
+                                if opt.get('region_evidence') in ('decision_geometry_v2','dynamic_decision_v3'):
                                     from .electrothermal_region_evidence import build_region_decision_evidence
                                     scalar_by_id=dict(zip(context.observation_ids,context.raw_labels))
                                     top=sorted(context.observation_ids,key=lambda i:(scalar_by_id[i],i))[:4]
@@ -220,8 +220,15 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                                             'normalized_parameters':[round(float(x),6) for x in space.normalize(actual.parameters)],
                                             'current_scalar_g':scalar_by_id[actual.evaluation_id],
                                             'signed_residuals':signed_record_summary(actual)}
+                                        if opt.get('region_evidence')=='dynamic_decision_v3':
+                                            from .electrothermal_dynamic_evidence import dynamic_record_summary
+                                            expected_row['dynamic_residuals']=dynamic_record_summary(actual)
                                         equal(row,expected_row,'decision history row differs')
                                     prompt='region_preference_decision_electrothermal'
+                                    if opt.get('region_evidence')=='dynamic_decision_v3':
+                                        from .electrothermal_dynamic_evidence import dynamic_evidence_contract
+                                        equal(payload.get('dynamic_history_evidence'),dynamic_evidence_contract(),'dynamic residual evidence contract differs')
+                                        prompt='region_preference_dynamic_electrothermal'
                                 equal(payload['instructions'],(root/('source/src/llmbo_para/prompts/'+prompt+'.txt')).read_text(encoding='utf8'),'signed evidence prompt differs')
                             if advice_mode=='candidate_aware_v1':
                                 require(n not in region_request_references,'Region request referenced more than once')

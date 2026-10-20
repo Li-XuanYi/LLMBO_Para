@@ -105,8 +105,8 @@ def electrothermal_configuration_errors(config):
     if opt.get('region_selection','global_lift_v1') not in ('global_lift_v1','eligible_region_v1','fair_region_v1'):errors.append('invalid Region selection policy')
     if opt.get('region_selection')=='eligible_region_v1' and opt.get('region_advice')!='candidate_aware_v1':errors.append('eligible regional selection requires candidate-aware advice')
     if opt.get('region_selection')=='fair_region_v1' and opt.get('region_advice')!='candidate_aware_v1':errors.append('fair regional selection requires candidate-aware advice')
-    if opt.get('region_evidence','legacy_v1') not in ('legacy_v1','signed_residual_v1','decision_geometry_v2'):errors.append('invalid Region evidence policy')
-    if opt.get('region_evidence') in ('signed_residual_v1','decision_geometry_v2') and (opt.get('region_advice')!='candidate_aware_v1' or opt.get('region_selection')!='fair_region_v1'):
+    if opt.get('region_evidence','legacy_v1') not in ('legacy_v1','signed_residual_v1','decision_geometry_v2','dynamic_decision_v3'):errors.append('invalid Region evidence policy')
+    if opt.get('region_evidence') in ('signed_residual_v1','decision_geometry_v2','dynamic_decision_v3') and (opt.get('region_advice')!='candidate_aware_v1' or opt.get('region_selection')!='fair_region_v1'):
         errors.append('signed residual evidence requires candidate-aware fair regional selection')
     warm=opt.get('warmstart')
     if not isinstance(warm,dict):errors.append('warmstart must be an object')

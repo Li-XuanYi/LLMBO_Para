@@ -97,7 +97,7 @@
 
 **Interfaces:** consumes `ObservedOutputResult`、`ElectrothermalEvaluationResult`和已冻结历史；produces共同契约的三个dynamic函数。payload仍返回原bounds响应协议。
 
-- [ ] **Step 1: 写失败测试。** `test_three_samples_keep_postinitial_temperature_direction`断言T=[0,20,60]、残差=[0,1,-2]时initial=0、动态时间[20,60]、均值=-0.5；U=[0,30,60]独立保持。旧early为0不能令新动态也为0。
+- [x] **Step 1: 写失败测试。** `test_three_samples_keep_postinitial_temperature_direction`断言T=[0,20,60]、残差=[0,1,-2]时initial=0、动态时间[20,60]、均值=-0.5；U=[0,30,60]独立保持。旧early为0不能令新动态也为0。
 
   ```python
   summary = dynamic_output_summary(output, simulation_start_s=0.)
@@ -106,12 +106,12 @@
   assert summary['dynamic_sample_count'] == summary['displayed_sample_count'] == 2
   assert summary['dynamic_sample_mean'] == -0.5
   ```
-- [ ] **Step 2: 补齐失败矩阵。** 测试无initial、非零start、origin缺失/非有限、t<start、近但大于start、initial-only、无效输出、错单位/形状/时间；n=1/2/8/9/100抽样，其中n=9索引[0,1,2,3,4,5,6,8]，第7项异常仍影响全动态均值。断言输入对象、Y、标签和已冻结GP state的digest未变。
-- [ ] **Step 3: 执行RED并保存。** 用下方守护入口运行`tests/test_region_dynamic_evidence.py`；预期新模块/新模式未实现导致失败，不能将环境ImportError误作有效算法失败。
-- [ ] **Step 4: 最小实现上述纯函数及新payload/Prompt/config分支。** 初始点识别来自原trace；历史选择仍用top4+两极值+最近3的有序并集；200–300词Prompt不把权重大解释为贡献大，不以温升越低代替温度误差。
-- [ ] **Step 5: 独立审计。** 从归档原曲线/观测/完整历史重建起点、索引、全部动态均值及原先有序history；篡改动态残差、时间、起点、遗漏点均值、schema/单位或共同删除history与摘要均失败。旧版本审计不要求新字段。
-- [ ] **Step 6: GREEN与相关回归。** 新测试及`test_region_signed_residuals.py`、`test_region_decision_evidence.py`、`test_region_payload_repairs.py`、`test_electrothermal_audit.py`；核验旧Prompt SHA未变、默认关闭LLM时0网络/0DFN。实际数量从新JUnit读取。
-- [ ] **Step 7: 独立审阅后显式提交本任务文件。** 建议commit主题`feat: add past-only dynamic residual evidence for Region`；记录源码指纹和RED/GREEN路径。任务通过只说明证据契约正确，不说明LLM有益。
+- [x] **Step 2: 补齐失败矩阵。** 测试无initial、非零start、origin缺失/非有限、t<start、近但大于start、initial-only、无效输出、错单位/形状/时间；n=1/2/8/9/100抽样，其中n=9索引[0,1,2,3,4,5,6,8]，第7项异常仍影响全动态均值。断言输入对象、Y、标签和已冻结GP state的digest未变。
+- [x] **Step 3: 执行RED并保存。** 用下方守护入口运行`tests/test_region_dynamic_evidence.py`；预期新模块/新模式未实现导致失败，不能将环境ImportError误作有效算法失败。
+- [x] **Step 4: 最小实现上述纯函数及新payload/Prompt/config分支。** 初始点识别来自原trace；历史选择仍用top4+两极值+最近3的有序并集；200–300词Prompt不把权重大解释为贡献大，不以温升越低代替温度误差。
+- [x] **Step 5: 独立审计。** 从归档原曲线/观测/完整历史重建起点、索引、全部动态均值及原先有序history；篡改动态残差、时间、起点、遗漏点均值、schema/单位或共同删除history与摘要均失败。旧版本审计不要求新字段。
+- [x] **Step 6: GREEN与相关回归。** 新测试及`test_region_signed_residuals.py`、`test_region_decision_evidence.py`、`test_region_payload_repairs.py`、`test_electrothermal_audit.py`；核验旧Prompt SHA未变、默认关闭LLM时0网络/0DFN。实际数量从新JUnit读取。
+- [x] **Step 7: 独立审阅后显式提交本任务文件。** 建议commit主题`feat: add past-only dynamic residual evidence for Region`；记录源码指纹和RED/GREEN路径。任务通过只说明证据契约正确，不说明LLM有益。
 
 ## Task 2: 有限区域ID契约（独立于任务1的数值算法）
 
@@ -154,7 +154,7 @@
 
 ```powershell
 $etPython = 'D:\Users\aa133\Desktop\LLMBO_Para\.venv-pybamm312\Scripts\python.exe'
-$etManager = 'D:\Users\aa133\Desktop\LLMBO_Para\bo-repair-work\20261017_et_implementation\manage.py'
+$etManager = 'D:\Users\aa133\Desktop\LLMBO_Para\bo-repair-work\20261017_et_implementation\region-dynamic-catalog-20261020\run_tests.py'
 & $etPython -X utf8 -B $etManager test dynamic-catalog-baseline tests
 & $etPython -X utf8 -B $etManager test dynamic-evidence-red tests/test_region_dynamic_evidence.py
 & $etPython -X utf8 -B $etManager test dynamic-evidence-green tests/test_region_dynamic_evidence.py tests/test_region_signed_residuals.py tests/test_region_decision_evidence.py tests/test_region_payload_repairs.py tests/test_electrothermal_audit.py
@@ -181,9 +181,9 @@ $etManager = 'D:\Users\aa133\Desktop\LLMBO_Para\bo-repair-work\20261017_et_imple
 - [x] 重新核查工作树干净，读取现实现/旧计划与已封存文献设计。
 - [x] 明确A1/A2独立版本、函数接口、失败测试、兼容和验收命令。
 - [x] 数学/数据接口独立计划审阅完成并保存证据。
-- [ ] 用户批准本具体软件计划。
+- [x] 用户批准本具体软件计划（直接答复：批准 A1→A2 软件实施）。
 - [ ] 新基线、任务实现、RED/GREEN、最终全量及任何真实性能验证。
 
-本次没有运行新增产品测试、API、DFN或GP拟合；尚无本计划的测试通过数量。计划完成后停在审阅门槛，收到批准再开始baseline与Task1。
+实施进度：已获直接批准并完成新基线530/530；A1完成52项新测试及最终相关114/114、独立审阅和证据。A2与最终全量待执行，API/DFN仍0；软件fixture包含GP拟合，不宣称本轮GP拟合为0。Windows测试薄适配器沿用manage.py守护逻辑，仅绑定本计划独立LEDGER；首次缺__main__重入中断及修复重跑记录完整保留。
 
 独立审阅位于`D:/Users/aa133/Desktop/LLMBO_Para/bo-repair-work/20261017_et_implementation/literature-design-20261020-plan-review/`：`final-plan-math.json/md`、`final-plan-data.json/md`均PASS、未解决阻断0，审阅主体快照SHA为`5dcf7a29cce8397d8da41a7b04d606b8e1fc11e28f00e4e713517f1e662d6511`。其后主审仅补强运行时类型/response_contract独立核对要求及进度状态，没有改变数据或数值设计。主审自检已覆盖规格、步骤粒度、前后接口、五类Review Focus和计划范围；没有将B的未决参数带入A实施。

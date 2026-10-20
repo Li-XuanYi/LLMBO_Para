@@ -169,3 +169,11 @@ d90b93f的真实0.5C/1C、60秒、共享八点、三个固定种子两臂各20�
 每个已展示eligible候选平等附一份坐标示例：各轴使用配置已有min_width，中心区间在边界整体平移入[0,1]，不再做物理或log变换，不舍入。示例只保证归一化坐标/宽度，不保证物理anchors、最佳宽度或采纳；Plain不提供示例，没有自动置信度、排序奖励或强制建议。模型可选择合乎证据的区域或弃权；不要求区域包住Plain/全部候选。非法真实回复仍被拒绝，不裁剪修复。
 
 GP、原方差、训练标签、真实目标、权重生命周期、EI/Lift强度、信任和公平门槛完全不变。新模式的算法/源码签名和紧凑请求绑定覆盖新增证据；旧六参数缓存校验不放宽。审计从过去曲线、冻结上下文和候选信息重建新数字/几何，并核对发送的历史原参数、目标、标准化坐标和g；篡改或缺失须失败。详见`docs/superpowers/plans/2026-10-20-region-decision-evidence-plan.md`。新模式的真实API选择行为、RMSE/HV收益仍未验证，需要新的独立预算。
+
+### 非初始动态证据（2026-10-20，A1）
+
+可选`optimization.region_evidence="dynamic_decision_v3"`仍要求candidate_aware_v1+fair_region_v1，保留旧signed与decision字段，另加dynamic_history_evidence和每条过去历史的dynamic_residuals。严格读取同次trace.time_s[0]；缺失/非有限起点为unknown，不猜零、不向后找有限值、不以首个观测替代。有效但畸形通道抛ValueError；无效通道残差/动态数/均值为null。只有观测时间精确等于求解起点才记录initial_residual；之后的真实观测才是动态。
+
+各U/T通道保持自己的观测网格。动态点不超过8个时全部展示；更多时展示8个确定的实际索引及原时间。dynamic_sample_mean始终为全部非初始观测残差的等样本均值，不是时间积分或斜率；被省略的点仍参与。残差为prediction−observation，显示8有效位，温度不再次换算。initial-only的动态均值为null，真实正负抵消得到的零均值仍标dynamic。完整曲线RMSE及GP训练、方差、选点规则不改。
+
+独立英文Prompt解释稀疏证据的限度，但不根据样本数量断言不可辨识或强制弃权。新模式独立签名和审计；从原始归档曲线/观测、冻结历史重建起点、全部动态均值、展示索引及历史顺序。旧模式/Prompt/缓存拒绝条件保留。软件通过不代表新Prompt的真实行为或RMSE/HV增益，后者仍未验证。

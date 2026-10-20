@@ -52,14 +52,16 @@ def build_electrothermal_payload(task,*,prepared,history,context=None):
     front=[valid[i] for i in pareto_indices([r.objectives for r in valid])]
     is_region=task=='region_preference_electrothermal'
     candidate_aware=is_region and cfg['optimization'].get('region_advice','legacy_v1')=='candidate_aware_v1'
-    decision_evidence=is_region and cfg['optimization'].get('region_evidence','legacy_v1')=='decision_geometry_v2'
-    signed_evidence=is_region and cfg['optimization'].get('region_evidence','legacy_v1') in ('signed_residual_v1','decision_geometry_v2')
+    dynamic_evidence=is_region and cfg['optimization'].get('region_evidence','legacy_v1')=='dynamic_decision_v3'
+    decision_evidence=is_region and cfg['optimization'].get('region_evidence','legacy_v1') in ('decision_geometry_v2','dynamic_decision_v3')
+    signed_evidence=is_region and cfg['optimization'].get('region_evidence','legacy_v1') in ('signed_residual_v1','decision_geometry_v2','dynamic_decision_v3')
     prompt_name='region_preference_candidate_aware_electrothermal' if candidate_aware else task
     if candidate_aware and cfg['optimization'].get('region_selection')=='fair_region_v1':prompt_name='region_preference_fair_electrothermal'
     if signed_evidence:
         if not candidate_aware or cfg['optimization'].get('region_selection')!='fair_region_v1':raise ValueError('signed evidence requires candidate-aware fair selection')
         prompt_name='region_preference_residual_electrothermal'
     if decision_evidence:prompt_name='region_preference_decision_electrothermal'
+    if dynamic_evidence:prompt_name='region_preference_dynamic_electrothermal'
     scalar_by_id={}
     if is_region:
         if context is None:raise ValueError('frozen context required for Region request')
@@ -85,6 +87,9 @@ def build_electrothermal_payload(task,*,prepared,history,context=None):
         if signed_evidence:
             from .electrothermal_residuals import signed_record_summary
             for row,record in zip(rows,selected.values()):row['signed_residuals']=signed_record_summary(record)
+        if dynamic_evidence:
+            from .electrothermal_dynamic_evidence import dynamic_record_summary
+            for row,record in zip(rows,selected.values()):row['dynamic_residuals']=dynamic_record_summary(record)
     payload={'task':task,'schema_version':2,'parameter_profile':prepared.space.profile,'fit_rates':list(prepared.dataset.fit_rates),
         'signatures':asdict(prepared.signatures),'parameters':[{'name':s.name,'unit':s.unit,'lower':s.lower,'upper':s.upper,'transform':s.transform} for s in prepared.space.specs],
         'fixed':cfg['fixed'],'property_law':cfg['property_law'],'conditions_by_rate':cfg['conditions_by_rate'],
@@ -94,6 +99,9 @@ def build_electrothermal_payload(task,*,prepared,history,context=None):
     if signed_evidence:
         from .electrothermal_residuals import residual_evidence_contract
         payload['history_evidence']=residual_evidence_contract()
+    if dynamic_evidence:
+        from .electrothermal_dynamic_evidence import dynamic_evidence_contract
+        payload['dynamic_history_evidence']=dynamic_evidence_contract()
     if context is not None:
         c=context.scalarization
         payload['context_id']=context.context_id
