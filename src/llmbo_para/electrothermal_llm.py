@@ -52,12 +52,14 @@ def build_electrothermal_payload(task,*,prepared,history,context=None):
     front=[valid[i] for i in pareto_indices([r.objectives for r in valid])]
     is_region=task=='region_preference_electrothermal'
     candidate_aware=is_region and cfg['optimization'].get('region_advice','legacy_v1')=='candidate_aware_v1'
-    signed_evidence=is_region and cfg['optimization'].get('region_evidence','legacy_v1')=='signed_residual_v1'
+    decision_evidence=is_region and cfg['optimization'].get('region_evidence','legacy_v1')=='decision_geometry_v2'
+    signed_evidence=is_region and cfg['optimization'].get('region_evidence','legacy_v1') in ('signed_residual_v1','decision_geometry_v2')
     prompt_name='region_preference_candidate_aware_electrothermal' if candidate_aware else task
     if candidate_aware and cfg['optimization'].get('region_selection')=='fair_region_v1':prompt_name='region_preference_fair_electrothermal'
     if signed_evidence:
         if not candidate_aware or cfg['optimization'].get('region_selection')!='fair_region_v1':raise ValueError('signed evidence requires candidate-aware fair selection')
         prompt_name='region_preference_residual_electrothermal'
+    if decision_evidence:prompt_name='region_preference_decision_electrothermal'
     scalar_by_id={}
     if is_region:
         if context is None:raise ValueError('frozen context required for Region request')
@@ -109,6 +111,10 @@ def build_electrothermal_payload(task,*,prepared,history,context=None):
                 from .electrothermal_region_advice import build_region_candidate_advice,candidate_region_requirements
                 payload['candidate_advice']=build_region_candidate_advice(context,space=prepared.space,settings=settings)
                 payload['region_requirements']=candidate_region_requirements(settings,selection_mode=cfg['optimization'].get('region_selection','global_lift_v1'))
+                if decision_evidence:
+                    from .electrothermal_region_evidence import build_region_decision_evidence
+                    payload['decision_evidence']=build_region_decision_evidence(context,
+                        advice=payload['candidate_advice'],settings=settings,observation_ids=[row['evaluation_id'] for row in rows])
             payload['coordinate_mapping']={'space':'normalized','order':[s.name for s in prepared.space.specs],
                 'linear':'x=(theta-lower)/(upper-lower)',
                 'log10':'x=(log10(theta)-log10(lower))/(log10(upper)-log10(lower))',

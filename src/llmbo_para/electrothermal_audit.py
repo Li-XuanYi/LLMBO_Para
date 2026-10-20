@@ -191,7 +191,7 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                             payload=read(f'llm/{n:06d}.payload.json')
                             require(payload['task']=='region_preference_electrothermal' and payload['context_id']==saved['context_id'],'request payload context differs')
                             require(cost_events.get(f'llm:{n}',{}).get('phase')==payload['task'],'request outcome lacks matching cost event')
-                            if opt.get('region_evidence','legacy_v1')=='signed_residual_v1':
+                            if opt.get('region_evidence','legacy_v1') in ('signed_residual_v1','decision_geometry_v2'):
                                 from .electrothermal_residuals import residual_evidence_contract,signed_record_summary
                                 equal(payload.get('history_evidence'),residual_evidence_contract(),'signed residual evidence contract differs')
                                 past={r.evaluation_id:r for r in history};seen=set()
@@ -199,7 +199,30 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                                     ident=row['evaluation_id'];require(ident in past and ident not in seen,'signed residual evidence is not past-only unique history')
                                     seen.add(ident);equal(row.get('signed_residuals'),signed_record_summary(past[ident]),'signed residual evidence differs from curves')
                                 require(bool(seen) and context.incumbent_id in seen,'signed residual evidence omits current incumbent')
-                                equal(payload['instructions'],(root/'source/src/llmbo_para/prompts/region_preference_residual_electrothermal.txt').read_text(encoding='utf8'),'signed evidence prompt differs')
+                                prompt='region_preference_residual_electrothermal'
+                                if opt.get('region_evidence')=='decision_geometry_v2':
+                                    from .electrothermal_region_evidence import build_region_decision_evidence
+                                    scalar_by_id=dict(zip(context.observation_ids,context.raw_labels))
+                                    top=sorted(context.observation_ids,key=lambda i:(scalar_by_id[i],i))[:4]
+                                    extremes=[min(history,key=lambda r:(r.objectives[j],r.evaluation_id)) for j in range(2)]
+                                    selected={r.evaluation_id:r for r in [*[past[i] for i in top],*extremes,*history[-3:]]}
+                                    expected_ids=list(selected)
+                                    equal([r['evaluation_id'] for r in payload['history']],expected_ids,'decision history selection or order differs')
+                                    equal(payload.get('decision_evidence'),build_region_decision_evidence(c,
+                                        advice=advice,settings=settings,observation_ids=expected_ids),'Region decision evidence differs')
+                                    for row in payload['history']:
+                                        actual=selected[row['evaluation_id']]
+                                        expected_row={'evaluation_id':actual.evaluation_id,'parameters':actual.parameters,
+                                            'objectives':actual.objectives,'complete_pair_valid':actual.complete_pair_valid,
+                                            'rates':{q.rate:{'voltage_valid':q.voltage.valid,'temperature_valid':q.cell_temperature.valid,
+                                                'rmse_v':q.voltage.rmse_v,'rmse_k':q.cell_temperature.rmse_k,
+                                                'failure':q.cell_temperature.reason or q.voltage.reason} for q in actual.rates},
+                                            'normalized_parameters':[round(float(x),6) for x in space.normalize(actual.parameters)],
+                                            'current_scalar_g':scalar_by_id[actual.evaluation_id],
+                                            'signed_residuals':signed_record_summary(actual)}
+                                        equal(row,expected_row,'decision history row differs')
+                                    prompt='region_preference_decision_electrothermal'
+                                equal(payload['instructions'],(root/('source/src/llmbo_para/prompts/'+prompt+'.txt')).read_text(encoding='utf8'),'signed evidence prompt differs')
                             if advice_mode=='candidate_aware_v1':
                                 require(n not in region_request_references,'Region request referenced more than once')
                                 region_request_references.add(n)

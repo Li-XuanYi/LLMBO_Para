@@ -157,3 +157,15 @@ DeepSeek官方文档支持请求体`thinking:{"type":"disabled"}`，但不能据
 新独立274词Prompt解释误差符号、早/晚误差、C/G的条件性热响应和短窗混淆，明确不能虚构未观测候选的分量预测。新模式在发送前拒绝任何不属于冻结GP历史ID的输入记录，包括未来半失败记录；这些失败曲线仍保留在诊断归档。审计从过去原始评价重算摘要并核对独立Prompt。WarmStart payload不加这些字段，原Lift、信任更新、GP、方差、权重、资格门槛和fair基线均不变。
 
 这两项修复分别解决服务可操作性和方向证据缺失，不构成RMSE收益证明。真实验证应先核验完整JSON与服务端用量，再在固定初始化和独立预定种子上比较全部Pareto/HV及同一参数双RMSE；不得以采纳率、软件正例或挑选最优种子宣布有效。证据见`docs/audits/region-response-repair-2026-10-20.md`。
+
+### 冻结标量贡献与坐标示例（2026-10-20）
+
+d90b93f的真实0.5C/1C、60秒、共享八点、三个固定种子两臂各20轮消融已完整结束：新DFN256、API43，三对ΔHV均0。Full60轮中17无eligible、26合法none、14请求失败、2区域超宽；唯一合法区域执行Lift后未胜过同场Plain基线，最终没有改变选点。该结果不证明Region有效，也不是用随机初始化普通ParEGO比较整个LLMBO-MO。原始完整档案、成本、失败与负结果保持封存。
+
+正式短reason存在把权重大小当主导项、试图同时包住Plain和多个alternatives的误读。独立零API/DFN冻结诊断保持原confidence0.62及全部数值设置，只换为更聚焦的mock区域即可通过公平守卫；没有真实评价新点，不能把该选点容量当RMSE改善。
+
+新增可选`optimization.region_evidence="decision_geometry_v2"`，仍须candidate_aware_v1+fair_region_v1，缺省legacy_v1与signed_residual_v1保留原Prompt和payload。新模式继续提供signed曲线证据，只增加`decision_evidence`和独立285词英文Prompt。host从同轮冻结历史计算`w_j*(F_j/scale_j-ideal_j)`、最大项/精确同分、augmentation及原标量g；从已有候选摘要计算`mu_candidate-mu_plain`，负为更低、正为更高的标准化标量预测，不伪装成候选真实U/T。
+
+每个已展示eligible候选平等附一份坐标示例：各轴使用配置已有min_width，中心区间在边界整体平移入[0,1]，不再做物理或log变换，不舍入。示例只保证归一化坐标/宽度，不保证物理anchors、最佳宽度或采纳；Plain不提供示例，没有自动置信度、排序奖励或强制建议。模型可选择合乎证据的区域或弃权；不要求区域包住Plain/全部候选。非法真实回复仍被拒绝，不裁剪修复。
+
+GP、原方差、训练标签、真实目标、权重生命周期、EI/Lift强度、信任和公平门槛完全不变。新模式的算法/源码签名和紧凑请求绑定覆盖新增证据；旧六参数缓存校验不放宽。审计从过去曲线、冻结上下文和候选信息重建新数字/几何，并核对发送的历史原参数、目标、标准化坐标和g；篡改或缺失须失败。详见`docs/superpowers/plans/2026-10-20-region-decision-evidence-plan.md`。新模式的真实API选择行为、RMSE/HV收益仍未验证，需要新的独立预算。
