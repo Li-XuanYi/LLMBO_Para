@@ -5,13 +5,14 @@ from .acquisition import gaussian_ei
 from .electrothermal_region_advice import EI_LOG_FLOOR,qualify_region_pool
 
 
-def eligible_region_competition(context, region, *, mean, std, raw_shift, space, settings):
+def eligible_region_competition(context, region, *, mean, std, raw_shift, space, settings, selection_mode='eligible_region_v1'):
     """Mask the unchanged raw Lift; require a strict advantage over plain.
 
     The shortlist is information compression only. Competition uses all qualified
     regional alternatives in the frozen pool. Neither the GP nor observations
     are modified. Exact ties favor plain, then the context-bound candidate ID.
     """
+    if selection_mode not in ('eligible_region_v1','fair_region_v1'):raise ValueError('invalid regional competition policy')
     q=qualify_region_pool(context,space=space,settings=settings,mean=mean,std=std)
     raw=np.asarray(raw_shift,dtype=float)
     if raw.shape!=q.mean.shape or np.any(~np.isfinite(raw)) or np.any(raw<0) or np.any(raw>settings.max_shift_std):
@@ -26,11 +27,19 @@ def eligible_region_competition(context, region, *, mean, std, raw_shift, space,
     lifted=gaussian_ei(adjusted,q.std,context.scalarization.best)
     unrestricted=gaussian_ei(q.mean-raw,q.std,context.scalarization.best)
     best=min(challengers,key=lambda i:(-float(lifted[i]),q.identities[i])) if challengers else None
-    wins=best is not None and lifted[best]>q.ei[q.plain]
-    return {'shift':shift.tolist(),'adjusted_mean':adjusted.tolist(),'lifted_ei':lifted.tolist(),
+    required=float(q.ei[q.plain])
+    if selection_mode=='fair_region_v1':required=max(required,float(unrestricted[q.plain]))
+    wins=best is not None and lifted[best]>required
+    reason='not_above_fair_plain_ei' if selection_mode=='fair_region_v1' else 'not_above_plain_ei'
+    result={'shift':shift.tolist(),'adjusted_mean':adjusted.tolist(),'lifted_ei':lifted.tolist(),
         'plain_index':q.plain,'selected_index':best if wins else q.plain,
         'eligible_indices':list(q.eligible),'challenger_indices':challengers,'best_challenger_index':best,
         'unrestricted_lifted_index':int(np.argmax(unrestricted)),
-        'reason':'strict_improvement' if wins else 'not_above_plain_ei' if challengers else 'no_challenger',
+        'reason':'strict_improvement' if wins else reason if challengers else 'no_challenger',
         'plain_original_ei':float(q.ei[q.plain]),
         'max_shift_over_sigma':float(np.max(shift/np.maximum(q.std,EI_LOG_FLOOR)))}
+    if selection_mode=='fair_region_v1':
+        result['baseline']={'comparison':'max_original_and_same_raw_lift_EI','plain_raw_shift':float(raw[q.plain]),
+            'same_lift_plain_ei':float(unrestricted[q.plain]),'required_ei':required,
+            'advantage':float(lifted[best]-required) if best is not None else None}
+    return result

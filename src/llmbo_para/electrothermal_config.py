@@ -102,8 +102,9 @@ def electrothermal_configuration_errors(config):
     opt=section('optimization');strict(opt,('mode','initial_count','total_candidate_budget','seed','gp_sweeps','global_pool_size','local_pool_size','local_radius','max_rate_attempts','parallel_workers','objective_scales','rho_aug','weights','hv_reference','warmstart','region','region_advice','region_selection','initial_plan'),'optimization')
     if opt.get('mode') not in ('parego','warmstart_only','full_llmbo_mo'):errors.append('invalid MO mode')
     if opt.get('region_advice','legacy_v1') not in ('legacy_v1','candidate_aware_v1'):errors.append('invalid Region advice policy')
-    if opt.get('region_selection','global_lift_v1') not in ('global_lift_v1','eligible_region_v1'):errors.append('invalid Region selection policy')
+    if opt.get('region_selection','global_lift_v1') not in ('global_lift_v1','eligible_region_v1','fair_region_v1'):errors.append('invalid Region selection policy')
     if opt.get('region_selection')=='eligible_region_v1' and opt.get('region_advice')!='candidate_aware_v1':errors.append('eligible regional selection requires candidate-aware advice')
+    if opt.get('region_selection')=='fair_region_v1' and opt.get('region_advice')!='candidate_aware_v1':errors.append('fair regional selection requires candidate-aware advice')
     warm=opt.get('warmstart')
     if not isinstance(warm,dict):errors.append('warmstart must be an object')
     else:

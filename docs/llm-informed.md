@@ -135,3 +135,13 @@ plain保留原均值和原EI。合格替代点以`EI(mu-raw_shift,sigma,best)`�
 每次HTTP记录响应头到达事件。supervision/outcome补充wire版本、HTTP启动耗时、失败阶段及安全枚举protocol_issue；可区分等待响应头、读取正文和content解析，空content与未正常结束的回复分开标记。任务/总预算硬截止、无传输重试及plain EI回退保持。审计独立重建紧凑HTTP请求、核对响应绑定和规范信封，拒绝归档权重或摘要篡改。
 
 一次归档回复的离线重编码将输入消息字符数16957降到14668、回复字符数1271降到420，恢复后的完整信封相等。这是表示层验证，不是新API的token用量、延迟或成功率验证；没有改变Region建议质量和真实目标。详见`docs/audits/region-request-repair-2026-10-20.md`。
+
+### 同一原始Lift下的plain比较基线（2026-10-20）
+
+新增显式`optimization.region_selection=fair_region_v1`，要求candidate_aware_v1。缺省global_lift_v1与已有eligible_region_v1保持原输出和原审计路径。新版本不改变原Lift、GP、真实标签、资格门槛、物性和指标空间，只收紧改变选点的条件。
+
+记原后验为mu/sigma、冻结阈值为best、原相关性Lift场为delta，plain索引p来自原Gaussian EI。区域候选仍按既有完整池资格和区域掩码计算`EI(mu_i-delta_i,sigma_i,best)`，但必须严格超过`max(EI(mu_p,sigma_p,best), EI(mu_p-delta_p,sigma_p,best))`。第二项只提供同一Lift信号的比较基线；plain实际shift仍0，原后验不变。精确同分保留plain，替代同分仍按原context绑定ID；baseline归档原plain shift、同场plain EI、所需门槛及最佳替代的差额，审计完整重算。没有新增可调门槛。
+
+该守卫针对eligible策略可因剥除plain本身的相关性信号而提高采纳率的偏向，不证明所有旧采纳都错误。新独立Prompt要求比较plain、谨慎利用物理关系、尊重Tchebycheff尺度/最大项并允许弃权；不把GP锚点consistency或LLM confidence当作实证正确率。
+
+一个冻结真实样例因此保留已实评plain。预注册三种子软件对照采纳15/60（旧策略28/60）；新策略HV对plain两胜一负、对旧策略也两胜一负，但对旧策略的平均HV差为负。保留全部种子、原参数及默认行为，不作整体优越性结论。详见`docs/audits/region-fairness-repair-2026-10-20.md`；真实新版本API/DFN性能与实测辨识仍未验证。

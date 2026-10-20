@@ -25,9 +25,10 @@ def candidate_region_requirements(settings, *, selection_mode='global_lift_v1'):
             'max_plain_log_ei_gap': settings.max_plain_log_ei_gap,
             'min_sigma_ratio': settings.min_sigma_ratio, 'ei_log_floor': EI_LOG_FLOOR,
             'must_cover_eligible_alternative': True}
-    if selection_mode=='eligible_region_v1':
+    if selection_mode in ('eligible_region_v1','fair_region_v1'):
         requirements.update(selection_policy=selection_mode,competition_scope='all_qualified_inside_region',
-                            plain_baseline='original_EI',tie_rule='plain_first_then_stable_ID')
+                            plain_baseline='original_EI' if selection_mode=='eligible_region_v1' else 'max_original_and_same_raw_lift_EI',
+                            tie_rule='plain_first_then_stable_ID')
     elif selection_mode!='global_lift_v1':raise ValueError('invalid Region selection policy')
     return requirements
 
