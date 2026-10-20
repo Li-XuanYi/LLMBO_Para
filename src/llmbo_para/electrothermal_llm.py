@@ -52,12 +52,18 @@ def build_electrothermal_payload(task,*,prepared,history,context=None):
     front=[valid[i] for i in pareto_indices([r.objectives for r in valid])]
     is_region=task=='region_preference_electrothermal'
     candidate_aware=is_region and cfg['optimization'].get('region_advice','legacy_v1')=='candidate_aware_v1'
+    signed_evidence=is_region and cfg['optimization'].get('region_evidence','legacy_v1')=='signed_residual_v1'
     prompt_name='region_preference_candidate_aware_electrothermal' if candidate_aware else task
     if candidate_aware and cfg['optimization'].get('region_selection')=='fair_region_v1':prompt_name='region_preference_fair_electrothermal'
+    if signed_evidence:
+        if not candidate_aware or cfg['optimization'].get('region_selection')!='fair_region_v1':raise ValueError('signed evidence requires candidate-aware fair selection')
+        prompt_name='region_preference_residual_electrothermal'
     scalar_by_id={}
     if is_region:
         if context is None:raise ValueError('frozen context required for Region request')
         c=context.scalarization;by_id={r.evaluation_id:r for r in history}
+        if signed_evidence and any(r.evaluation_id not in c.observation_ids for r in history):
+            raise ValueError('history contains observations outside the frozen context')
         scalar_by_id=dict(zip(c.observation_ids,c.raw_labels))
         top=sorted(c.observation_ids,key=lambda i:(scalar_by_id[i],i))[:4]
         extremes=[min(valid,key=lambda r:(r.objectives[j],r.evaluation_id)) for j in range(2)] if valid else []
@@ -74,12 +80,18 @@ def build_electrothermal_payload(task,*,prepared,history,context=None):
             row.pop('objective_components')
             row['normalized_parameters']=[round(float(x),6) for x in prepared.space.normalize(row['parameters'])]
             row['current_scalar_g']=scalar_by_id.get(row['evaluation_id']) if row['complete_pair_valid'] else None
+        if signed_evidence:
+            from .electrothermal_residuals import signed_record_summary
+            for row,record in zip(rows,selected.values()):row['signed_residuals']=signed_record_summary(record)
     payload={'task':task,'schema_version':2,'parameter_profile':prepared.space.profile,'fit_rates':list(prepared.dataset.fit_rates),
         'signatures':asdict(prepared.signatures),'parameters':[{'name':s.name,'unit':s.unit,'lower':s.lower,'upper':s.upper,'transform':s.transform} for s in prepared.space.specs],
         'fixed':cfg['fixed'],'property_law':cfg['property_law'],'conditions_by_rate':cfg['conditions_by_rate'],
         'objective_scales':cfg['optimization']['objective_scales'],'objective_order':['F_U_V','F_T_K'],
         'history':rows,'pareto':[{'evaluation_id':r.evaluation_id,'objectives':r.objectives} for r in front],
         'instructions':(Path(__file__).parent/'prompts'/(prompt_name+'.txt')).read_text(encoding='utf8')}
+    if signed_evidence:
+        from .electrothermal_residuals import residual_evidence_contract
+        payload['history_evidence']=residual_evidence_contract()
     if context is not None:
         c=context.scalarization
         payload['context_id']=context.context_id
@@ -156,6 +168,7 @@ class ElectrothermalLLMController:
         outcome={'task':task,'context_id':payload.get('context_id'),'requested_timeout_s':controls['timeout_s'],
             'effective_timeout_s':min(controls['timeout_s'],remaining),'max_tokens':controls['max_tokens'],
             'http_request_started':False,'hard_deadline_enforced':False}
+        if 'thinking' in controls: outcome['thinking'] = controls['thinking']
         self.last_request_outcome=outcome
         def skipped(reason):
             outcome.update(status='skipped',reason=reason)
@@ -173,7 +186,7 @@ class ElectrothermalLLMController:
             # Resolve controls for each task without mutating an injected client
             # or carrying its previous task's timeout, tokens or archive path.
             transport=BoundedChatCompletionsTransport(transport.endpoint,transport.api_key_env,model=transport.model,
-                json_mode=transport.json_mode,thinking=transport.thinking,run_store=store,**controls)
+                json_mode=transport.json_mode,run_store=store,**{'thinking':transport.thinking,**controls})
         outcome['hard_deadline_enforced']=isinstance(transport,BoundedChatCompletionsTransport)
         ordinal=self.requests;self.requests+=1;self.task_requests[task]=self.task_requests.get(task,0)+1
         outcome['ordinal']=ordinal
@@ -197,7 +210,7 @@ class ElectrothermalLLMController:
             store.write_json(f'llm/{ordinal:06d}.error.json',{'error_type':type(exc).__name__,'reason':reason});return None
         finally:
             if isinstance(transport,BoundedChatCompletionsTransport) and transport.last_request_diagnostic is not None:
-                for field in ('failure_stage','request_start_elapsed_s','protocol_issue','wire_format'):
+                for field in ('failure_stage','request_start_elapsed_s','protocol_issue','wire_format','thinking','completion'):
                     if field in transport.last_request_diagnostic:outcome[field]=transport.last_request_diagnostic[field]
             store.write_json(f'llm/{ordinal:06d}.outcome.json',outcome)
 

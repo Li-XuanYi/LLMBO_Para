@@ -32,6 +32,12 @@ def _tokens(value, name):
     return value
 
 
+def _thinking(value):
+    if type(value) is not str or value not in ('enabled', 'disabled'):
+        raise ValueError('thinking must be explicitly enabled or disabled')
+    return value
+
+
 def request_controls(config, task):
     """Return validated task limits, inheriting but never exceeding globals."""
     if not isinstance(config, dict) or type(config.get("schema_version")) is not int or config["schema_version"] != 2:
@@ -43,15 +49,20 @@ def request_controls(config, task):
         raise ValueError("llm must be an object")
     global_limits = {"timeout_s": _timeout(llm.get("timeout_s"), "llm.timeout_s"),
                      "max_tokens": _tokens(llm.get("max_tokens"), "llm.max_tokens")}
+    if 'thinking' in llm:
+        global_limits['thinking'] = _thinking(llm['thinking'])
     options = llm.get("task_options", {})
     if not isinstance(options, dict) or any(name not in TASKS for name in options):
         raise ValueError("llm.task_options supports only the two electrothermal tasks")
     validated = {}
     for name, item in options.items():
-        if not isinstance(item, dict) or set(item) - {"timeout_s", "max_tokens"}:
-            raise ValueError("llm.task_options entries accept only timeout_s and max_tokens")
+        if not isinstance(item, dict) or set(item) - {"timeout_s", "max_tokens", "thinking"}:
+            raise ValueError("llm.task_options entries accept only timeout_s, max_tokens and thinking")
         limits = dict(global_limits)
         for field, value in item.items():
+            if field == 'thinking':
+                limits[field] = _thinking(value)
+                continue
             limits[field] = (_timeout(value, "llm.task_options." + name + "." + field)
                              if field == "timeout_s" else
                              _tokens(value, "llm.task_options." + name + "." + field))
@@ -59,6 +70,33 @@ def request_controls(config, task):
                 raise ValueError("llm.task_options." + name + "." + field + " exceeds its global ceiling")
         validated[name] = limits
     return dict(validated.get(task, global_limits))
+
+
+def completion_summary(response, token_limit):
+    """Public machine evidence only; never read or interpret reasoning text."""
+    response = response if isinstance(response, dict) else {}
+    choices = response.get('choices')
+    choice = choices[0] if isinstance(choices, list) and choices and isinstance(choices[0], dict) else {}
+    finish = choice.get('finish_reason')
+    finish = finish if finish in ('stop', 'length', 'content_filter', 'tool_calls', 'function_call') else 'other'
+    message = choice.get('message'); message = message if isinstance(message, dict) else {}
+    content = message.get('content')
+    answer = len(content) if isinstance(content, str) else 0 if content is None else None
+    result = {'finish_reason': finish, 'answer_characters': answer}
+    usage = response.get('usage'); usage = usage if isinstance(usage, dict) else {}
+    details = usage.get('completion_tokens_details'); details = details if isinstance(details, dict) else {}
+    valid = lambda v: type(v) is int and v >= 0
+    tokens = usage.get('completion_tokens')
+    if valid(tokens): result['completion_tokens'] = tokens
+    counts = [v for v in (details.get('reasoning_tokens'), usage.get('completion_thinking_tokens')) if valid(v)]
+    if counts and len(set(counts)) == 1: result['reasoning_tokens'] = counts[0]
+    result['state'] = ('complete_answer' if finish == 'stop' and answer else
+                       'empty_answer' if finish == 'stop' and answer == 0 else
+                       'truncated_answer' if finish == 'length' and answer else 'unclassified')
+    if (finish == 'length' and answer == 0 and type(token_limit) is int and token_limit > 0
+            and valid(tokens) and tokens == token_limit and result.get('reasoning_tokens') == tokens):
+        result['state'] = 'reasoning_budget_exhausted'
+    return result
 
 
 class LLMRequestFailure(RuntimeError):
@@ -73,7 +111,7 @@ class HTTPArchive:
     """Use an existing run's immutable files/events without creating a new run."""
     _create_json = staticmethod(RunStore._create_json)
 
-    def __init__(self, run_path, connection=None):
+    def __init__(self, run_path, connection=None, max_tokens=None):
         self.enabled = run_path is not None
         self.path = Path(run_path).resolve() if self.enabled else Path("unarchived")
         self.events_path = self.path / "events.jsonl"
@@ -81,8 +119,12 @@ class HTTPArchive:
         self.http_request_started = False
         self.last_http_status = None
         self.last_error = None
+        self.max_tokens = max_tokens
+        self.completion = None
 
     def write_json(self, relative_path, value):
+        if relative_path.endswith('.response.json'):
+            self.completion = completion_summary(value, self.max_tokens)
         if relative_path.endswith((".error.json", ".parse-error.json")):
             value = {**value, "http_request_started": self.http_request_started}
             if relative_path.endswith(".parse-error.json"):
@@ -127,6 +169,17 @@ def _public_diagnostic(value):
     if value.get('protocol_issue') in ('invalid_completion','unfinished_completion','empty_content','invalid_content_type',
             'invalid_json','non_object_content','invalid_binding'):
         result['protocol_issue']=value['protocol_issue']
+    completion = value.get('completion')
+    if isinstance(completion, dict):
+        public = {key: completion[key] for key in ('answer_characters', 'completion_tokens', 'reasoning_tokens')
+                  if type(completion.get(key)) is int and completion[key] >= 0}
+        if 'answer_characters' in completion and completion['answer_characters'] is None:
+            public['answer_characters'] = None
+        if completion.get('finish_reason') in ('stop', 'length', 'content_filter', 'tool_calls', 'function_call', 'other'):
+            public['finish_reason'] = completion['finish_reason']
+        if completion.get('state') in ('complete_answer', 'empty_answer', 'truncated_answer', 'unclassified', 'reasoning_budget_exhausted'):
+            public['state'] = completion['state']
+        result['completion'] = public
     return result
 
 
@@ -146,7 +199,7 @@ def _failure_kind(diagnostic):
 
 def _chat_request_worker(spec, payload, run_path, connection):
     """Spawn entry point: one real transport invocation and no retries."""
-    archive = HTTPArchive(run_path, connection)
+    archive = HTTPArchive(run_path, connection, max_tokens=spec.get('max_tokens'))
     try:
         from .electrothermal_region_wire import region_wire_payload,decode_region_wire
         transport = ChatCompletionsTransport(**spec, run_store=archive)
@@ -157,11 +210,13 @@ def _chat_request_worker(spec, payload, run_path, connection):
             archive.write_json('http/'+task+'.parse-error.json',{'error_type':'ValueError','protocol_issue':'invalid_binding'})
             raise
         connection.send(("result", {"ok": True, "response": response,
-            "diagnostic": {"http_status": 200, "http_request_started": archive.http_request_started}}))
+            "diagnostic": {"http_status": 200, "http_request_started": archive.http_request_started,
+                           **({'completion': archive.completion} if archive.completion is not None else {})}}))
     except Exception as exc:
         diagnostic = _public_diagnostic(archive.last_error)
         if diagnostic['http_status'] is None:diagnostic['http_status']=archive.last_http_status
         diagnostic.setdefault("error_type", type(exc).__name__)
+        if archive.completion is not None: diagnostic['completion'] = archive.completion
         diagnostic["http_request_started"] = archive.http_request_started
         connection.send(("result", {"ok": False, "diagnostic": diagnostic}))
     finally:
@@ -189,6 +244,7 @@ class BoundedChatCompletionsTransport(ChatCompletionsTransport):
         base = {"configured_timeout_s": self.timeout_s, "max_tokens": self.max_tokens,
                 "http_request_started": False, "http_status": None,
                 'wire_format':wire_format if wire_format in ('full_v1','compact_v1') else 'invalid'}
+        if self.thinking is not None: base['thinking'] = self.thinking
         request_started=False;request_start_elapsed=None
 
         def fail(kind, diagnostic=None):

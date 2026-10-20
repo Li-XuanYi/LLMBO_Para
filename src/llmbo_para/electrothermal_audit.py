@@ -82,6 +82,33 @@ def audit_electrothermal_run(run_directory,*,deep=False):
         require(all(e['event_id'] in expected_actual for e in cost_events.values() if e['kind'] in ('solver_call','software_call','preparation_failure')),'orphan actual evaluation cost')
         require(len(list((root/'llm').glob('*.payload.json')))==sum(e['kind'] in ('llm_request','mock_llm_request') for e in cost_events.values()),'LLM payload/request count differs')
         summary=read('electrothermal-summary.json');equal(summary['costs'],ledger.summary(),'summary costs differ');checks.append('actual_cache_screening_request_costs')
+        from .electrothermal_requests import request_controls,completion_summary
+        controlled=False
+        for file in sorted((root/'llm').glob('*.outcome.json')):
+            outcome=json.loads(file.read_text(encoding='utf8'));controls=request_controls(cfg,outcome['task'])
+            if 'thinking' in controls:
+                equal(outcome.get('thinking'),controls['thinking'],'request thinking control differs');controlled=True
+            payload=read('llm/'+file.name.replace('.outcome.json','.payload.json'));artifact=payload['artifact_task']
+            request_path=root/'http'/(artifact+'.request.json');response=root/'http'/(artifact+'.response.json')
+            supervision_path=root/'http'/(artifact+'.supervision.json')
+            started=any(e.get('type')=='llm_http_started' and e.get('task')==artifact for e in events)
+            has_http=started or request_path.exists() or response.exists()
+            if has_http or outcome.get('hard_deadline_enforced') and outcome.get('http_request_started'):
+                request=read('http/'+artifact+'.request.json')['body']
+                supervision=read('http/'+artifact+'.supervision.json') if supervision_path.exists() else {}
+                if 'thinking' in controls or 'completion' in outcome or 'completion' in supervision:
+                    require(outcome.get('http_request_started') is True,'HTTP start flag contradicts wire evidence')
+                    if supervision_path.exists():require(outcome.get('hard_deadline_enforced') is True,'bounded flag contradicts supervision evidence')
+                if 'thinking' in controls:
+                    equal(request.get('thinking'),{'type':controls['thinking']},'sent thinking control differs')
+                    equal(supervision.get('thinking'),controls['thinking'],'supervised thinking control differs')
+                    equal(request.get('max_tokens'),controls['max_tokens'],'sent output ceiling differs')
+                    equal(supervision.get('configured_timeout_s'),controls['timeout_s'],'supervised timeout differs')
+                if response.exists() and ('thinking' in controls or 'completion' in outcome or 'completion' in supervision):
+                    expected=completion_summary(json.loads(response.read_text(encoding='utf8')),controls['max_tokens'])
+                    equal(outcome.get('completion'),expected,'completion evidence differs from raw response')
+                    equal(supervision.get('completion'),expected,'supervised completion evidence differs');controlled=True
+        if controlled:checks.append('LLM_sent_controls_and_raw_completion_evidence')
         round_files=sorted((root/'mo-rounds').glob('*.json'))
         if manifest['command']=='electrothermal multiobjective BO' or 'BO_rounds' in summary or round_files:
             require((root/'initialization.json').is_file(),'required MO initialization archive is missing')
@@ -164,6 +191,15 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                             payload=read(f'llm/{n:06d}.payload.json')
                             require(payload['task']=='region_preference_electrothermal' and payload['context_id']==saved['context_id'],'request payload context differs')
                             require(cost_events.get(f'llm:{n}',{}).get('phase')==payload['task'],'request outcome lacks matching cost event')
+                            if opt.get('region_evidence','legacy_v1')=='signed_residual_v1':
+                                from .electrothermal_residuals import residual_evidence_contract,signed_record_summary
+                                equal(payload.get('history_evidence'),residual_evidence_contract(),'signed residual evidence contract differs')
+                                past={r.evaluation_id:r for r in history};seen=set()
+                                for row in payload['history']:
+                                    ident=row['evaluation_id'];require(ident in past and ident not in seen,'signed residual evidence is not past-only unique history')
+                                    seen.add(ident);equal(row.get('signed_residuals'),signed_record_summary(past[ident]),'signed residual evidence differs from curves')
+                                require(bool(seen) and context.incumbent_id in seen,'signed residual evidence omits current incumbent')
+                                equal(payload['instructions'],(root/'source/src/llmbo_para/prompts/region_preference_residual_electrothermal.txt').read_text(encoding='utf8'),'signed evidence prompt differs')
                             if advice_mode=='candidate_aware_v1':
                                 require(n not in region_request_references,'Region request referenced more than once')
                                 region_request_references.add(n)

@@ -145,3 +145,15 @@ plain保留原均值和原EI。合格替代点以`EI(mu-raw_shift,sigma,best)`�
 该守卫针对eligible策略可因剥除plain本身的相关性信号而提高采纳率的偏向，不证明所有旧采纳都错误。新独立Prompt要求比较plain、谨慎利用物理关系、尊重Tchebycheff尺度/最大项并允许弃权；不把GP锚点consistency或LLM confidence当作实证正确率。
 
 一个冻结真实样例因此保留已实评plain。预注册三种子软件对照采纳15/60（旧策略28/60）；新策略HV对plain两胜一负、对旧策略也两胜一负，但对旧策略的平均HV差为负。保留全部种子、原参数及默认行为，不作整体优越性结论。详见`docs/audits/region-fairness-repair-2026-10-20.md`；真实新版本API/DFN性能与实测辨识仍未验证。
+
+### 任务级思考控制与有方向的历史证据（2026-10-20）
+
+一次明确批准的真实请求返回HTTP200，但1536个completion tokens全部记为reasoning，正式content为空、finish_reason=length。失败在JSON解码之前，不是Region数值守卫拒绝。底层ChatCompletionsTransport早已支持thinking，v2配置和任务解析层却没有接线。新增可选`llm.thinking="enabled"|"disabled"`及同名task_options覆盖；缺省省略，保留旧行为。任务timeout/tokens仍不得超过全局上限，thinking为独立类别控制，显式null/布尔值/对象拒绝。注入Chat客户端按本任务配置克隆，不修改原对象。没有自动加tokens、自动换模型或重试。
+
+DeepSeek官方文档支持请求体`thinking:{"type":"disabled"}`，但不能据此认定vsllm的具体模型别名透传该字段。新版归档记录实际请求模式和安全completion摘要：结束原因、正式答案字符数及有效非负token计数；只有length、空正式答案、completion达到上限且全部被报告为reasoning时，才标记reasoning_budget_exhausted。原protocol_error/unfinished_completion仍保留，不读取reasoning推导答案、不接受半截JSON。审计以HTTP文件/事件判断是否存在请求，不能通过修改outcome标志关闭检查，并从原始响应重算摘要。
+
+另一个输入限制是仅有非负RMSE无法区分预测偏高/偏低。可选`optimization.region_evidence="signed_residual_v1"`仅搭配candidate_aware_v1+fair_region_v1；缺省legacy_v1保持旧payload与Prompt。新模块从已有曲线按各通道自身网格计算prediction−observation的样本均值、首/末四分之一样本均值（ceil(n/4)），附V/K单位、有效性和样本数；显示8位有效数字。失败通道统计为null，温度不再转换，两个优化目标保持原完整曲线RMSE。
+
+新独立274词Prompt解释误差符号、早/晚误差、C/G的条件性热响应和短窗混淆，明确不能虚构未观测候选的分量预测。新模式在发送前拒绝任何不属于冻结GP历史ID的输入记录，包括未来半失败记录；这些失败曲线仍保留在诊断归档。审计从过去原始评价重算摘要并核对独立Prompt。WarmStart payload不加这些字段，原Lift、信任更新、GP、方差、权重、资格门槛和fair基线均不变。
+
+这两项修复分别解决服务可操作性和方向证据缺失，不构成RMSE收益证明。真实验证应先核验完整JSON与服务端用量，再在固定初始化和独立预定种子上比较全部Pareto/HV及同一参数双RMSE；不得以采纳率、软件正例或挑选最优种子宣布有效。证据见`docs/audits/region-response-repair-2026-10-20.md`。
