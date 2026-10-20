@@ -1,0 +1,98 @@
+{
+  "review_type": "focused method/design review, not exhaustive systematic review",
+  "access_date": "2026-10-20",
+  "product_commit": "d3e2fa101deb6c25c3e3d6c1d47a5299b3322b98",
+  "paid_LLM_API_calls": 0,
+  "DFN_solves": 0,
+  "GP_fits": 0,
+  "queries": [
+    "LLAMBO language model Bayesian optimization ICLR 2024 paper",
+    "piBO acquisition user beliefs",
+    "Bayesian optimization expert priors BOPrO HypBO",
+    "LLMBO-MO optimization",
+    "LLM Region-Lift Bayesian optimization",
+    "large language model multi objective Bayesian optimization preferences 2025 2026",
+    "Bayesian optimization pairwise preferences expert advice CoExBO"
+  ],
+  "detailed_topic_logs": [
+    "llm-priors-notes.md",
+    "battery-notes.md",
+    "direct-battery-llmbo.json"
+  ],
+  "evidence_root": "D:\\Users\\aa133\\Desktop\\LLMBO_Para\\bo-repair-work\\20261017_et_implementation\\literature-design-20261020",
+  "lgbo_official_commit": "80baeff72758caa370a715e3ffb3a16afe7cab18",
+  "selected_references": [
+    {
+      "key": "yuan2026lgbo",
+      "title": "Unleashing LLMs in Bayesian Optimization: Preference-Guided Framework for Scientific Discovery",
+      "year": "2026",
+      "url": "https://arxiv.org/abs/2605.17976",
+      "note": "ICLR2026 proceedings verified; arXiv v1. Official code separately pinned at 80baeff72758caa370a715e3ffb3a16afe7cab18."
+    },
+    {
+      "key": "liu2024llambo",
+      "title": "Large Language Models to Enhance Bayesian Optimization",
+      "year": "2024",
+      "url": "https://arxiv.org/abs/2402.03921"
+    },
+    {
+      "key": "hvarfner2022pibo",
+      "title": "{$\\pi$BO}: Augmenting Acquisition Functions with User Beliefs for Bayesian Optimization",
+      "year": "2022",
+      "url": "https://openreview.net/forum?id=MMAeCXIa89"
+    },
+    {
+      "key": "adachi2024coexbo",
+      "title": "Looping in the Human: Collaborative and Explainable Bayesian Optimization",
+      "year": "2024",
+      "url": "https://proceedings.mlr.press/v238/adachi24a.html"
+    },
+    {
+      "key": "kuai2025batteryLLMBO",
+      "title": "Large language model-enhanced Bayesian optimization for parameter identification of lithium-ion batteries",
+      "year": "2025",
+      "doi": "10.1016/j.est.2025.118198",
+      "url": "https://doi.org/10.1016/j.est.2025.118198",
+      "note": "Metadata and public abstract/section snippets verified; full Methods unavailable in this review."
+    },
+    {
+      "key": "cisse2024hypbo",
+      "title": "HypBO: Accelerating Black-Box Scientific Experiments Using Experts’ Hypotheses",
+      "year": "2024",
+      "doi": "10.24963/ijcai.2024/429",
+      "url": "https://doi.org/10.24963/ijcai.2024/429"
+    },
+    {
+      "key": "chen2025sensitivity",
+      "title": "Global sensitivity analysis towards non-invasive parameterization of the electrochemical-thermal model for lithium-ion batteries",
+      "year": "2025",
+      "doi": "10.1016/j.adapen.2025.100221",
+      "url": "https://doi.org/10.1016/j.adapen.2025.100221"
+    },
+    {
+      "key": "khalik2021dfn",
+      "title": "Parameter estimation of the Doyle–Fuller–Newman model for Lithium-ion batteries by parameter normalization, grouping, and sensitivity analysis",
+      "year": "2021",
+      "doi": "10.1016/j.jpowsour.2021.229901",
+      "url": "https://doi.org/10.1016/j.jpowsour.2021.229901"
+    },
+    {
+      "key": "leroux2023temperature",
+      "title": "Improved Parameter Estimation of the Doyle-Fuller-Newman Model by Incorporating Temperature Dependence",
+      "year": "2023",
+      "doi": "10.1016/j.ifacol.2023.10.714",
+      "url": "https://doi.org/10.1016/j.ifacol.2023.10.714"
+    }
+  ],
+  "public_collector": {
+    "requests": 10,
+    "scope": "only collect_public_sources.py, excludes search-engine and other researchers public requests"
+  },
+  "exclusions": [
+    "LLM/RAG HPO papers without a transferable guidance mechanism",
+    "new LLM surrogate/kernel/extra thermal states or MO algorithm",
+    "Pref-BO RSC d6dd00052e full text403: lead only, not used for core claims"
+  ],
+  "physical_diagnostic": "archive-information-check.json",
+  "retained_scope": "6 parameters, DFN+lumped, two RMSE, ParEGO/ARD Matern/Gaussian EI; research proposal only"
+}
