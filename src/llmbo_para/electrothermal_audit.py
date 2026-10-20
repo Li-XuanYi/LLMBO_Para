@@ -170,6 +170,24 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                                 equal(payload['candidate_advice'],advice,'request candidate advice differs')
                                 equal(payload['region_requirements'],candidate_region_requirements(settings,selection_mode=selection_mode),'request Region gates differ')
                                 equal(payload['signatures'],asdict(signatures),'request signatures differ')
+                            if cfg['llm'].get('region_wire_format','full_v1')=='compact_v1' and outcome.get('hard_deadline_enforced') and outcome.get('http_request_started'):
+                                from .electrothermal_region_wire import region_wire_payload,decode_region_wire
+                                require(payload.get('region_wire_format')=='compact_v1','compact Region payload marker differs')
+                                artifact=payload['artifact_task'];wire=region_wire_payload(payload)
+                                request=read('http/'+artifact+'.request.json')['body']
+                                equal(json.loads(request['messages'][1]['content']),{k:v for k,v in wire.items() if k!='instructions'},'compact Region HTTP request differs')
+                                instructions=wire['instructions']+('\nReturn exactly one JSON object matching the supplied response contract.' if cfg['llm']['json_mode'] else '')
+                                equal(request['messages'][0]['content'],instructions,'compact Region HTTP instructions differ')
+                                if outcome['status']=='received':
+                                    choice=read('http/'+artifact+'.response.json')['choices'][0]
+                                    require(choice.get('finish_reason')=='stop','compact Region completion unfinished')
+                                    decoded=decode_region_wire(json.loads(choice['message']['content']),payload)
+                                    from .electrothermal_llm import validate_electrothermal_region
+                                    try:checked=validate_electrothermal_region(decoded,expected_context_id=saved['context_id'],expected_signatures=asdict(signatures))
+                                    except (ValueError,TypeError,KeyError):require(event['region']['response'] is None,'invalid compact Region was accepted')
+                                    else:
+                                        checked['region']['reason']='structured_region_response'
+                                        equal(event['region']['response'],checked,'compact Region decoded response differs')
                     request_details={'request_outcome':event['region']['request_outcome']} if 'request_outcome' in event['region'] else {}
                     region=apply_electrothermal_region(gp,c,pool,event['region']['response'],settings=settings,trust=trust,space=space,
                         advice_mode=advice_mode,selection_mode=selection_mode,**request_details)

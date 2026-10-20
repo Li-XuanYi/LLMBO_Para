@@ -82,6 +82,9 @@ class HttpJsonTransport:
         try:
             with build_opener(NoRedirect()).open(request, timeout=self.timeout_s) as response:
                 status = response.status
+                if self.store:
+                    self.store.append_event({'type':'llm_http_headers_received','task':task,
+                        'http_status':status,'elapsed_s':time.perf_counter()-started})
                 body = response.read(1024 * 1024 + 1)
                 if len(body) > 1024 * 1024:
                     raise ValueError("structured LLM response exceeds the 1 MiB limit")
@@ -144,27 +147,36 @@ class ChatCompletionsTransport(HttpJsonTransport):
             instructions += "\nReturn exactly one JSON object matching the supplied response contract."
         wire = {"model": self.model, "messages": [
                     {"role": "system", "content": instructions},
-                    {"role": "user", "content": json.dumps({k: v for k, v in payload.items() if k != "instructions"}, ensure_ascii=False, allow_nan=False)}
+                    {"role": "user", "content": json.dumps({k: v for k, v in payload.items() if k != "instructions"}, ensure_ascii=False, allow_nan=False,
+                        separators=(',',':') if payload.get('region_wire_format')=='compact_v1' else None)}
                 ], "max_tokens": self.max_tokens, "stream": False}
         if self.json_mode:
             wire["response_format"] = {"type": "json_object"}
         if self.thinking is not None:
             wire["thinking"] = {"type": self.thinking}
         result = self._post_json(wire, task=payload.get("artifact_task", payload["task"]))
+        protocol_issue='invalid_completion'
         try:
             choice = result["choices"][0]
             if choice.get("finish_reason") != "stop":
+                protocol_issue='unfinished_completion'
                 raise ValueError("chat completion did not stop normally; truncated/refused output cannot be accepted")
             content = choice["message"]["content"]
-            if not isinstance(content, str):
+            if content is None or isinstance(content,str) and not content.strip():
+                protocol_issue='empty_content'
                 raise ValueError("chat completion did not contain text")
+            if not isinstance(content,str):
+                protocol_issue='invalid_content_type'
+                raise ValueError("chat completion did not contain text")
+            protocol_issue='invalid_json'
             decoded = json.loads(content)
             if not isinstance(decoded, dict):
+                protocol_issue='non_object_content'
                 raise ValueError("chat completion content must be a JSON object")
         except (KeyError, IndexError, TypeError, ValueError) as exc:
             if self.store:
                 task = payload.get("artifact_task", payload["task"])
-                self.store.write_json(f"http/{task}.parse-error.json", {"error_type": type(exc).__name__, "reason": str(exc)})
+                self.store.write_json(f"http/{task}.parse-error.json", {"error_type": type(exc).__name__, "reason": str(exc),'protocol_issue':protocol_issue})
             raise ValueError("chat response failed the strict JSON completion contract; see archived response") from None
         return decoded
 

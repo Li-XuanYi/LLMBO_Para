@@ -127,3 +127,11 @@ plain保留原均值和原EI。合格替代点以`EI(mu-raw_shift,sigma,best)`�
 结果同时归档策略、raw_shift、实际shift、全池合格索引/区域内竞争索引、未限制的Lift赢家、实际赢家和相对局部sigma的最大调整量。请求明确告知竞争范围与原EI基线；审计从冻结后验和区域重建全部内容。缺省global版本不新增这些结果字段，旧归档按其原配置重放。
 
 软件验证分开包括：正定RBF协方差的“框外全局赢家被拒绝、框内合格点恢复”反例；同分/边界/未展示合格点和审计篡改测试；冻结旧区域回放；共享初始化、同种子权重/GP设置的代数合成对照。部分审计fixture使用宽门槛仅为触发分支，不是默认门槛效果证据；PSD反例使用默认门槛。代数对照采用预先固定的脚本建议器，不调用LLM，不代表真实DFN或LLM的RMSE收益。真实API/DFN对照需要另行批准预算。
+
+### 可选紧凑Region传输与阶段诊断（2026-10-20）
+
+`llm.region_wire_format`严格取`full_v1`（缺省）或`compact_v1`。WarmStart及旧默认回复保持原契约。紧凑版仍发送全部专业候选/历史信息，但不要求模型逐项回抄完整签名；线上回复只含`request_id`和`region`。request_id是完整冻结请求（含权重、尺度、物性、历史、候选摘要、签名和Prompt）的摘要，排除仅用于本地文件名的artifact_task。回复键集合与摘要必须严格匹配，再从本地请求恢复原schema2/profile/fit_rates/signatures/context_id，执行既有Region校验。旧缓存、旧六维语义和旧计划签名没有放宽。
+
+每次HTTP记录响应头到达事件。supervision/outcome补充wire版本、HTTP启动耗时、失败阶段及安全枚举protocol_issue；可区分等待响应头、读取正文和content解析，空content与未正常结束的回复分开标记。任务/总预算硬截止、无传输重试及plain EI回退保持。审计独立重建紧凑HTTP请求、核对响应绑定和规范信封，拒绝归档权重或摘要篡改。
+
+一次归档回复的离线重编码将输入消息字符数16957降到14668、回复字符数1271降到420，恢复后的完整信封相等。这是表示层验证，不是新API的token用量、延迟或成功率验证；没有改变Region建议质量和真实目标。详见`docs/audits/region-request-repair-2026-10-20.md`。

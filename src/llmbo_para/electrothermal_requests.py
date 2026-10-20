@@ -94,7 +94,7 @@ class HTTPArchive:
         return None
 
     def append_event(self, event):
-        if event.get("type") == "llm_http_finished":
+        if event.get("type") in ("llm_http_finished","llm_http_headers_received"):
             self.last_http_status = event.get("http_status")
         if event.get("type") == "llm_http_finished" and event.get("error_type"):
             event = {"type": "llm_http_finished", "task": event.get("task"),
@@ -124,6 +124,9 @@ def _public_diagnostic(value):
     if type(elapsed) in (int, float) and math.isfinite(elapsed) and elapsed >= 0:
         result["elapsed_s"] = float(elapsed)
     result["http_request_started"] = value.get("http_request_started") is True
+    if value.get('protocol_issue') in ('invalid_completion','unfinished_completion','empty_content','invalid_content_type',
+            'invalid_json','non_object_content','invalid_binding'):
+        result['protocol_issue']=value['protocol_issue']
     return result
 
 
@@ -145,12 +148,19 @@ def _chat_request_worker(spec, payload, run_path, connection):
     """Spawn entry point: one real transport invocation and no retries."""
     archive = HTTPArchive(run_path, connection)
     try:
+        from .electrothermal_region_wire import region_wire_payload,decode_region_wire
         transport = ChatCompletionsTransport(**spec, run_store=archive)
-        response = transport.post(payload)
+        response = transport.post(region_wire_payload(payload))
+        try:response=decode_region_wire(response,payload)
+        except ValueError:
+            task=payload.get('artifact_task',payload['task'])
+            archive.write_json('http/'+task+'.parse-error.json',{'error_type':'ValueError','protocol_issue':'invalid_binding'})
+            raise
         connection.send(("result", {"ok": True, "response": response,
             "diagnostic": {"http_status": 200, "http_request_started": archive.http_request_started}}))
     except Exception as exc:
         diagnostic = _public_diagnostic(archive.last_error)
+        if diagnostic['http_status'] is None:diagnostic['http_status']=archive.last_http_status
         diagnostic.setdefault("error_type", type(exc).__name__)
         diagnostic["http_request_started"] = archive.http_request_started
         connection.send(("result", {"ok": False, "diagnostic": diagnostic}))
@@ -175,11 +185,20 @@ class BoundedChatCompletionsTransport(ChatCompletionsTransport):
     def post(self, payload, *, deadline=None):
         started = time.monotonic()
         task = payload.get("artifact_task", payload.get("task", "request")) if isinstance(payload, dict) else "request"
+        wire_format=payload.get('region_wire_format','full_v1') if isinstance(payload,dict) else 'full_v1'
         base = {"configured_timeout_s": self.timeout_s, "max_tokens": self.max_tokens,
-                "http_request_started": False, "http_status": None}
+                "http_request_started": False, "http_status": None,
+                'wire_format':wire_format if wire_format in ('full_v1','compact_v1') else 'invalid'}
+        request_started=False;request_start_elapsed=None
 
         def fail(kind, diagnostic=None):
-            public = {**base, **_public_diagnostic(diagnostic), "status": "failed", "reason": kind,
+            progress=self._archived_progress(self.store.path if self.store is not None else None,task)
+            detail=_public_diagnostic(diagnostic)
+            if detail['http_status'] is None:detail['http_status']=progress.get('http_status')
+            stage='decoding_content' if kind=='protocol_error' else progress.get('failure_stage',
+                'awaiting_headers' if request_started else 'worker_startup')
+            public = {**base, **detail, "status": "failed", "reason": kind,'failure_stage':stage,
+                      'request_start_elapsed_s':request_start_elapsed,
                       "elapsed_s": time.monotonic() - started}
             self._publish(task, public)
             raise LLMRequestFailure(kind, public)
@@ -188,6 +207,7 @@ class BoundedChatCompletionsTransport(ChatCompletionsTransport):
             reject_inline_secrets(payload)
             if not isinstance(payload, dict) or payload.get("task") not in TASKS:
                 raise ValueError("unknown electrothermal LLM request task")
+            if base['wire_format']=='invalid':raise ValueError('invalid Region wire format')
             if not isinstance(task, str) or not re.fullmatch(r"[a-z_]+", task):
                 raise ValueError("artifact task must be a fixed safe label")
             instructions = payload.get("instructions")
@@ -211,8 +231,9 @@ class BoundedChatCompletionsTransport(ChatCompletionsTransport):
         request_started = False
 
         def on_request_start():
-            nonlocal request_started
+            nonlocal request_started,request_start_elapsed
             request_started = True
+            request_start_elapsed=time.monotonic()-started
 
         spec = {"endpoint": self.endpoint, "api_key_env": self.api_key_env, "model": self.model,
                 "max_tokens": self.max_tokens, "json_mode": self.json_mode,
@@ -237,9 +258,20 @@ class BoundedChatCompletionsTransport(ChatCompletionsTransport):
         if not isinstance(response, dict):
             fail("protocol_error", {**diagnostic, "error_type": "InvalidResponseObject"})
         self._publish(task, {**base, **diagnostic, "status": "completed", "reason": None,
+                             'failure_stage':None,'request_start_elapsed_s':request_start_elapsed,
                              "elapsed_s": time.monotonic() - started})
         return response
 
     @staticmethod
     def _archived_start(run_path, task):
         return run_path is not None and (Path(run_path) / "http" / (task + ".request.json")).is_file()
+
+    @staticmethod
+    def _archived_progress(run_path,task):
+        if run_path is None:return {}
+        try:
+            headers=[json.loads(line) for line in (Path(run_path)/'events.jsonl').read_text(encoding='utf8').splitlines() if line.strip()]
+            headers=[e for e in headers if e.get('type')=='llm_http_headers_received' and e.get('task')==task]
+            if headers:return {'failure_stage':'reading_body','http_status':_public_diagnostic(headers[-1])['http_status']}
+        except (OSError,ValueError,TypeError):pass
+        return {}

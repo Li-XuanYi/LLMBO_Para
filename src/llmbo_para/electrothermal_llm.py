@@ -127,6 +127,8 @@ def build_electrothermal_payload(task,*,prepared,history,context=None):
         'temperature_target_K':summary(case.cell_temperature_k),'cooling_group_id':case.cooling_group_id}
         for rate,case in prepared.dataset.cases.items()}
     payload['response_contract']={'type':'object','additionalProperties':False,'required':list(properties),'properties':properties}
+    if is_region and cfg['llm'].get('region_wire_format','full_v1')=='compact_v1':
+        payload['region_wire_format']='compact_v1'
     return payload
 
 
@@ -193,6 +195,9 @@ class ElectrothermalLLMController:
                 outcome['effective_timeout_s']=exc.diagnostic.get('effective_timeout_s',outcome['effective_timeout_s'])
             store.write_json(f'llm/{ordinal:06d}.error.json',{'error_type':type(exc).__name__,'reason':reason});return None
         finally:
+            if isinstance(transport,BoundedChatCompletionsTransport) and transport.last_request_diagnostic is not None:
+                for field in ('failure_stage','request_start_elapsed_s','protocol_issue','wire_format'):
+                    if field in transport.last_request_diagnostic:outcome[field]=transport.last_request_diagnostic[field]
             store.write_json(f'llm/{ordinal:06d}.outcome.json',outcome)
 
     def generate_warmstart(self,prepared,*,store,budgets):
