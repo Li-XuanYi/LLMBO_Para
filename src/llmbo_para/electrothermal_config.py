@@ -134,7 +134,12 @@ def electrothermal_configuration_errors(config):
     budget=section('budgets');strict(budget,('max_solver_calls','max_llm_requests','wall_clock_s'),'budgets')
     for key in ('max_solver_calls','max_llm_requests'):numeric(budget.get(key),'budgets.'+key,positive=False,integer=True)
     numeric(budget.get('wall_clock_s'),'budgets.wall_clock_s')
-    llm=section('llm');strict(llm,('enabled','endpoint','api_key_env','model','max_tokens','timeout_s','json_mode','task_options','region_wire_format','thinking'),'llm')
+    llm=section('llm');strict(llm,('enabled','endpoint','api_key_env','model','max_tokens','timeout_s','json_mode','task_options','region_wire_format','thinking','transport'),'llm')
+    transport=llm.get('transport','openai_chat_completions')
+    if transport not in ('openai_chat_completions','openai_responses'):errors.append('invalid electrothermal LLM transport')
+    options=llm.get('task_options',{})
+    if transport=='openai_responses' and ('thinking' in llm or isinstance(options,dict) and any(isinstance(v,dict) and 'thinking' in v for v in options.values())):
+        errors.append('Responses thinking mapping has not been confirmed')
     from .electrothermal_region_wire import region_wire_format
     try:region_wire_format(config)
     except (ValueError,TypeError,KeyError):errors.append('invalid Region wire format')
@@ -147,7 +152,8 @@ def electrothermal_configuration_errors(config):
     if llm.get('enabled'):
         from urllib.parse import urlsplit
         url=urlsplit(llm.get('endpoint') or '')
-        if url.scheme!='https' or not url.hostname or url.username or url.password or url.query or url.fragment or not url.path.endswith('/chat/completions'):errors.append('LLM HTTPS chat endpoint required')
+        ending='/responses' if transport=='openai_responses' else '/chat/completions'
+        if url.scheme!='https' or not url.hostname or url.username or url.password or url.query or url.fragment or not url.path.endswith(ending):errors.append('LLM HTTPS endpoint must match its transport')
         if not llm.get('api_key_env') or not llm.get('model'):errors.append('explicit LLM model and credential environment name required')
     if config.get('run_kind')=='research':
         confirmations=section('research_confirmations')

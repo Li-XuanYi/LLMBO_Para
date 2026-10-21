@@ -183,8 +183,9 @@ class ElectrothermalLLMController:
         self.last_request_outcome=None
 
     def request(self,payload,*,prepared,store,budgets,request_cap):
-        from .electrothermal_requests import request_controls,BoundedChatCompletionsTransport,LLMRequestFailure
+        from .electrothermal_requests import request_controls,BoundedChatCompletionsTransport,LLMRequestFailure,electrothermal_transport_class
         from .llm import ChatCompletionsTransport
+        from .electrothermal_responses import ResponsesTransport
         task=payload['task']
         controls=request_controls(prepared.config,task)
         execution=getattr(self,'execution_budget',None) or self.solver_budget
@@ -200,16 +201,19 @@ class ElectrothermalLLMController:
         if self.task_requests.get(task,0)>=request_cap:return skipped('task_budget')
         if not self.is_mock and not prepared.config['llm']['enabled']:return skipped('disabled')
         if not self.is_mock and self.requests>=budgets['max_llm_requests']:return skipped('global_budget')
+        if not self.is_mock and prepared.config['llm'].get('transport')=='openai_responses':
+            import os
+            if not os.environ.get(prepared.config['llm']['api_key_env']):return skipped('missing_credential')
         if execution is not None:execution.require_candidate(0)
         transport=self.transport
         if transport is None:
             if self.is_mock:return skipped('missing_mock_transport')
-            llm=prepared.config['llm'];transport=BoundedChatCompletionsTransport(llm['endpoint'],llm['api_key_env'],model=llm['model'],
+            llm=prepared.config['llm'];transport=electrothermal_transport_class(prepared.config)(llm['endpoint'],llm['api_key_env'],model=llm['model'],
                 json_mode=llm['json_mode'],run_store=store,**controls)
-        elif isinstance(transport,ChatCompletionsTransport):
+        elif isinstance(transport,(ChatCompletionsTransport,ResponsesTransport)):
             # Resolve controls for each task without mutating an injected client
             # or carrying its previous task's timeout, tokens or archive path.
-            transport=BoundedChatCompletionsTransport(transport.endpoint,transport.api_key_env,model=transport.model,
+            transport=electrothermal_transport_class(prepared.config)(transport.endpoint,transport.api_key_env,model=transport.model,
                 json_mode=transport.json_mode,run_store=store,**{'thinking':transport.thinking,**controls})
         outcome['hard_deadline_enforced']=isinstance(transport,BoundedChatCompletionsTransport)
         ordinal=self.requests;self.requests+=1;self.task_requests[task]=self.task_requests.get(task,0)+1
@@ -256,7 +260,7 @@ class ElectrothermalLLMController:
             store.write_json(f'llm/{ordinal:06d}.error.json',{'error_type':type(exc).__name__,'reason':reason});return None
         finally:
             if isinstance(transport,BoundedChatCompletionsTransport) and transport.last_request_diagnostic is not None:
-                for field in ('failure_stage','request_start_elapsed_s','protocol_issue','wire_format','thinking','completion'):
+                for field in ('failure_stage','request_start_elapsed_s','protocol_issue','wire_format','thinking','completion','response_protocol'):
                     if field in transport.last_request_diagnostic:outcome[field]=transport.last_request_diagnostic[field]
             store.write_json(f'llm/{ordinal:06d}.outcome.json',outcome)
 

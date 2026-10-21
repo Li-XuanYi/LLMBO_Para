@@ -104,6 +104,8 @@ def responses_completion_summary(value: dict, token_limit: int) -> dict:
 class ResponsesTransport(HttpJsonTransport):
     """One nonstreaming, stateless Responses POST with the existing HTTP guard."""
 
+    response_protocol = 'openai_responses'
+
     def __init__(self, endpoint, api_key_env, *, model, max_tokens, json_mode,
                  timeout_s=60., run_store=None, thinking=None):
         _settings(model, max_tokens, json_mode)
@@ -128,3 +130,51 @@ class ResponsesTransport(HttpJsonTransport):
                                       {'error_type': 'ValueError', 'protocol_issue': issue})
             raise ValueError('Responses output must be complete formal JSON (' + issue + ')')
         return formal
+
+
+def _responses_request_worker(spec, payload, run_path, connection):
+    """Owned child: exactly one Responses invocation, then local wire binding."""
+    from .electrothermal_requests import HTTPArchive, _public_diagnostic
+    from .electrothermal_region_wire import region_wire_payload, decode_region_wire
+    archive = HTTPArchive(run_path, connection, max_tokens=spec.get('max_tokens'), transport='openai_responses')
+    try:
+        transport = ResponsesTransport(**spec, run_store=archive)
+        formal = transport.post(region_wire_payload(payload))
+        try:
+            formal = decode_region_wire(formal, payload)
+        except ValueError:
+            task = payload.get('artifact_task', payload['task'])
+            archive.write_json('http/' + task + '.parse-error.json',
+                               {'error_type': 'ValueError', 'protocol_issue': 'invalid_binding'})
+            raise
+        connection.send(('result', {'ok': True, 'response': formal,
+            'diagnostic': {'http_status': 200, 'http_request_started': archive.http_request_started,
+                           **({'completion': archive.completion} if archive.completion is not None else {})}}))
+    except Exception as exc:
+        diagnostic = _public_diagnostic(archive.last_error)
+        if diagnostic['http_status'] is None:
+            diagnostic['http_status'] = archive.last_http_status
+        diagnostic.setdefault('error_type', type(exc).__name__)
+        if archive.completion is not None:
+            diagnostic['completion'] = archive.completion
+        diagnostic['http_request_started'] = archive.http_request_started
+        connection.send(('result', {'ok': False, 'diagnostic': diagnostic}))
+    finally:
+        connection.close()
+
+
+from .electrothermal_requests import BoundedChatCompletionsTransport
+
+
+class BoundedResponsesTransport(BoundedChatCompletionsTransport, ResponsesTransport):
+    """Keep the proven deadline implementation; change initialization and worker."""
+
+    def __init__(self, endpoint, api_key_env, *, model, max_tokens, json_mode,
+                 timeout_s=60., run_store=None, thinking=None):
+        # Deliberately use Responses validation rather than Chat's endpoint check.
+        ResponsesTransport.__init__(self, endpoint, api_key_env, model=model, max_tokens=max_tokens,
+            json_mode=json_mode, timeout_s=timeout_s, run_store=run_store, thinking=thinking)
+        self.last_request_diagnostic = None
+
+    def _request_worker(self):
+        return _responses_request_worker

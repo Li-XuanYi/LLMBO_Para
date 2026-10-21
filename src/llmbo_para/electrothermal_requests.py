@@ -72,8 +72,13 @@ def request_controls(config, task):
     return dict(validated.get(task, global_limits))
 
 
-def completion_summary(response, token_limit):
+def completion_summary(response, token_limit, *, transport='openai_chat_completions'):
     """Public machine evidence only; never read or interpret reasoning text."""
+    if transport == 'openai_responses':
+        from .electrothermal_responses import responses_completion_summary
+        return responses_completion_summary(response, token_limit)
+    if transport != 'openai_chat_completions':
+        raise ValueError('unknown completion transport')
     response = response if isinstance(response, dict) else {}
     choices = response.get('choices')
     choice = choices[0] if isinstance(choices, list) and choices and isinstance(choices[0], dict) else {}
@@ -111,7 +116,7 @@ class HTTPArchive:
     """Use an existing run's immutable files/events without creating a new run."""
     _create_json = staticmethod(RunStore._create_json)
 
-    def __init__(self, run_path, connection=None, max_tokens=None):
+    def __init__(self, run_path, connection=None, max_tokens=None, *, transport='openai_chat_completions'):
         self.enabled = run_path is not None
         self.path = Path(run_path).resolve() if self.enabled else Path("unarchived")
         self.events_path = self.path / "events.jsonl"
@@ -121,10 +126,11 @@ class HTTPArchive:
         self.last_error = None
         self.max_tokens = max_tokens
         self.completion = None
+        self.transport = transport
 
     def write_json(self, relative_path, value):
         if relative_path.endswith('.response.json'):
-            self.completion = completion_summary(value, self.max_tokens)
+            self.completion = completion_summary(value, self.max_tokens, transport=self.transport)
         if relative_path.endswith((".error.json", ".parse-error.json")):
             value = {**value, "http_request_started": self.http_request_started}
             if relative_path.endswith(".parse-error.json"):
@@ -171,7 +177,7 @@ def _public_diagnostic(value):
         result['protocol_issue']=value['protocol_issue']
     completion = value.get('completion')
     if isinstance(completion, dict):
-        public = {key: completion[key] for key in ('answer_characters', 'completion_tokens', 'reasoning_tokens')
+        public = {key: completion[key] for key in ('answer_characters', 'completion_tokens', 'reasoning_tokens', 'input_tokens', 'total_tokens')
                   if type(completion.get(key)) is int and completion[key] >= 0}
         if 'answer_characters' in completion and completion['answer_characters'] is None:
             public['answer_characters'] = None
@@ -179,6 +185,8 @@ def _public_diagnostic(value):
             public['finish_reason'] = completion['finish_reason']
         if completion.get('state') in ('complete_answer', 'empty_answer', 'truncated_answer', 'unclassified', 'reasoning_budget_exhausted'):
             public['state'] = completion['state']
+        if completion.get('response_status') in ('completed', 'failed', 'in_progress', 'cancelled', 'queued', 'incomplete', 'other'):
+            public['response_status'] = completion['response_status']
         result['completion'] = public
     return result
 
@@ -232,6 +240,10 @@ class BoundedChatCompletionsTransport(ChatCompletionsTransport):
             json_mode=json_mode, timeout_s=timeout_s, run_store=run_store, thinking=thinking)
         self.last_request_diagnostic = None
 
+    def _request_worker(self):
+        # Resolve at call time so injected offline workers retain their old API.
+        return _chat_request_worker
+
     def _publish(self, task, diagnostic):
         self.last_request_diagnostic = dict(diagnostic)
         if self.store is not None:
@@ -245,6 +257,8 @@ class BoundedChatCompletionsTransport(ChatCompletionsTransport):
                 "http_request_started": False, "http_status": None,
                 'wire_format':wire_format if wire_format in ('full_v1','compact_v1') else 'invalid'}
         if self.thinking is not None: base['thinking'] = self.thinking
+        if getattr(self, 'response_protocol', None) == 'openai_responses':
+            base['response_protocol'] = 'openai_responses'
         request_started=False;request_start_elapsed=None
 
         def fail(kind, diagnostic=None):
@@ -296,7 +310,7 @@ class BoundedChatCompletionsTransport(ChatCompletionsTransport):
                 "timeout_s": max(.001, hard_deadline - time.monotonic()), "thinking": self.thinking}
         run_path = str(self.store.path) if self.store is not None else None
         try:
-            result = run_with_deadline(_chat_request_worker, (spec, payload, run_path),
+            result = run_with_deadline(self._request_worker(), (spec, payload, run_path),
                 deadline=hard_deadline, on_solve_start=on_request_start)
         except TimeoutError:
             request_started = request_started or self._archived_start(run_path, task)
@@ -331,3 +345,14 @@ class BoundedChatCompletionsTransport(ChatCompletionsTransport):
             if headers:return {'failure_stage':'reading_body','http_status':_public_diagnostic(headers[-1])['http_status']}
         except (OSError,ValueError,TypeError):pass
         return {}
+
+
+def electrothermal_transport_class(config: dict) -> type:
+    """Select a configured class without reading a key or constructing a client."""
+    selected = config['llm'].get('transport', 'openai_chat_completions')
+    if selected == 'openai_chat_completions':
+        return BoundedChatCompletionsTransport
+    if selected == 'openai_responses':
+        from .electrothermal_responses import BoundedResponsesTransport
+        return BoundedResponsesTransport
+    raise ValueError('unknown electrothermal LLM transport')
