@@ -230,6 +230,10 @@ class ElectrothermalLLMController:
             if isinstance(transport,BoundedChatCompletionsTransport):
                 outcome['http_request_started']=transport.last_request_diagnostic['http_request_started']
                 outcome['effective_timeout_s']=transport.last_request_diagnostic['effective_timeout_s']
+            if prepared.config['llm'].get('transport')=='openai_responses':
+                from .electrothermal_region_catalog import catalog_archival_json
+                store.write_json(f'llm/{ordinal:06d}.responses-formal.json',
+                    {'version':'responses_formal_v1','response_json':catalog_archival_json(response)})
             if catalog_proposal:
                 try:
                     # A JSON string preserves malformed NaN formal replies for

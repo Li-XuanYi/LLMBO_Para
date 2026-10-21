@@ -83,19 +83,84 @@ def audit_electrothermal_run(run_directory,*,deep=False):
         require(len(list((root/'llm').glob('*.payload.json')))==sum(e['kind'] in ('llm_request','mock_llm_request') for e in cost_events.values()),'LLM payload/request count differs')
         summary=read('electrothermal-summary.json');equal(summary['costs'],ledger.summary(),'summary costs differ');checks.append('actual_cache_screening_request_costs')
         from .electrothermal_requests import request_controls,completion_summary
+        transport_kind=cfg['llm'].get('transport','openai_chat_completions')
         controlled=False
         for file in sorted((root/'llm').glob('*.outcome.json')):
             outcome=json.loads(file.read_text(encoding='utf8'));controls=request_controls(cfg,outcome['task'])
             if 'thinking' in controls:
                 equal(outcome.get('thinking'),controls['thinking'],'request thinking control differs');controlled=True
             payload=read('llm/'+file.name.replace('.outcome.json','.payload.json'));artifact=payload['artifact_task']
+            if transport_kind=='openai_responses':
+                n=int(file.name.split('.')[0])
+                equal(outcome.get('ordinal'),n,'Responses request ordinal differs')
+                equal(artifact,outcome['task']+'_request_'+'a'*(n+1),'Responses artifact task differs')
             request_path=root/'http'/(artifact+'.request.json');response=root/'http'/(artifact+'.response.json')
             supervision_path=root/'http'/(artifact+'.supervision.json')
+            if transport_kind=='openai_responses' and (outcome['status']=='received' or outcome.get('reason')=='invalid_catalog_response'):
+                live_cost=any(e.get('type')=='electrothermal_cost' and e.get('event_id')==f'llm:{n}'
+                    and e.get('kind')=='llm_request' for e in events)
+                if live_cost:
+                    require(request_path.is_file() and response.is_file() and supervision_path.is_file(),
+                            'received Responses request lacks raw HTTP supervision evidence')
+                    require((root/'llm'/file.name.replace('.outcome.json','.responses-formal.json')).is_file(),
+                            'received Responses request lacks formal receipt')
             started=any(e.get('type')=='llm_http_started' and e.get('task')==artifact for e in events)
             has_http=started or request_path.exists() or response.exists()
             if has_http or outcome.get('hard_deadline_enforced') and outcome.get('http_request_started'):
                 request=read('http/'+artifact+'.request.json')['body']
                 supervision=read('http/'+artifact+'.supervision.json') if supervision_path.exists() else {}
+                if transport_kind=='openai_responses':
+                    from types import SimpleNamespace
+                    from .electrothermal_responses import responses_request_body
+                    from .electrothermal_region_wire import region_wire_payload
+                    from .electrothermal_region_catalog import decode_catalog_http_response,catalog_archival_json
+                    require(outcome.get('hard_deadline_enforced') is True and outcome.get('http_request_started') is True,
+                            'Responses HTTP supervision flags differ')
+                    equal(outcome.get('response_protocol'),transport_kind,'Responses outcome protocol differs')
+                    equal(supervision.get('response_protocol'),transport_kind,'Responses supervision protocol differs')
+                    equal(supervision.get('configured_timeout_s'),controls['timeout_s'],'Responses supervised timeout differs')
+                    equal(supervision.get('max_tokens'),controls['max_tokens'],'Responses supervised output ceiling differs')
+                    archived_request=read('http/'+artifact+'.request.json')
+                    equal(archived_request.get('endpoint'),cfg['llm']['endpoint'],'Responses endpoint differs')
+                    require(not any(str(k).lower()=='authorization' for k in archived_request.get('headers',{})),
+                            'Responses archive contains authorization header')
+                    equal(payload['signatures'],asdict(signatures),'Responses request signatures differ')
+                    equal(payload['fit_rates'],dataset.fit_rates,'Responses request rate set differs')
+                    if outcome['task']=='warm_start_electrothermal':
+                        from .electrothermal_llm import build_electrothermal_payload
+                        past=[]
+                        for e in events:
+                            if e.get('type')=='electrothermal_cost' and e.get('event_id')==f'llm:{outcome["ordinal"]}':break
+                            if e.get('type')=='electrothermal_evaluation_saved' and e.get('phase')=='warmstart_screening':past.append(by_id[e['evaluation_id']])
+                        expected=build_electrothermal_payload(outcome['task'],
+                            prepared=SimpleNamespace(config=cfg,space=space,dataset=dataset,signatures=signatures),history=past)
+                        expected['instructions']=(root/'source/src/llmbo_para/prompts/warm_start_electrothermal.txt').read_text(encoding='utf8')
+                        expected['artifact_task']=artifact
+                        equal(payload,expected,'independently rebuilt Responses WarmStart request differs')
+                    frozen_payload=json.loads(canonical_json(payload)) if payload.get('region_proposal')=='catalog_v1' else payload
+                    expected_body=responses_request_body(region_wire_payload(frozen_payload),model=cfg['llm']['model'],
+                        max_tokens=controls['max_tokens'],json_mode=cfg['llm']['json_mode'])
+                    equal(request,expected_body,'Responses final HTTP request differs')
+                    formal_path=root/'llm'/file.name.replace('.outcome.json','.responses-formal.json')
+                    needs_formal=outcome['status']=='received' or outcome.get('reason')=='invalid_catalog_response'
+                    if response.exists():
+                        decoded,issue=decode_catalog_http_response(json.loads(response.read_text(encoding='utf8')),
+                            payload=payload,transport=transport_kind)
+                        if needs_formal:
+                            require(issue is None,'Responses received reply is not complete or request-bound')
+                            evidence=json.loads(formal_path.read_text(encoding='utf8'))
+                            require(set(evidence)=={'version','response_json'} and evidence['version']=='responses_formal_v1',
+                                    'Responses formal receipt version differs')
+                            equal(evidence['response_json'],catalog_archival_json(decoded),'Responses formal receipt differs from raw HTTP')
+                        else:
+                            require(not formal_path.exists(),'orphan Responses formal receipt')
+                            if outcome.get('reason')=='protocol_error' or outcome.get('protocol_issue') is not None:
+                                require(issue is not None,'valid Responses reply has an impossible protocol failure')
+                                if 'protocol_issue' in outcome:equal(outcome['protocol_issue'],issue,'Responses protocol failure differs from raw HTTP')
+                                if 'protocol_issue' in supervision:equal(supervision['protocol_issue'],issue,'Responses supervised protocol failure differs')
+                                error_path=root/'http'/(artifact+'.parse-error.json')
+                                if error_path.exists():equal(json.loads(error_path.read_text(encoding='utf8'))['protocol_issue'],issue,'Responses parse error differs')
+                    else:require(not needs_formal and not formal_path.exists(),'Responses received reply has no raw HTTP evidence')
                 if 'thinking' in controls or 'completion' in outcome or 'completion' in supervision:
                     require(outcome.get('http_request_started') is True,'HTTP start flag contradicts wire evidence')
                     if supervision_path.exists():require(outcome.get('hard_deadline_enforced') is True,'bounded flag contradicts supervision evidence')
@@ -105,7 +170,7 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                     equal(request.get('max_tokens'),controls['max_tokens'],'sent output ceiling differs')
                     equal(supervision.get('configured_timeout_s'),controls['timeout_s'],'supervised timeout differs')
                 if response.exists() and ('thinking' in controls or 'completion' in outcome or 'completion' in supervision):
-                    expected=completion_summary(json.loads(response.read_text(encoding='utf8')),controls['max_tokens'])
+                    expected=completion_summary(json.loads(response.read_text(encoding='utf8')),controls['max_tokens'],transport=transport_kind)
                     equal(outcome.get('completion'),expected,'completion evidence differs from raw response')
                     equal(supervision.get('completion'),expected,'supervised completion evidence differs');controlled=True
         if controlled:checks.append('LLM_sent_controls_and_raw_completion_evidence')
@@ -288,12 +353,17 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                                 artifact=expected['artifact_task']
                                 if (root/'http'/(artifact+'.request.json')).exists():
                                     wire=region_wire_payload(expected);request=read('http/'+artifact+'.request.json')['body']
-                                    equal(json.loads(request['messages'][1]['content']),{k:v for k,v in wire.items() if k!='instructions'},'catalog HTTP request differs')
-                                    instructions=wire['instructions']+('\nReturn exactly one JSON object matching the supplied response contract.' if cfg['llm']['json_mode'] else '')
-                                    equal(request['messages'][0]['content'],instructions,'catalog HTTP instructions differ')
+                                    if transport_kind=='openai_responses':
+                                        equal(request,responses_request_body(wire,model=cfg['llm']['model'],
+                                            max_tokens=request_controls(cfg,payload['task'])['max_tokens'],json_mode=cfg['llm']['json_mode']),
+                                            'catalog Responses HTTP request differs')
+                                    else:
+                                        equal(json.loads(request['messages'][1]['content']),{k:v for k,v in wire.items() if k!='instructions'},'catalog HTTP request differs')
+                                        instructions=wire['instructions']+('\nReturn exactly one JSON object matching the supplied response contract.' if cfg['llm']['json_mode'] else '')
+                                        equal(request['messages'][0]['content'],instructions,'catalog HTTP instructions differ')
                                     http_response=root/'http'/(artifact+'.response.json')
                                     if http_response.exists():
-                                        provider,issue=decode_catalog_http_response(read('http/'+artifact+'.response.json'),payload=expected)
+                                        provider,issue=decode_catalog_http_response(read('http/'+artifact+'.response.json'),payload=expected,transport=transport_kind)
                                         if outcome.get('reason')=='protocol_error':
                                             require(outcome['status']=='failed' and issue is not None,'claimed catalog protocol failure contradicts HTTP reply')
                                             if 'protocol_issue' in outcome:equal(outcome['protocol_issue'],issue,'catalog protocol failure category differs')
@@ -309,13 +379,23 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                                 require(payload.get('region_wire_format')=='compact_v1','compact Region payload marker differs')
                                 artifact=payload['artifact_task'];wire=region_wire_payload(payload)
                                 request=read('http/'+artifact+'.request.json')['body']
-                                equal(json.loads(request['messages'][1]['content']),{k:v for k,v in wire.items() if k!='instructions'},'compact Region HTTP request differs')
-                                instructions=wire['instructions']+('\nReturn exactly one JSON object matching the supplied response contract.' if cfg['llm']['json_mode'] else '')
-                                equal(request['messages'][0]['content'],instructions,'compact Region HTTP instructions differ')
+                                if transport_kind=='openai_responses':
+                                    equal(request,responses_request_body(wire,model=cfg['llm']['model'],
+                                        max_tokens=request_controls(cfg,payload['task'])['max_tokens'],json_mode=cfg['llm']['json_mode']),
+                                        'compact Responses HTTP request differs')
+                                else:
+                                    equal(json.loads(request['messages'][1]['content']),{k:v for k,v in wire.items() if k!='instructions'},'compact Region HTTP request differs')
+                                    instructions=wire['instructions']+('\nReturn exactly one JSON object matching the supplied response contract.' if cfg['llm']['json_mode'] else '')
+                                    equal(request['messages'][0]['content'],instructions,'compact Region HTTP instructions differ')
                                 if outcome['status']=='received':
-                                    choice=read('http/'+artifact+'.response.json')['choices'][0]
-                                    require(choice.get('finish_reason')=='stop','compact Region completion unfinished')
-                                    decoded=decode_region_wire(json.loads(choice['message']['content']),payload)
+                                    if transport_kind=='openai_responses':
+                                        from .electrothermal_region_catalog import decode_catalog_http_response
+                                        decoded,issue=decode_catalog_http_response(read('http/'+artifact+'.response.json'),payload=payload,transport=transport_kind)
+                                        require(issue is None,'compact Responses completion or binding differs')
+                                    else:
+                                        choice=read('http/'+artifact+'.response.json')['choices'][0]
+                                        require(choice.get('finish_reason')=='stop','compact Region completion unfinished')
+                                        decoded=decode_region_wire(json.loads(choice['message']['content']),payload)
                                     from .electrothermal_llm import validate_electrothermal_region
                                     try:checked=validate_electrothermal_region(decoded,expected_context_id=saved['context_id'],expected_signatures=asdict(signatures))
                                     except (ValueError,TypeError,KeyError):require(event['region']['response'] is None,'invalid compact Region was accepted')

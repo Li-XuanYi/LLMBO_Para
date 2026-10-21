@@ -52,8 +52,20 @@ def catalog_archival_json(value) -> str:
     return json.dumps(redact(value),ensure_ascii=False,sort_keys=True,allow_nan=True)
 
 
-def decode_catalog_http_response(value, *, payload: dict) -> tuple[dict | None,str | None]:
+def decode_catalog_http_response(value, *, payload: dict, transport='openai_chat_completions') -> tuple[dict | None,str | None]:
     """Independently replay completion/JSON/wire failure from archived HTTP."""
+    if transport == 'openai_responses':
+        from .electrothermal_responses import decode_responses_json
+        decoded, issue = decode_responses_json(value)
+        if issue is not None:
+            return None, issue
+        from .electrothermal_region_wire import decode_region_wire
+        try:
+            return decode_region_wire(decoded, payload), None
+        except ValueError:
+            return None, 'invalid_binding'
+    if transport != 'openai_chat_completions':
+        raise ValueError('unknown catalog HTTP protocol')
     issue='invalid_completion'
     try:
         choice=value['choices'][0]
