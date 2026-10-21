@@ -31,11 +31,11 @@ def fixture_run(cache, tmp_path_factory, *, kind='region', wire='compact_v1', ca
     from test_region_failure_audit import _shared_initialization
     from test_electrothermal_llm import Proposed
     root = tmp_path_factory.mktemp('responses_audit')
-    cfg = et_config() if kind == 'warm' else _shared_initialization(root)
+    cfg = et_config() if kind.startswith('warm') else _shared_initialization(root)
     cfg['llm'].update(transport='openai_responses', enabled=False, endpoint='https://provider.invalid/v1/responses',
                       api_key_env='RESPONSES_AUDIT_UNUSED_KEY', model='deepseek-v4-pro', region_wire_format=wire)
     captured = []
-    if kind == 'warm':
+    if kind.startswith('warm'):
         cfg['optimization'].update(mode='warmstart_only', total_candidate_budget=2)
         _, prepared = prepare_electrothermal_experiment(cfg, base_dir=root)
         assert prepared is not None
@@ -46,8 +46,12 @@ def fixture_run(cache, tmp_path_factory, *, kind='region', wire='compact_v1', ca
         cfg['optimization']['region'].update(max_plain_log_ei_gap=100., min_sigma_ratio=0.)
     class Advice:
         def post(self, p):
-            if kind == 'warm':
+            if kind.startswith('warm'):
                 formal = proposed.post(p)
+                if kind=='warm_edges':
+                    a,b,c,d=formal['candidates']
+                    bad=deepcopy(a);bad['parameters']['C_th']=-1
+                    formal['candidates']=[{},a,deepcopy(a),b,c,bad,d]
             else:
                 region = {'kind': 'none' if kind == 'none' else 'region', 'coordinate_space': 'normalized',
                           'confidence': 0. if kind=='low' else .9, 'reason': 'controlled offline hypothesis'}
@@ -256,3 +260,112 @@ def test_live_response_receipt_requires_raw_evidence_even_if_flags_removed(monke
         assert not audit_electrothermal_run(run,deep=True)['passed']
     finally:
         for p,original in originals.items():p.write_bytes(original)
+
+
+@pytest.mark.parametrize('damage',['empty','reverse','parameter'])
+def test_warmstart_raw_reply_must_match_used_screening_parameters(cache,tmp_path_factory,damage):
+    from llmbo_para.electrothermal_audit import audit_electrothermal_run
+    run=fixture_run(cache,tmp_path_factory,kind='warm',wire='full_v1',catalog=False)
+    payload=read(run/'llm/000000.payload.json');artifact=payload['artifact_task']
+    paths=[run/'http'/(artifact+'.response.json'),run/'llm/000000.responses-formal.json',
+           run/'llm/000000.outcome.json',run/'http'/(artifact+'.supervision.json')]
+    originals={p:p.read_bytes() for p in paths}
+    try:
+        raw=read(paths[0]);formal=json.loads(raw['output'][0]['content'][0]['text'])
+        if damage=='empty':formal['candidates']=[]
+        elif damage=='reverse':formal['candidates'].reverse()
+        else:formal['candidates'][0]['parameters']['C_th']*=1.01
+        raw['output'][0]['content'][0]['text']=json.dumps(formal);put(paths[0],raw)
+        from llmbo_para.electrothermal_region_catalog import catalog_archival_json
+        receipt=read(paths[1]);receipt['response_json']=catalog_archival_json(formal);put(paths[1],receipt)
+        for p in paths[2:]:
+            value=read(p);value['completion']=feature().responses_completion_summary(raw,2048);put(p,value)
+        assert not audit_electrothermal_run(run,deep=True)['passed']
+    finally:
+        for p,original in originals.items():p.write_bytes(original)
+
+
+def test_full_bounds_reply_must_match_used_round(cache,tmp_path_factory):
+    from llmbo_para.electrothermal_audit import audit_electrothermal_run
+    run=fixture_run(cache,tmp_path_factory,kind='region',wire='full_v1',catalog=False)
+    payload=read(run/'llm/000000.payload.json');artifact=payload['artifact_task']
+    paths=[run/'http'/(artifact+'.response.json'),run/'llm/000000.responses-formal.json',
+           run/'llm/000000.outcome.json',run/'http'/(artifact+'.supervision.json'),
+           *[p for p in (run/'mo-rounds').glob('*.json') if read(p)['region']['request_outcome'].get('ordinal')==0]]
+    originals={p:p.read_bytes() for p in paths}
+    try:
+        raw=read(paths[0]);formal=json.loads(raw['output'][0]['content'][0]['text'])
+        formal['region']={k:v for k,v in formal['region'].items() if k not in ('lb','ub')}
+        formal['region']['kind']='none'
+        raw['output'][0]['content'][0]['text']=json.dumps(formal);put(paths[0],raw)
+        from llmbo_para.electrothermal_region_catalog import catalog_archival_json
+        receipt=read(paths[1]);receipt['response_json']=catalog_archival_json(formal);put(paths[1],receipt)
+        for p in paths[2:4]:
+            value=read(p);value['completion']=feature().responses_completion_summary(raw,2048);put(p,value)
+        for p in paths[4:]:
+            value=read(p);value['region']['request_outcome']=read(paths[2]);put(p,value)
+        assert not audit_electrothermal_run(run,deep=True)['passed']
+    finally:
+        for p,original in originals.items():p.write_bytes(original)
+
+
+def test_responses_completion_cannot_be_removed_to_hide_raw_usage_tamper(cache,tmp_path_factory):
+    from llmbo_para.electrothermal_audit import audit_electrothermal_run
+    run=fixture_run(cache,tmp_path_factory);payload=read(run/'llm/000000.payload.json');artifact=payload['artifact_task']
+    paths=[run/'http'/(artifact+'.response.json'),run/'llm/000000.outcome.json',
+           run/'http'/(artifact+'.supervision.json'),
+           *[p for p in (run/'mo-rounds').glob('*.json') if read(p)['region']['request_outcome'].get('ordinal')==0]]
+    originals={p:p.read_bytes() for p in paths}
+    try:
+        raw=read(paths[0]);raw['usage']['output_tokens']=999;put(paths[0],raw)
+        for p in paths[1:3]:
+            value=read(p);value.pop('completion',None);put(p,value)
+        for p in paths[3:]:
+            value=read(p);value['region']['request_outcome']=read(paths[1]);put(p,value)
+        assert not audit_electrothermal_run(run,deep=True)['passed']
+    finally:
+        for p,original in originals.items():p.write_bytes(original)
+
+
+def test_missing_responses_credential_falls_back_and_remains_auditable(monkeypatch,tmp_path_factory):
+    from test_region_failure_audit import _shared_initialization
+    from llmbo_para.electrothermal_workflow import run_electrothermal_experiment
+    from llmbo_para.electrothermal_audit import audit_electrothermal_run
+    root=tmp_path_factory.mktemp('responses_no_credential');cfg=_shared_initialization(root)
+    cfg['llm'].update(transport='openai_responses',enabled=True,endpoint='https://provider.invalid/v1/responses',
+        api_key_env='RESPONSES_AUDIT_MISSING_KEY',model='deepseek-v4-pro')
+    cfg['budgets']['max_llm_requests']=2
+    cfg['optimization'].update(region_advice='candidate_aware_v1',region_selection='fair_region_v1')
+    cfg['optimization']['region'].update(max_plain_log_ei_gap=100.,min_sigma_ratio=0.)
+    monkeypatch.delenv('RESPONSES_AUDIT_MISSING_KEY',raising=False)
+    run=Path(run_electrothermal_experiment(cfg,root,base_dir=root)['run_directory'])
+    rounds=[read(p) for p in (run/'mo-rounds').glob('*.json')]
+    assert any(r['region']['request_outcome'].get('reason')=='missing_credential' for r in rounds)
+    assert all(r['selected_index']==r['region']['plain_index'] for r in rounds)
+    assert not list((run/'llm').glob('*.payload.json'))
+    assert read(run/'electrothermal-summary.json')['API_calls']==0
+    report=audit_electrothermal_run(run,deep=True)
+    assert report['passed'],report['issues']
+
+
+def test_warmstart_replay_preserves_invalid_duplicate_and_pool_budget_semantics(cache,tmp_path_factory):
+    from llmbo_para.electrothermal_audit import audit_electrothermal_run
+    run=fixture_run(cache,tmp_path_factory,kind='warm_edges',wire='full_v1',catalog=False)
+    selection=read(run/'warmstart-selection.json')
+    assert selection['returned_candidates']==7 and selection['evaluations']==4
+    assert read(run/'electrothermal-summary.json')['costs']['screening_rejections']==2
+    assert audit_electrothermal_run(run,deep=True)['passed']
+
+
+@pytest.mark.parametrize('damage',['outcome','returned_count'])
+def test_warmstart_request_receipts_and_processing_counts_cannot_be_omitted(cache,tmp_path_factory,damage):
+    from llmbo_para.electrothermal_audit import audit_electrothermal_run
+    run=fixture_run(cache,tmp_path_factory,kind='warm',wire='full_v1',catalog=False)
+    path=run/('llm/000000.outcome.json' if damage=='outcome' else 'warmstart-selection.json')
+    original=path.read_bytes()
+    try:
+        if damage=='outcome':path.unlink()
+        else:
+            value=read(path);value['returned_candidates']+=1;put(path,value)
+        assert not audit_electrothermal_run(run,deep=True)['passed']
+    finally:path.write_bytes(original)

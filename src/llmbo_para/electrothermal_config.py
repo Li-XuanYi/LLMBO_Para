@@ -151,10 +151,12 @@ def electrothermal_configuration_errors(config):
     except (ValueError,TypeError,KeyError):errors.append('invalid LLM task limits or global ceilings')
     if llm.get('enabled'):
         from urllib.parse import urlsplit
-        url=urlsplit(llm.get('endpoint') or '')
+        connection_strings=all(isinstance(llm.get(k),str) and llm[k].strip() for k in ('endpoint','api_key_env','model'))
+        if not connection_strings:errors.append('explicit LLM endpoint, model and credential environment name must be nonempty strings')
+        try:url=urlsplit(llm['endpoint'] if isinstance(llm.get('endpoint'),str) else '')
+        except ValueError:url=urlsplit('')
         ending='/responses' if transport=='openai_responses' else '/chat/completions'
         if url.scheme!='https' or not url.hostname or url.username or url.password or url.query or url.fragment or not url.path.endswith(ending):errors.append('LLM HTTPS endpoint must match its transport')
-        if not llm.get('api_key_env') or not llm.get('model'):errors.append('explicit LLM model and credential environment name required')
     if config.get('run_kind')=='research':
         confirmations=section('research_confirmations')
         for key in CONFIRMATIONS:

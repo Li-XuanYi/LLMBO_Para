@@ -25,6 +25,14 @@ def config():
     return cfg
 
 
+@pytest.mark.parametrize('name,value',[('endpoint',True),('endpoint',{'bad':'type'}),
+    ('api_key_env',True),('api_key_env',123),('model',{'bad':'type'}),('model',True)])
+def test_responses_configuration_rejects_nonstring_connection_fields(name,value):
+    from llmbo_para.electrothermal_config import electrothermal_configuration_errors
+    cfg=config();cfg['llm'][name]=value
+    assert electrothermal_configuration_errors(cfg)
+
+
 def offline_worker(mode, spec, sent, run_path, connection):
     """Patches only the spawned child's HTTP boundary, never the parent parser."""
     import os

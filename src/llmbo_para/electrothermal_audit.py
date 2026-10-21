@@ -13,6 +13,78 @@ from .electrothermal_store import CostLedger
 from .runstore import digest_value,sha256_file,canonical_json
 
 
+def _audit_responses_warmstart(root,*,cfg,space,dataset,signatures,events,by_id,read,require,equal):
+    """Replay reply-to-screening provenance, without evaluating a model."""
+    from types import SimpleNamespace
+    from .electrothermal_llm import validate_warmstart_response
+    from .electrothermal_provenance import candidate_key
+    saved_path=root/'warmstart-selection.json'
+    if not saved_path.exists():return
+    selection=read('warmstart-selection.json');settings=cfg['optimization']['warmstart']
+    prepared=SimpleNamespace(space=space,dataset=dataset,signatures=signatures)
+    requests=[(i,e) for i,e in enumerate(events) if e.get('type')=='electrothermal_cost'
+        and e.get('kind') in ('llm_request','mock_llm_request')]
+    warm=[(i,e) for i,e in requests if e.get('phase')=='warm_start_electrothermal']
+    processed=[];seen=set();returned=0;screening_ids=set()
+    for position,(start,cost) in enumerate(warm):
+        n=int(cost['event_id'].split(':')[1]);outcome=read(f'llm/{n:06d}.outcome.json')
+        end=next((i for i,_ in requests if i>start),len(events))
+        actual=[]
+        for e in events[start+1:end]:
+            if e.get('type')=='electrothermal_evaluation_saved' and e.get('phase')=='warmstart_screening':
+                actual.append(('evaluation',e));screening_ids.add(e['relative'])
+            elif e.get('type')=='electrothermal_cost' and (e.get('event_id','').startswith('screen:')
+                    or e.get('event_id','').startswith('cache:')):actual.append(('cost',e))
+        if outcome['status']!='received':
+            require(not actual,'failed Responses WarmStart reply produced screening results');continue
+        receipt=read(f'llm/{n:06d}.responses-formal.json')
+        require(set(receipt)=={'version','response_json'} and receipt['version']=='responses_formal_v1',
+                'Responses WarmStart formal receipt is invalid')
+        reply=json.loads(receipt['response_json'])
+        try:proposals=validate_warmstart_response(reply,prepared=prepared)
+        except ValueError:
+            expected={'event_id':f'screen:reply:{n+1}','kind':'screening_rejected','reason':'invalid_reply'}
+            equal([{k:v for k,v in e.items() if k not in ('type','timestamp_utc')} for _,e in actual],
+                  [expected],'invalid WarmStart envelope screening differs');continue
+        remaining=settings['max_candidates']-returned;returned+=len(proposals);cursor=0
+        for index,proposal in enumerate(proposals[:max(0,remaining)]):
+            if len(processed)>=settings['max_evaluations'] or sum(r.complete_pair_valid for r in processed)>=settings['pool_size']:break
+            # Timing/reservation stops can leave an unprocessed suffix, but can
+            # never manufacture evaluations or jump over a preceding proposal.
+            if cursor==len(actual) and position==len(warm)-1 and selection['stop_reason'] in ('wall_clock_budget','insufficient_solver_reservation'):break
+            require(cursor<len(actual),'WarmStart reply processing evidence is missing')
+            kind,event=actual[cursor];cursor+=1
+            try:
+                if not isinstance(proposal,dict) or set(proposal)!={'parameters'} or not isinstance(proposal['parameters'],dict) or set(proposal['parameters'])!={s.name for s in space.specs}:
+                    raise ValueError('invalid named parameters')
+                point=space.validate([proposal['parameters'][s.name] for s in space.specs])
+                key=candidate_key(point,space.profile,signatures)
+            except (ValueError,TypeError):
+                require(kind=='cost','invalid WarmStart candidate was evaluated')
+                equal({k:v for k,v in event.items() if k not in ('type','timestamp_utc')},
+                    {'event_id':f'screen:{n+1}:{index}','kind':'screening_rejected','reason':'invalid_candidate'},
+                    'WarmStart invalid-candidate screening differs');continue
+            if key in seen:
+                require(kind=='cost','duplicate WarmStart candidate was evaluated')
+                equal({k:v for k,v in event.items() if k not in ('type','timestamp_utc')},
+                    {'event_id':f'cache:{n+1}:{index}','kind':'cache_hit','phase':'warmstart'},
+                    'WarmStart duplicate cost differs');continue
+            require(kind=='evaluation','valid unique WarmStart candidate was not evaluated in reply order')
+            record=by_id[event['evaluation_id']]
+            equal(record.parameters,point,'WarmStart evaluated parameters differ from formal reply')
+            require(event.get('cached') is False,'unique WarmStart candidate falsely marked cached')
+            seen.add(key);processed.append(record)
+        require(cursor==len(actual),'WarmStart screening results have no corresponding reply candidate')
+    equal(sorted(screening_ids),sorted(e['relative'] for e in events if e.get('type')=='electrothermal_evaluation_saved'
+        and e.get('phase')=='warmstart_screening'),'orphan WarmStart screening evaluation')
+    equal(selection['pool_ids'],sorted(r.evaluation_id for r in processed if r.complete_pair_valid),'WarmStart pool provenance differs')
+    equal(selection['returned_candidates'],returned,'WarmStart returned candidate count differs')
+    equal(selection['evaluations'],len(processed),'WarmStart evaluation count differs')
+    equal(selection['requests'],len(warm),'WarmStart request count differs')
+    require(len(warm)<=settings['max_requests'] and len(processed)<=settings['max_evaluations'],
+            'WarmStart processing exceeded configured budgets')
+
+
 def audit_electrothermal_run(run_directory,*,deep=False):
     root=Path(run_directory).resolve();issues=[];checks=[]
     def read(name):return json.loads((root/name).read_text(encoding='utf8'))
@@ -84,6 +156,13 @@ def audit_electrothermal_run(run_directory,*,deep=False):
         summary=read('electrothermal-summary.json');equal(summary['costs'],ledger.summary(),'summary costs differ');checks.append('actual_cache_screening_request_costs')
         from .electrothermal_requests import request_controls,completion_summary
         transport_kind=cfg['llm'].get('transport','openai_chat_completions')
+        if transport_kind=='openai_responses':
+            request_ids={int(p.name.split('.')[0]) for p in (root/'llm').glob('*.payload.json')}
+            outcome_ids={int(p.name.split('.')[0]) for p in (root/'llm').glob('*.outcome.json')}
+            equal(sorted(request_ids),sorted(outcome_ids),'Responses request/outcome coverage differs')
+            equal(sorted(request_ids),list(range(len(request_ids))),'Responses request ordinals are not contiguous')
+            equal(sorted(request_ids),sorted(int(e['event_id'].split(':')[1]) for e in cost_events.values()
+                if e['kind'] in ('llm_request','mock_llm_request')),'Responses request/cost coverage differs')
         controlled=False
         for file in sorted((root/'llm').glob('*.outcome.json')):
             outcome=json.loads(file.read_text(encoding='utf8'));controls=request_controls(cfg,outcome['task'])
@@ -169,11 +248,15 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                     equal(supervision.get('thinking'),controls['thinking'],'supervised thinking control differs')
                     equal(request.get('max_tokens'),controls['max_tokens'],'sent output ceiling differs')
                     equal(supervision.get('configured_timeout_s'),controls['timeout_s'],'supervised timeout differs')
-                if response.exists() and ('thinking' in controls or 'completion' in outcome or 'completion' in supervision):
+                if response.exists() and (transport_kind=='openai_responses' or 'thinking' in controls or 'completion' in outcome or 'completion' in supervision):
                     expected=completion_summary(json.loads(response.read_text(encoding='utf8')),controls['max_tokens'],transport=transport_kind)
                     equal(outcome.get('completion'),expected,'completion evidence differs from raw response')
                     equal(supervision.get('completion'),expected,'supervised completion evidence differs');controlled=True
         if controlled:checks.append('LLM_sent_controls_and_raw_completion_evidence')
+        if transport_kind=='openai_responses':
+            _audit_responses_warmstart(root,cfg=cfg,space=space,dataset=dataset,signatures=signatures,
+                events=events,by_id=by_id,read=read,require=require,equal=equal)
+            checks.append('Responses_reply_to_WarmStart_screening_provenance')
         round_files=sorted((root/'mo-rounds').glob('*.json'))
         if manifest['command']=='electrothermal multiobjective BO' or 'BO_rounds' in summary or round_files:
             require((root/'initialization.json').is_file(),'required MO initialization archive is missing')
@@ -246,7 +329,20 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                         else:
                             require(outcome.get('reason')!='no_eligible_alternative','false no-alternative skip')
                             if outcome['status']=='skipped':
-                                require(outcome.get('reason') in ('disabled','global_budget','task_budget','missing_mock_transport'),'invalid active Region skip reason')
+                                allowed=('disabled','global_budget','task_budget','missing_mock_transport')
+                                if transport_kind=='openai_responses':allowed+=('missing_credential',)
+                                require(outcome.get('reason') in allowed,'invalid active Region skip reason')
+                                if outcome.get('reason')=='missing_credential':
+                                    require(cfg['llm']['enabled'] is True and cfg['budgets']['max_llm_requests']>0
+                                        and outcome.get('http_request_started') is False and outcome.get('hard_deadline_enforced') is False,
+                                        'invalid missing-credential request flags or configuration')
+                                    require(any(e.get('type')=='electrothermal_llm_skipped'
+                                        and e.get('context_id')==saved['context_id'] and e.get('reason')=='missing_credential' for e in events),
+                                        'missing-credential skip event is absent')
+                                    require(not any(e.get('phase')=='region_preference_electrothermal'
+                                        and read(f'llm/{int(e["event_id"].split(":")[1]):06d}.payload.json').get('context_id')==saved['context_id']
+                                        for e in cost_events.values() if e['kind'] in ('llm_request','mock_llm_request')),
+                                        'missing-credential skip has a request cost')
                             if outcome.get('status') in ('received','failed'):require('ordinal' in outcome,'Region request is missing ordinal')
                     if outcome is not None:
                         equal(outcome.get('context_id'),saved['context_id'],'request outcome context differs')
@@ -374,9 +470,9 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                                             require(catalog_archival_json(provider)==catalog_archival_json(proposed),
                                                 'formal catalog reply differs from HTTP response')
                                     else:require(not needs_reply,'catalog HTTP formal reply is missing')
-                            if opt.get('region_proposal','bounds_v1')!='catalog_v1' and cfg['llm'].get('region_wire_format','full_v1')=='compact_v1' and outcome.get('hard_deadline_enforced') and outcome.get('http_request_started'):
+                            if opt.get('region_proposal','bounds_v1')!='catalog_v1' and (transport_kind=='openai_responses' or cfg['llm'].get('region_wire_format','full_v1')=='compact_v1') and outcome.get('hard_deadline_enforced') and outcome.get('http_request_started'):
                                 from .electrothermal_region_wire import region_wire_payload,decode_region_wire
-                                require(payload.get('region_wire_format')=='compact_v1','compact Region payload marker differs')
+                                if cfg['llm'].get('region_wire_format','full_v1')=='compact_v1':require(payload.get('region_wire_format')=='compact_v1','compact Region payload marker differs')
                                 artifact=payload['artifact_task'];wire=region_wire_payload(payload)
                                 request=read('http/'+artifact+'.request.json')['body']
                                 if transport_kind=='openai_responses':
