@@ -265,15 +265,17 @@ def run_mode(cache,tmp_path_factory,mode):
         cfg['optimization'].update(region_evidence='dynamic_decision_v3',region_proposal='catalog_v1',
             region_advice='candidate_aware_v1',region_selection='fair_region_v1',mode=mode if mode in ('parego','warmstart_only') else 'full_llmbo_mo')
         cfg['optimization']['region'].update(max_plain_log_ei_gap=100.,min_sigma_ratio=0.)
-        if mode=='compact':cfg['llm']['region_wire_format']='compact_v1'
+        if mode in ('compact','wirefail'):cfg['llm']['region_wire_format']='compact_v1'
         class Advice:
             def post(self,sent):
+                if mode=='wirefail':raise ValueError('offline injected protocol error')
                 region={'kind':'none' if mode=='none' else 'region','coordinate_space':'normalized','confidence':.9,'reason':'offline catalog fixture',
                         'proposal_binding':sent['proposal_binding']}
                 if region['kind']=='region':region.update(region_id=sent['region_catalog']['entries'][0]['region_id'],
                     evidence_ids=[sent['history'][0]['evaluation_id']])
                 if mode=='nan':region['confidence']=float('nan')
                 if mode=='secret':region['reason']='sk-fixture-credential000000'
+                if mode=='tuple':region['evidence_ids']=tuple(region['evidence_ids'])
                 response={k:deepcopy(sent[k]) for k in ('schema_version','parameter_profile','fit_rates','signatures','context_id')}|{'region':region}
                 if mode=='mutation_old_reply':sent['history'][0]['transport_changed']=True
                 return response
@@ -467,3 +469,60 @@ def test_audit_rejects_fully_resigned_catalog_reply_and_canonical_geometry(cache
         assert not report['passed'] and report['issues']==['independently rebuilt catalog request differs']
     finally:
         for path,content in originals.items():path.write_bytes(content)
+
+
+def test_non_json_tuple_reply_is_rejected_and_its_failure_replays(cache,tmp_path_factory):
+    from llmbo_para.electrothermal_audit import audit_electrothermal_run
+    root=Path(run_mode(cache,tmp_path_factory,'tuple')['run_directory'])
+    for path in (root/'llm').glob('*.outcome.json'):
+        assert json.loads(path.read_text())['reason']=='invalid_catalog_response'
+    report=audit_electrothermal_run(root,deep=True)
+    assert report['passed'],report['issues']
+
+
+@pytest.mark.parametrize('kind',['numpy_confidence','list_subclass','dict_subclass'])
+def test_non_json_python_types_cannot_become_valid_during_archival(kind):
+    from llmbo_para.electrothermal_llm import ElectrothermalLLMController
+    module=feature();p=payload();response=reply(p)
+    if kind=='numpy_confidence':response['region']['confidence']=np.float64(.9)
+    elif kind=='list_subclass':response['region']['evidence_ids']=type('ListSubclass',(list,),{})(response['region']['evidence_ids'])
+    else:response=type('DictSubclass',(dict,),{})(response)
+    class Transport:
+        def post(self,sent):return response
+    store=MemoryStore();cfg=config();controller=ElectrothermalLLMController(transport=Transport(),is_mock=True)
+    assert controller.request(p,prepared=SimpleNamespace(config=cfg),store=store,budgets=cfg['budgets'],request_cap=1) is None
+    proposed=json.loads(store.files['llm/000000.catalog-response.json']['response_json'])
+    with pytest.raises(ValueError):module.resolve_catalog_region(proposed,payload=p)
+
+
+@pytest.mark.parametrize('damage',['binding','invalid_json','unfinished','empty','non_object','invalid_type','invalid_completion'])
+def test_http_protocol_failure_is_rederived_even_without_formal_reply(cache,tmp_path_factory,damage):
+    from llmbo_para.electrothermal_audit import audit_electrothermal_run
+    from llmbo_para.electrothermal_region_wire import region_wire_payload
+    root=Path(run_mode(cache,tmp_path_factory,'wirefail')['run_directory']);created=[];good_responses={}
+    try:
+        for path in (root/'llm').glob('*.payload.json'):
+            p=json.loads(path.read_text());wire=region_wire_payload(p)
+            formal={'request_id':wire['request_id'],'region':reply(p)['region']}
+            content=json.dumps(formal);choice={'finish_reason':'stop','message':{'content':content}}
+            good={'choices':[deepcopy(choice)]}
+            if damage=='binding':formal['request_id']='0'*len(wire['request_id']);choice['message']['content']=json.dumps(formal)
+            elif damage=='invalid_json':choice['message']['content']='{'
+            elif damage=='unfinished':choice['finish_reason']='length'
+            elif damage=='empty':choice['message']['content']=''
+            elif damage=='non_object':choice['message']['content']='[]'
+            elif damage=='invalid_type':choice['message']['content']=[]
+            result={'choices':[choice]} if damage!='invalid_completion' else {'choices':[]}
+            request=root/'http'/(p['artifact_task']+'.request.json');response=root/'http'/(p['artifact_task']+'.response.json')
+            request.parent.mkdir(exist_ok=True)
+            request.write_text(json.dumps({'body':{'messages':[
+                {'role':'system','content':wire['instructions']+'\nReturn exactly one JSON object matching the supplied response contract.'},
+                {'role':'user','content':json.dumps({k:v for k,v in wire.items() if k!='instructions'})}]}}));created.append(request)
+            response.write_text(json.dumps(result));created.append(response);good_responses[response]=good
+        report=audit_electrothermal_run(root,deep=True)
+        assert report['passed'],report['issues']
+        # Repair only the response: the old protocol-error claim must now fail.
+        for path,value in good_responses.items():path.write_text(json.dumps(value))
+        assert not audit_electrothermal_run(root,deep=True)['passed']
+    finally:
+        for path in created:path.unlink()

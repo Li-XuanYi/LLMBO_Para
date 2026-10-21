@@ -12,6 +12,15 @@ VERSION = 'region_catalog_v1'
 ENVELOPE = ('schema_version','parameter_profile','fit_rates','signatures','context_id')
 
 
+def catalog_reply_is_json_native(value) -> bool:
+    """Injected transports obey the same native-type boundary as JSON HTTP."""
+    if type(value) is dict:
+        return all(type(k) is str and catalog_reply_is_json_native(v) for k,v in value.items())
+    if type(value) is list:
+        return all(catalog_reply_is_json_native(v) for v in value)
+    return value is None or type(value) in (str,int,float,bool)
+
+
 def catalog_archival_json(value) -> str:
     """Sanitized formal JSON text, including rejected nonfinite diagnostics.
 
@@ -19,9 +28,13 @@ def catalog_archival_json(value) -> str:
     the reason-length validation. This never reads a credential environment.
     """
     def redact(item):
-        if isinstance(item,str):
+        if type(item) not in (dict,list,str,int,float,bool,type(None)):
+            return {'__rejected_python_type__':type(item).__name__}
+        if type(item) is str:
             return re.sub(r'sk-[A-Za-z0-9_-]{8,}',lambda m:'*'*len(m[0]),item)
-        if isinstance(item,dict):
+        if type(item) is dict:
+            if any(type(k) is not str for k in item):
+                return {'__rejected_python_type__':'non_string_object_key'}
             result={};reserved=set(item)
             for name,child in sorted(item.items(),key=lambda pair:str(pair[0])):
                 public=redact(name) if isinstance(name,str) else name
@@ -33,10 +46,28 @@ def catalog_archival_json(value) -> str:
                 result[public]=('[REDACTED]' if str(name).lower() in
                     {'authorization','api_key','access_token','secret'} else redact(child))
             return result
-        if isinstance(item,(list,tuple)):
+        if type(item) is list:
             return [redact(child) for child in item]
         return item
     return json.dumps(redact(value),ensure_ascii=False,sort_keys=True,allow_nan=True)
+
+
+def decode_catalog_http_response(value, *, payload: dict) -> tuple[dict | None,str | None]:
+    """Independently replay completion/JSON/wire failure from archived HTTP."""
+    issue='invalid_completion'
+    try:
+        choice=value['choices'][0]
+        if choice.get('finish_reason')!='stop':return None,'unfinished_completion'
+        content=choice['message']['content']
+        if content is None or isinstance(content,str) and not content.strip():return None,'empty_content'
+        if not isinstance(content,str):return None,'invalid_content_type'
+        issue='invalid_json';decoded=json.loads(content)
+        if not isinstance(decoded,dict):return None,'non_object_content'
+        issue='invalid_binding'
+        from .electrothermal_region_wire import decode_region_wire
+        return decode_region_wire(decoded,payload),None
+    except (KeyError,IndexError,TypeError,ValueError,AttributeError):
+        return None,issue
 
 
 def _entry_id(context_id, entry):

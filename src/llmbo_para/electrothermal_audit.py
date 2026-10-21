@@ -239,7 +239,7 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                             if opt.get('region_proposal')=='catalog_v1':
                                 from types import SimpleNamespace
                                 from .electrothermal_llm import build_electrothermal_payload
-                                from .electrothermal_region_catalog import catalog_proposal_binding,catalog_region_contract,resolve_catalog_region,catalog_archival_json
+                                from .electrothermal_region_catalog import catalog_proposal_binding,catalog_region_contract,resolve_catalog_region,catalog_archival_json,decode_catalog_http_response
                                 from .electrothermal_region_wire import region_wire_payload,decode_region_wire
                                 expected=build_electrothermal_payload('region_preference_electrothermal',
                                     prepared=SimpleNamespace(config=cfg,space=space,dataset=dataset,signatures=signatures),
@@ -286,12 +286,19 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                                     equal(json.loads(request['messages'][1]['content']),{k:v for k,v in wire.items() if k!='instructions'},'catalog HTTP request differs')
                                     instructions=wire['instructions']+('\nReturn exactly one JSON object matching the supplied response contract.' if cfg['llm']['json_mode'] else '')
                                     equal(request['messages'][0]['content'],instructions,'catalog HTTP instructions differ')
-                                    if needs_reply:
-                                        choice=read('http/'+artifact+'.response.json')['choices'][0]
-                                        require(choice.get('finish_reason')=='stop','catalog completion unfinished')
-                                        provider=decode_region_wire(json.loads(choice['message']['content']),expected)
-                                        require(catalog_archival_json(provider)==catalog_archival_json(proposed),
-                                            'formal catalog reply differs from HTTP response')
+                                    http_response=root/'http'/(artifact+'.response.json')
+                                    if http_response.exists():
+                                        provider,issue=decode_catalog_http_response(read('http/'+artifact+'.response.json'),payload=expected)
+                                        if outcome.get('reason')=='protocol_error':
+                                            require(outcome['status']=='failed' and issue is not None,'claimed catalog protocol failure contradicts HTTP reply')
+                                            if 'protocol_issue' in outcome:equal(outcome['protocol_issue'],issue,'catalog protocol failure category differs')
+                                            parse_error=root/'http'/(artifact+'.parse-error.json')
+                                            if parse_error.exists():equal(read('http/'+artifact+'.parse-error.json')['protocol_issue'],issue,'catalog parse error differs from HTTP reply')
+                                        if needs_reply:
+                                            require(issue is None,'catalog HTTP completion or binding differs')
+                                            require(catalog_archival_json(provider)==catalog_archival_json(proposed),
+                                                'formal catalog reply differs from HTTP response')
+                                    else:require(not needs_reply,'catalog HTTP formal reply is missing')
                             if opt.get('region_proposal','bounds_v1')!='catalog_v1' and cfg['llm'].get('region_wire_format','full_v1')=='compact_v1' and outcome.get('hard_deadline_enforced') and outcome.get('http_request_started'):
                                 from .electrothermal_region_wire import region_wire_payload,decode_region_wire
                                 require(payload.get('region_wire_format')=='compact_v1','compact Region payload marker differs')

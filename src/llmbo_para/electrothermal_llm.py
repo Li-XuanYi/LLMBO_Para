@@ -230,9 +230,11 @@ class ElectrothermalLLMController:
                 try:
                     # A JSON string preserves malformed NaN formal replies for
                     # diagnostic replay without placing NaN in the archive JSON.
-                    from .electrothermal_region_catalog import resolve_catalog_region,catalog_archival_json
+                    from .electrothermal_region_catalog import resolve_catalog_region,catalog_archival_json,catalog_reply_is_json_native
                     raw=catalog_archival_json(response)
                     store.write_json(f'llm/{ordinal:06d}.catalog-response.json',{'version':'catalog_response_v1','response_json':raw})
+                    if not catalog_reply_is_json_native(response):
+                        raise ValueError('catalog transport must return native JSON types')
                     if json.dumps(sent_payload,sort_keys=True,allow_nan=True)!=json.dumps(json.loads(frozen_request),sort_keys=True):
                         store.write_json(f'llm/{ordinal:06d}.catalog-mutation.json',
                             {'version':'catalog_mutation_v1','sent_payload_json':catalog_archival_json(sent_payload)})
