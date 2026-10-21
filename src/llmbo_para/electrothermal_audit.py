@@ -248,6 +248,11 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                                 expected['proposal_binding']=catalog_proposal_binding(expected)
                                 expected['response_contract']['properties']['region']=catalog_region_contract(expected)
                                 expected['artifact_task']=expected['task']+'_request_'+'a'*(n+1)
+                                # Rebuild the exact JSON-native request frozen by
+                                # the controller, before comparing clone or wire
+                                # evidence. Scientific host values may be tuples
+                                # or NumPy scalars; model replies remain strict.
+                                expected=json.loads(canonical_json(expected))
                                 equal(payload,expected,'independently rebuilt catalog request differs')
                                 raw_path=root/f'llm/{n:06d}.catalog-response.json'
                                 resolution_path=root/f'llm/{n:06d}.catalog-resolution.json'

@@ -32,4 +32,10 @@ host对原有eligible候选提供三种受限宽度，以稳定ID表达几何，
 
 ## 当前限制与剩余工作
 
-A1/A2代码及独立任务补审已完成。A2最终相关回归215/215通过、失败/错误/跳过0、退出0、202.64秒（tests/region-catalog-final-related-1021015653783594）；包含76项新目录测试。独立初审、补审与安全关闭报告位于证据根目录task2-review*.md/json；已确认问题全部关闭。最终全量尚待完成，不将历史530或针对性结果冒充最终全量。新版本真实API响应、DFN收益、参数唯一恢复和实测辨识均未验证；旧3C及既有失败/负结果保持原样。
+A1/A2代码及独立任务补审已完成。A2任务回归215/215通过、失败/错误/跳过0、退出0、202.64秒（tests/region-catalog-final-related-1021015653783594）；该任务当时包含76项新目录测试。独立初审、补审与安全关闭报告位于证据根目录task2-review*.md/json；原问题全部关闭。
+
+fresh-context全分支审阅另发现：协议失败的紧凑HTTP回复未重放，以及mock的tuple被JSON归档变为list后不能诚实重放。主审将后者也按Important处理，在同一修复阶段补齐失败测试。RED8/8失败（dynamic-catalog-final-review-red-1021020955971524）及Python类型RED3/3失败（catalog-python-type-red-1021021111954180），错误0、退出1；最小修复11/11通过、退出0（dynamic-catalog-final-review-green-1021021204513896）。现在对HTTP协议失败也独立检查结束状态、正式JSON及wire绑定；tuple/NumPy标量/容器子类等非原生JSON回复保留拒绝类型标记，不能在归档后成为合法候选。
+
+随后全量发现两项本轮引入的请求侧JSON重建回归；定向5项RED为2失败/3通过、错误0、退出1（catalog-request-json-regression-red-1021022543828300）。修复为按controller相同的canonical JSON边界规范化host重建请求，模型回复仍严格校验。完整相关回归226/226通过、失败/错误/跳过0、退出0、297.20秒（dynamic-catalog-fix-complete-related-1021022655629455）。各次网络/电池/非电池solve均0。
+
+两次尚未完成的全量均中断保留（dynamic-catalog-final-1021020109293914、dynamic-catalog-final-verified-1021021317275670），exec退出1，没有完整JUnit/总计，均不计通过。最终全量仍待新运行完成后补记。不将历史530或针对性结果冒充最终全量。新版本真实API响应、DFN收益、参数唯一恢复和实测辨识均未验证；旧3C及既有失败/负结果保持原样。
