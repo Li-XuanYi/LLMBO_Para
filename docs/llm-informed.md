@@ -177,3 +177,15 @@ GP、原方差、训练标签、真实目标、权重生命周期、EI/Lift强�
 各U/T通道保持自己的观测网格。动态点不超过8个时全部展示；更多时展示8个确定的实际索引及原时间。dynamic_sample_mean始终为全部非初始观测残差的等样本均值，不是时间积分或斜率；被省略的点仍参与。残差为prediction−observation，显示8有效位，温度不再次换算。initial-only的动态均值为null，真实正负抵消得到的零均值仍标dynamic。完整曲线RMSE及GP训练、方差、选点规则不改。
 
 独立英文Prompt解释稀疏证据的限度，但不根据样本数量断言不可辨识或强制弃权。新模式独立签名和审计；从原始归档曲线/观测、冻结历史重建起点、全部动态均值、展示索引及历史顺序。旧模式/Prompt/缓存拒绝条件保留。软件通过不代表新Prompt的真实行为或RMSE/HV增益，后者仍未验证。
+
+### 请求绑定的区域目录（A2）
+
+可选`optimization.region_proposal="catalog_v1"`要求dynamic_decision_v3、candidate_aware_v1及fair_region_v1；缺省bounds_v1保留旧坐标回复。host只从原有最多12条候选摘要中的eligible替代点构造目录，每点使用min_width的1/2/4倍、由max_width封顶且去重。六轴区间在边界整体平移入[0,1]，最多33项；不新增候选点、不排序奖励、不保证锚点物理可行。
+
+新独立英文Prompt让LLM选择一个region_id并引用1–3个已发送的过去evaluation_id，或返回none。模型不能输出或修补坐标。region_id绑定版本/context/candidate/lb/ub；catalog_digest绑定有序目录；proposal_binding绑定整个冻结专业请求，仅排除artifact_task、response_contract及自身以避免循环。完整与紧凑传输都必须返回proposal_binding，none也不例外。旧维数相同的回复、跨倍率/权重/尺度/历史/Prompt的回复不能重用。
+
+resolver严格验证键集合、类型、有限置信度、历史ID和绑定，从host目录逐字复制坐标，输出旧canonical envelope。原Lift、后验方差、真实标签、训练集、EI、信任反馈及fair门槛不变；同一冻结上下文和规范矩形的数值输出与旧bounds控制完全相等。无合格替代点时原控制逻辑仍跳过请求。
+
+controller保留私有序列化请求，只向transport传递独立深拷贝。正式回复另存脱敏JSON文本，非法NaN可作为文本保留用于失败重放，不能进入优化；键和值中的token形文本均遮罩且不合并键。transport修改clone时另存独立证据并单次失败回退，不自动重试。审计从冻结历史、曲线、候选池及配置独立重建完整请求、目录和回复契约，再核对正式回复、resolution、HTTP full/compact封套和canonical结果；不信任自洽重签的派生摘要或失败标志。
+
+本轮只验证接口与软件行为，真实API、DFN和实测预算均0。下一步真实契约预检与独立验证种子的配对实验须另立协议；既有负结果和开发诊断种子101/211/307保留，不将目录采纳率视为RMSE/HV增益。详细证据见`docs/audits/region-dynamic-catalog-2026-10-20.md`。

@@ -119,8 +119,8 @@
 
 **Interfaces:** consumes Task1的新payload、已有`build_region_candidate_advice`和`InformedSettings`；produces共同契约的catalog/contract/resolver。resolver输出旧canonical envelope供原apply_electrothermal_region使用。
 
-- [ ] **Step 1: 写失败测试。** `test_catalog_is_deterministic_and_contains_no_plain_entry`核对版本/精确宽度/边界平移/稳定ID/最大33项；min=max时每候选只有1项；配置max夹断后重复宽度不重复。目录内没有confidence或声称物理更优的字段。
-- [ ] **Step 2: 写回复/隔离失败测试。** 测试合法ID、none、低confidence、NaN/bool/字符串confidence、未知/跨context ID、改目录坐标、错历史ID、重复或超过3个证据ID、附带lb/ub、旧六维回复、错profile/fit_rates/签名、未知配置；full和compact传输都必须通过其原严格封套。另测删/改proposal_binding、只改动态残差或Prompt、transport原地改payload时拒绝受污染绑定，不能以context_id未变就接受。
+- [x] **Step 1: 写失败测试。** `test_catalog_is_deterministic_and_contains_no_plain_entry`核对版本/精确宽度/边界平移/稳定ID/最大33项；min=max时每候选只有1项；配置max夹断后重复宽度不重复。目录内没有confidence或声称物理更优的字段。
+- [x] **Step 2: 写回复/隔离失败测试。** 测试合法ID、none、低confidence、NaN/bool/字符串confidence、未知/跨context ID、改目录坐标、错历史ID、重复或超过3个证据ID、附带lb/ub、旧六维回复、错profile/fit_rates/签名、未知配置；full和compact传输都必须通过其原严格封套。另测删/改proposal_binding、只改动态残差或Prompt、transport原地改payload时拒绝受污染绑定，不能以context_id未变就接受。
 
   ```python
   canonical, resolution = resolve_catalog_region(reply, payload=payload)
@@ -129,12 +129,12 @@
   assert resolution['proposal_binding'] == payload['proposal_binding']
   assert set(canonical['region']) == {'kind', 'coordinate_space', 'confidence', 'reason', 'lb', 'ub'}
   ```
-- [ ] **Step 3: 执行RED。** 新catalog测试应因缺模块/未支持配置失败；保存日志/JUnit/退出码，错误原因应落在新契约。
-- [ ] **Step 4: 最小实现目录/回复契约/resolver及payload/controller分派。** 目录选点仅改提议编码；所有新Prompt200–300词，原Prompt字节不变。request中解析失败发生在finally前，outcome/round/成本保持一致；同一个失败请求不自动重发。无eligible不请求。
-- [ ] **Step 5: 守卫与数值不变测试。** 在同一冻结上下文和同一规范矩形下，旧bounds与ID映射得到相同锚点、raw shift、fair baseline、选点及反馈；物理锚点拒绝、合法region但fair拒绝、same_as_plain和none仍可出现，不以提高采纳率为验收。新旧配置运行身份不同，不能直接要求context hash相同。
-- [ ] **Step 6: 独立审计及篡改测试。** 从冻结pool/advice/history重建目录，核对resolution/真实HTTP回复或mock结构证据/规范矩形；独立重建response_contract并逐项核对，不能因其被循环散列规则排除就允许篡改。共同改ID与矩形、目录顺序、confidence、evidence IDs、历史删行、wire binding或请求ordinal均应拒绝。以原始曲线重算Task1信息，避免多个存档摘要共同篡改绕过。
-- [ ] **Step 7: GREEN与相关回归。** 新catalog测试及`test_region_json_wire.py`、`test_region_request_policy.py`、`test_region_failure_audit.py`、`test_region_fairness.py`、`test_region_decision_evidence.py`。mock完整流程分别运行ParEGO、WarmStart-only、Full-none和合法ID，0真实网络/0DFN；旧配置/旧缓存签名仍严格。
-- [ ] **Step 8: 独立审阅后显式提交。** 建议commit主题`feat: add request-bound Region catalog proposals`。保存解析成功、失败和守卫拒绝的全部正负证据，不把mock表现称为真实优化增益。
+- [x] **Step 3: 执行RED。** 新catalog测试应因缺模块/未支持配置失败；保存日志/JUnit/退出码，错误原因应落在新契约。
+- [x] **Step 4: 最小实现目录/回复契约/resolver及payload/controller分派。** 目录选点仅改提议编码；所有新Prompt200–300词，原Prompt字节不变。request中解析失败发生在finally前，outcome/round/成本保持一致；同一个失败请求不自动重发。无eligible不请求。
+- [x] **Step 5: 守卫与数值不变测试。** 在同一冻结上下文和同一规范矩形下，旧bounds与ID映射得到相同锚点、raw shift、fair baseline、选点及反馈；物理锚点拒绝、合法region但fair拒绝、same_as_plain和none仍可出现，不以提高采纳率为验收。新旧配置运行身份不同，不能直接要求context hash相同。
+- [x] **Step 6: 独立审计及篡改测试。** 从冻结pool/advice/history重建目录，核对resolution/真实HTTP回复或mock结构证据/规范矩形；独立重建response_contract并逐项核对，不能因其被循环散列规则排除就允许篡改。共同改ID与矩形、目录顺序、confidence、evidence IDs、历史删行、wire binding或请求ordinal均应拒绝。以原始曲线重算Task1信息，避免多个存档摘要共同篡改绕过。
+- [x] **Step 7: GREEN与相关回归。** 新catalog测试及`test_region_json_wire.py`、`test_region_request_policy.py`、`test_region_failure_audit.py`、`test_region_fairness.py`、`test_region_decision_evidence.py`。mock完整流程分别运行ParEGO、WarmStart-only、Full-none和合法ID，0真实网络/0DFN；旧配置/旧缓存签名仍严格。
+- [x] **Step 8: 独立审阅后显式提交。** 建议commit主题`feat: add request-bound Region catalog proposals`。保存解析成功、失败和守卫拒绝的全部正负证据，不把mock表现称为真实优化增益。
 
 ## Task 3: 全量软件验收与可审阅的下一步协议
 
@@ -142,7 +142,7 @@
 
 **Interfaces:** consumes Task1/2提交、源码签名和新测试档案；produces实际验收报告、显式变更清单、sealed SHA及默认0资源的后续协议草案。
 
-- [ ] **Step 1: 新基线。** 实施Task1前先在计划提交后的干净树运行一次全量守护测试；记录总数/通过/失败/错误/跳过/退出码。与历史530仅作诊断比较，任何失败区分既有、环境或新引入。
+- [x] **Step 1: 新基线。** 实施Task1前先在计划提交后的干净树运行一次全量守护测试；记录总数/通过/失败/错误/跳过/退出码。与历史530仅作诊断比较，任何失败区分既有、环境或新引入。
 - [ ] **Step 2: 最终新全量。** Task1/2针对性检查通过后，用新label运行整个tests。软件允许有限维/代数mock与非电池进程fixture；禁止真实DFN及外部API。报告实际耗时、线程设置和BoundaryGuard计数。
 - [ ] **Step 3: 只读兼容与保护。** 选择已封存旧电热档案按原来源审计，不重签或改写；复核旧电压相关回归、旧Prompt和原数值模块hash。旧审计若GP.from_state调用fit(max_sweeps=0)，分别报告fit方法次数与超参数搜索0，不宣称fit方法0。主工程status/index/Method/123受保护文件保持。
 - [ ] **Step 4: 结果报告。** 验收单列代码完成/软件通过/真实API行为未验证/真实DFN增益未验证/实测未开展。归档每个任务RED和GREEN及最终JUnit、退出码、commit、源码指纹、审阅和完整成本。只用显式文件清单提交。
@@ -184,6 +184,6 @@ $etManager = 'D:\Users\aa133\Desktop\LLMBO_Para\bo-repair-work\20261017_et_imple
 - [x] 用户批准本具体软件计划（直接答复：批准 A1→A2 软件实施）。
 - [ ] 新基线、任务实现、RED/GREEN、最终全量及任何真实性能验证。
 
-实施进度：已获直接批准并完成新基线530/530；A1完成52项新测试及最终相关114/114、独立审阅和证据。A2与最终全量待执行，API/DFN仍0；软件fixture包含GP拟合，不宣称本轮GP拟合为0。Windows测试薄适配器沿用manage.py守护逻辑，仅绑定本计划独立LEDGER；首次缺__main__重入中断及修复重跑记录完整保留。
+实施进度：已获直接批准并完成新基线530/530；A1完成52项新测试及最终相关114/114、独立审阅和证据。A2已完成76项新测试及最终相关215/215（退出0、202.64秒）、审阅问题均关闭；最终全量待执行，API/DFN仍0；软件fixture包含GP拟合，不宣称本轮GP拟合为0。Windows测试薄适配器沿用manage.py守护逻辑，仅绑定本计划独立LEDGER；首次缺__main__重入中断及修复重跑记录完整保留。
 
 独立审阅位于`D:/Users/aa133/Desktop/LLMBO_Para/bo-repair-work/20261017_et_implementation/literature-design-20261020-plan-review/`：`final-plan-math.json/md`、`final-plan-data.json/md`均PASS、未解决阻断0，审阅主体快照SHA为`5dcf7a29cce8397d8da41a7b04d606b8e1fc11e28f00e4e713517f1e662d6511`。其后主审仅补强运行时类型/response_contract独立核对要求及进度状态，没有改变数据或数值设计。主审自检已覆盖规格、步骤粒度、前后接口、五类Review Focus和计划范围；没有将B的未决参数带入A实施。

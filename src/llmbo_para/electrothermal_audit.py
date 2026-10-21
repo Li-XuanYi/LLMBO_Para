@@ -228,7 +228,7 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                                     if opt.get('region_evidence')=='dynamic_decision_v3':
                                         from .electrothermal_dynamic_evidence import dynamic_evidence_contract
                                         equal(payload.get('dynamic_history_evidence'),dynamic_evidence_contract(),'dynamic residual evidence contract differs')
-                                        prompt='region_preference_dynamic_electrothermal'
+                                        prompt='region_preference_catalog_electrothermal' if opt.get('region_proposal')=='catalog_v1' else 'region_preference_dynamic_electrothermal'
                                 equal(payload['instructions'],(root/('source/src/llmbo_para/prompts/'+prompt+'.txt')).read_text(encoding='utf8'),'signed evidence prompt differs')
                             if advice_mode=='candidate_aware_v1':
                                 require(n not in region_request_references,'Region request referenced more than once')
@@ -236,7 +236,63 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                                 equal(payload['candidate_advice'],advice,'request candidate advice differs')
                                 equal(payload['region_requirements'],candidate_region_requirements(settings,selection_mode=selection_mode),'request Region gates differ')
                                 equal(payload['signatures'],asdict(signatures),'request signatures differ')
-                            if cfg['llm'].get('region_wire_format','full_v1')=='compact_v1' and outcome.get('hard_deadline_enforced') and outcome.get('http_request_started'):
+                            if opt.get('region_proposal')=='catalog_v1':
+                                from types import SimpleNamespace
+                                from .electrothermal_llm import build_electrothermal_payload
+                                from .electrothermal_region_catalog import catalog_proposal_binding,catalog_region_contract,resolve_catalog_region,catalog_archival_json
+                                from .electrothermal_region_wire import region_wire_payload,decode_region_wire
+                                expected=build_electrothermal_payload('region_preference_electrothermal',
+                                    prepared=SimpleNamespace(config=cfg,space=space,dataset=dataset,signatures=signatures),
+                                    history=history,context=c)
+                                expected['instructions']=(root/'source/src/llmbo_para/prompts/region_preference_catalog_electrothermal.txt').read_text(encoding='utf8')
+                                expected['proposal_binding']=catalog_proposal_binding(expected)
+                                expected['response_contract']['properties']['region']=catalog_region_contract(expected)
+                                expected['artifact_task']=expected['task']+'_request_'+'a'*(n+1)
+                                equal(payload,expected,'independently rebuilt catalog request differs')
+                                raw_path=root/f'llm/{n:06d}.catalog-response.json'
+                                resolution_path=root/f'llm/{n:06d}.catalog-resolution.json'
+                                mutation_path=root/f'llm/{n:06d}.catalog-mutation.json'
+                                needs_reply=outcome['status']=='received' or outcome.get('reason')=='invalid_catalog_response'
+                                if needs_reply:
+                                    raw=read(f'llm/{n:06d}.catalog-response.json')
+                                    require(set(raw)=={'version','response_json'} and raw['version']=='catalog_response_v1'
+                                        and isinstance(raw['response_json'],str),'formal catalog reply evidence missing')
+                                    proposed=json.loads(raw['response_json'])
+                                    if mutation_path.exists():
+                                        mutation=read(f'llm/{n:06d}.catalog-mutation.json')
+                                        require(set(mutation)=={'version','sent_payload_json'} and mutation['version']=='catalog_mutation_v1'
+                                            and isinstance(mutation['sent_payload_json'],str),'invalid transport mutation evidence')
+                                        sent_clone=json.loads(mutation['sent_payload_json'])
+                                        require(isinstance(sent_clone,dict),'transport clone must remain a request object')
+                                        require(catalog_archival_json(sent_clone)!=catalog_archival_json(expected),
+                                            'transport mutation evidence does not show a changed request')
+                                    try:
+                                        if mutation_path.exists():
+                                            raise ValueError('transport mutated the frozen catalog request')
+                                        canonical,resolution=resolve_catalog_region(proposed,payload=expected)
+                                    except ValueError:
+                                        require(outcome['status']=='failed' and outcome['reason']=='invalid_catalog_response'
+                                            and event['region']['response'] is None and not resolution_path.exists(),'invalid catalog reply was not rejected')
+                                    else:
+                                        require(outcome['status']=='received','valid catalog reply has unexplained failure')
+                                        equal(read(f'llm/{n:06d}.catalog-resolution.json'),resolution,'catalog resolution differs from original reply')
+                                        canonical['region']['reason']='structured_region_response'
+                                        equal(event['region']['response'],canonical,'canonical catalog response differs')
+                                else:
+                                    require(not raw_path.exists() and not resolution_path.exists() and not mutation_path.exists(),'orphan catalog reply or resolution')
+                                artifact=expected['artifact_task']
+                                if (root/'http'/(artifact+'.request.json')).exists():
+                                    wire=region_wire_payload(expected);request=read('http/'+artifact+'.request.json')['body']
+                                    equal(json.loads(request['messages'][1]['content']),{k:v for k,v in wire.items() if k!='instructions'},'catalog HTTP request differs')
+                                    instructions=wire['instructions']+('\nReturn exactly one JSON object matching the supplied response contract.' if cfg['llm']['json_mode'] else '')
+                                    equal(request['messages'][0]['content'],instructions,'catalog HTTP instructions differ')
+                                    if needs_reply:
+                                        choice=read('http/'+artifact+'.response.json')['choices'][0]
+                                        require(choice.get('finish_reason')=='stop','catalog completion unfinished')
+                                        provider=decode_region_wire(json.loads(choice['message']['content']),expected)
+                                        require(catalog_archival_json(provider)==catalog_archival_json(proposed),
+                                            'formal catalog reply differs from HTTP response')
+                            if opt.get('region_proposal','bounds_v1')!='catalog_v1' and cfg['llm'].get('region_wire_format','full_v1')=='compact_v1' and outcome.get('hard_deadline_enforced') and outcome.get('http_request_started'):
                                 from .electrothermal_region_wire import region_wire_payload,decode_region_wire
                                 require(payload.get('region_wire_format')=='compact_v1','compact Region payload marker differs')
                                 artifact=payload['artifact_task'];wire=region_wire_payload(payload)

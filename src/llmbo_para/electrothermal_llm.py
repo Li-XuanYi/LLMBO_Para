@@ -7,7 +7,7 @@ import numpy as np
 from .scalarization import augmented_tchebycheff
 from .pareto import pareto_indices
 from .electrothermal_provenance import candidate_key,write_initial_plan,load_initial_plan
-from .runstore import digest_value
+from .runstore import digest_value,canonical_json
 
 
 def warmstart_selection_details(records,*,space,count,objective_scales,rho_aug=.05):
@@ -53,6 +53,7 @@ def build_electrothermal_payload(task,*,prepared,history,context=None):
     is_region=task=='region_preference_electrothermal'
     candidate_aware=is_region and cfg['optimization'].get('region_advice','legacy_v1')=='candidate_aware_v1'
     dynamic_evidence=is_region and cfg['optimization'].get('region_evidence','legacy_v1')=='dynamic_decision_v3'
+    catalog_proposal=is_region and cfg['optimization'].get('region_proposal','bounds_v1')=='catalog_v1'
     decision_evidence=is_region and cfg['optimization'].get('region_evidence','legacy_v1') in ('decision_geometry_v2','dynamic_decision_v3')
     signed_evidence=is_region and cfg['optimization'].get('region_evidence','legacy_v1') in ('signed_residual_v1','decision_geometry_v2','dynamic_decision_v3')
     prompt_name='region_preference_candidate_aware_electrothermal' if candidate_aware else task
@@ -62,6 +63,9 @@ def build_electrothermal_payload(task,*,prepared,history,context=None):
         prompt_name='region_preference_residual_electrothermal'
     if decision_evidence:prompt_name='region_preference_decision_electrothermal'
     if dynamic_evidence:prompt_name='region_preference_dynamic_electrothermal'
+    if catalog_proposal:
+        if not dynamic_evidence:raise ValueError('Region catalog requires dynamic evidence')
+        prompt_name='region_preference_catalog_electrothermal'
     scalar_by_id={}
     if is_region:
         if context is None:raise ValueError('frozen context required for Region request')
@@ -156,6 +160,12 @@ def build_electrothermal_payload(task,*,prepared,history,context=None):
     payload['response_contract']={'type':'object','additionalProperties':False,'required':list(properties),'properties':properties}
     if is_region and cfg['llm'].get('region_wire_format','full_v1')=='compact_v1':
         payload['region_wire_format']='compact_v1'
+    if catalog_proposal:
+        from .electrothermal_region_catalog import build_region_catalog,catalog_proposal_binding,catalog_region_contract
+        payload['region_proposal']='catalog_v1'
+        payload['region_catalog']=build_region_catalog(context,advice=payload['candidate_advice'],settings=settings)
+        payload['proposal_binding']=catalog_proposal_binding(payload)
+        payload['response_contract']['properties']['region']=catalog_region_contract(payload)
     return payload
 
 
@@ -205,14 +215,34 @@ class ElectrothermalLLMController:
         ordinal=self.requests;self.requests+=1;self.task_requests[task]=self.task_requests.get(task,0)+1
         outcome['ordinal']=ordinal
         payload={**payload,'artifact_task':payload['task']+'_request_'+'a'*(ordinal+1)}
+        catalog_proposal=task=='region_preference_electrothermal' and payload.get('region_proposal')=='catalog_v1'
+        frozen_request=canonical_json(payload) if catalog_proposal else None
+        sent_payload=json.loads(frozen_request) if catalog_proposal else payload
         store.ledger.record({'event_id':f'llm:{ordinal}','kind':'mock_llm_request' if self.is_mock else 'llm_request','phase':payload['task']})
         store.write_json(f'llm/{ordinal:06d}.payload.json',payload)
         try:
-            response=transport.post(payload,deadline=execution.deadline if execution is not None else None) if isinstance(transport,BoundedChatCompletionsTransport) else transport.post(payload)
+            response=transport.post(sent_payload,deadline=execution.deadline if execution is not None else None) if isinstance(transport,BoundedChatCompletionsTransport) else transport.post(sent_payload)
             outcome.update(status='received',reason='response_received')
             if isinstance(transport,BoundedChatCompletionsTransport):
                 outcome['http_request_started']=transport.last_request_diagnostic['http_request_started']
                 outcome['effective_timeout_s']=transport.last_request_diagnostic['effective_timeout_s']
+            if catalog_proposal:
+                try:
+                    # A JSON string preserves malformed NaN formal replies for
+                    # diagnostic replay without placing NaN in the archive JSON.
+                    from .electrothermal_region_catalog import resolve_catalog_region,catalog_archival_json
+                    raw=catalog_archival_json(response)
+                    store.write_json(f'llm/{ordinal:06d}.catalog-response.json',{'version':'catalog_response_v1','response_json':raw})
+                    if json.dumps(sent_payload,sort_keys=True,allow_nan=True)!=json.dumps(json.loads(frozen_request),sort_keys=True):
+                        store.write_json(f'llm/{ordinal:06d}.catalog-mutation.json',
+                            {'version':'catalog_mutation_v1','sent_payload_json':catalog_archival_json(sent_payload)})
+                        raise ValueError('transport mutated the frozen catalog request')
+                    response,resolution=resolve_catalog_region(response,payload=json.loads(frozen_request))
+                    store.write_json(f'llm/{ordinal:06d}.catalog-resolution.json',resolution)
+                except (ValueError,TypeError,KeyError,OverflowError):
+                    outcome.update(status='failed',reason='invalid_catalog_response',error_type='ValueError')
+                    store.write_json(f'llm/{ordinal:06d}.error.json',{'error_type':'ValueError','reason':'invalid_catalog_response'})
+                    return None
             return response
         except Exception as exc:
             reason=exc.kind if isinstance(exc,LLMRequestFailure) else 'timeout' if isinstance(exc,TimeoutError) else 'protocol_error' if isinstance(exc,ValueError) else 'transport_error'

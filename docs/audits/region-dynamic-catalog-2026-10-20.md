@@ -18,6 +18,18 @@
 
 A1保留旧signed/decision接口及旧Prompt；新增dynamic_decision_v3、纯只读dynamic模块和独立Prompt。已测试独立U/T时间网格、实际起点、unknown/null、样本抽稀与全动态均值、未来记录拒绝、原后验/标签不变及联合删历史/摘要篡改。真实RMSE仍按全部原观测计算，没有删除初始点或补零。
 
+## A2：请求绑定的有限区域目录
+
+新增electrothermal_region_catalog.py的build_region_catalog、catalog_proposal_binding、catalog_region_contract、resolve_catalog_region及脱敏catalog_archival_json。新增catalog独立Prompt和测试；修改electrothermal_config.py、electrothermal_llm.py、electrothermal_audit.py。新配置region_proposal=catalog_v1需dynamic_decision_v3+candidate_aware_v1+fair_region_v1；原bounds_v1缺省和旧Prompt保留。候选池、标量化、GP/EI/原Lift与守卫没有改变。
+
+host对原有eligible候选提供三种受限宽度，以稳定ID表达几何，模型仅选择ID/过去证据或none。完整专业请求另行绑定，response_contract虽排除循环hash，仍由审计独立重建逐项核对。controller只向transport传clone，私有原请求不受其改写；归档原正式回复（脱敏）、独立resolution及发生污染时的clone证据。审计从可信冻结context/历史重建，而非相信多个派生文件相互吻合。
+
+首批56项RED49失败/7通过、错误0、退出1（region-catalog-red-1020110259926960）；扩充后61项RED54失败/7通过、错误0、退出1（region-catalog-complete-red-1020110438520756）。最小实现及旧相关回归135/135、退出0、129.18秒（region-catalog-green-1020110806896454）。
+
+加固7项RED3失败/4通过，分别复现合法原回复遇transport污染后无法审计、正式回复未脱敏、诚实NaN失败回复在HTTP核对时误报（region-catalog-hardening-red-1020111343865399）；修复后7/7、退出0（region-catalog-hardening-green-1021014353132375）。新增自洽联合篡改测试：重算目录ID、摘要、绑定、回复、resolution及canonical矩形，先确认resolver可解析该派生组合，再确认全审计仅因独立目录重建而拒绝。
+
+进一步对mutation证据本身篡改：4项RED3失败/1通过（region-mutation-proof-red-1021014444811968），修复异常捕获范围后相关211/211、退出0、189.05秒（region-catalog-reviewed-related-1021014520154230）。独立审阅又指出非法JSON键可能夹带token及clone内层类型未验证；新增4项RED全失败（region-catalog-review-security-red-1021014913704844），修复后4/4、退出0（region-catalog-review-security-green-1021015620807560）。全部这些针对性运行网络/电池/非电池solve均0，错误及跳过0；初审与所有失败证据均保留。
+
 ## 当前限制与剩余工作
 
-A1代码与针对性软件验收已完成，独立审阅补审PASS、未解决问题0；全部GP/后验/原数值模块保持。A2目录ID实现和最终全量回归尚未完成，不声明本计划软件验收完成。历史530和A1相关114不冒充最终新全量结果。新版本真实API响应、DFN收益、参数唯一恢复和实测辨识均未验证；旧3C及既有失败/负结果保持原样。
+A1/A2代码及独立任务补审已完成。A2最终相关回归215/215通过、失败/错误/跳过0、退出0、202.64秒（tests/region-catalog-final-related-1021015653783594）；包含76项新目录测试。独立初审、补审与安全关闭报告位于证据根目录task2-review*.md/json；已确认问题全部关闭。最终全量尚待完成，不将历史530或针对性结果冒充最终全量。新版本真实API响应、DFN收益、参数唯一恢复和实测辨识均未验证；旧3C及既有失败/负结果保持原样。

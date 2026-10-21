@@ -99,7 +99,7 @@ def electrothermal_configuration_errors(config):
     if config.get('run_kind') in ('research','synthetic_dfn') and model.get('provider')!='pybamm':errors.append('model.provider must be pybamm for research/synthetic_dfn')
     if model.get('pybamm_version')!='25.10.2':errors.append('locked PyBaMM 25.10.2 required')
     if model.get('options')!={'thermal':'lumped','use lumped thermal capacity':'true','surface temperature':'ambient'}:errors.append('verified lumped thermal options required')
-    opt=section('optimization');strict(opt,('mode','initial_count','total_candidate_budget','seed','gp_sweeps','global_pool_size','local_pool_size','local_radius','max_rate_attempts','parallel_workers','objective_scales','rho_aug','weights','hv_reference','warmstart','region','region_advice','region_selection','region_evidence','initial_plan'),'optimization')
+    opt=section('optimization');strict(opt,('mode','initial_count','total_candidate_budget','seed','gp_sweeps','global_pool_size','local_pool_size','local_radius','max_rate_attempts','parallel_workers','objective_scales','rho_aug','weights','hv_reference','warmstart','region','region_advice','region_selection','region_evidence','region_proposal','initial_plan'),'optimization')
     if opt.get('mode') not in ('parego','warmstart_only','full_llmbo_mo'):errors.append('invalid MO mode')
     if opt.get('region_advice','legacy_v1') not in ('legacy_v1','candidate_aware_v1'):errors.append('invalid Region advice policy')
     if opt.get('region_selection','global_lift_v1') not in ('global_lift_v1','eligible_region_v1','fair_region_v1'):errors.append('invalid Region selection policy')
@@ -108,6 +108,9 @@ def electrothermal_configuration_errors(config):
     if opt.get('region_evidence','legacy_v1') not in ('legacy_v1','signed_residual_v1','decision_geometry_v2','dynamic_decision_v3'):errors.append('invalid Region evidence policy')
     if opt.get('region_evidence') in ('signed_residual_v1','decision_geometry_v2','dynamic_decision_v3') and (opt.get('region_advice')!='candidate_aware_v1' or opt.get('region_selection')!='fair_region_v1'):
         errors.append('signed residual evidence requires candidate-aware fair regional selection')
+    if opt.get('region_proposal','bounds_v1') not in ('bounds_v1','catalog_v1'):errors.append('invalid Region proposal format')
+    if opt.get('region_proposal')=='catalog_v1' and (opt.get('region_evidence')!='dynamic_decision_v3' or opt.get('region_advice')!='candidate_aware_v1' or opt.get('region_selection')!='fair_region_v1'):
+        errors.append('Region catalog requires dynamic candidate-aware fair evidence')
     warm=opt.get('warmstart')
     if not isinstance(warm,dict):errors.append('warmstart must be an object')
     else:
