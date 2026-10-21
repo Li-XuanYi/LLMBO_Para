@@ -4,7 +4,7 @@
 
 ## 范围与来源
 
-沿用电热 4E+2T、多目标算法、动态证据及区域 ID 目录，只增加电热 schema v2 的 HTTP Responses 适配。当前 HEAD 为 `4a2baca273d5cc132340000f16da5ec7bba9ddcc`，已有 Chat 流程及旧封存档案保持。主工程、参考工程和用户的 Codex 全局配置不修改。
+沿用电热 4E+2T、多目标算法、动态证据及区域 ID 目录，只增加电热 schema v2 的 HTTP Responses 适配。设计基线 HEAD 为 `4a2baca273d5cc132340000f16da5ec7bba9ddcc`，已有 Chat 流程及旧封存档案保持。主工程、参考工程和用户的 Codex 全局配置不修改。
 
 用户提供的目标连接：base URL `https://sidrune.ai/v1`；模型必须保持 `deepseek-v4-pro`；鉴权只使用 `SUB2API_API_KEY`。按其 `wire_api="responses"`，项目 POST 目标为 `https://sidrune.ai/v1/responses`。新站可用性、模型权限及协议细节尚未通过网络确认。
 
@@ -14,7 +14,7 @@
 
 电热 `llm` 增加可选 `transport`，缺省解释为现有 `openai_chat_completions`，不回填旧配置、不改变旧配置摘要；新枚举 `openai_responses` 只在 schema v2 使用。未知枚举必须拒绝，schema v1 不新增此枚举。
 
-预期项目片段（产品尚未实现，当前不能据此运行）：
+项目片段（软件适配已实现；下列禁用设置不授权真实调用）：
 
 ```json
 {
@@ -54,6 +54,8 @@ Controller 仅按新配置选择传输。禁用 LLM 或 API 额度为 0 时，�
 
 审计从配置和冻结 payload 重建最终 Responses 请求，核对 endpoint/model/请求 controls/store=false/instructions/input，然后独立解析原始 HTTP response、正式 JSON、compact 绑定、目录 ID/none、resolution、监督诊断和成本。失败回复也必须重放，不能只审计成功结果。旧 Chat 档案继续按旧协议读取，不凭 raw response 的外形猜测传输。
 
+Responses 的 payload、outcome 与请求成本必须逐次覆盖；存在原始回复时，完成摘要为必需证据，不能通过删除摘要绕过核验。WarmStart 按请求及事件顺序关联正式候选、无效候选筛选、重复候选缓存、评价参数和预算计数；只有完整目标对进入既有选择池。bounds 的 full/compact 回复均与实际轮次使用的规范区域关联。缺少专用密钥的跳过不产生请求或成本，仍可审计；不为审计读取历史密钥值。启用连接的 endpoint、model、api_key_env 必须先通过非空字符串校验。
+
 新传输不能影响真实 Y、GP 标签/后验、EI、Lift、fair guard、信任更新、参数或工况。相同正式 JSON 在两个协议下应得到相同 canonical proposal 和 Region 数值行为。
 
 ## 验收和边界
@@ -70,3 +72,5 @@ Controller 仅按新配置选择传输。禁用 LLM 或 API 额度为 0 时，�
 - [OpenAI Docs：JSON mode](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=responses)：Responses 使用 text.format；JSON 模式本身不能替代应用 schema 校验。
 
 资料仅支撑客户端目标协议，不证明第三方网关已实现相同行为。
+
+软件验收已完成：受测产品提交52b9813，全量781/781、失败/错误/跳过0、退出0；真实API/DFN0。完整正负结果、审阅修复及边界见本轮sub2api-responses审计。本站真实兼容性仍未验证。

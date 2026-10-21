@@ -103,9 +103,9 @@
 - [x] **Step 0（最先执行）: 新基线。** 建立本计划独立 runner 与 ledger，仅重用现有 guard 的软件边界，不向上一计划 ledger 写入。原完整 tests 跑至最终退出；记录数量/通过/失败/错误/跳过/耗时/JUnit/API/DFN/非电池 fixture。此前669仅作历史比较。
 - [x] **Step 1: 模板 RED→GREEN。** 先在 `tests/test_electrothermal_responses_requests.py` 添加 `test_sub2api_template_has_zero_live_budget`，再从现有 software 配置生成新文件，只设置 llm.transport/endpoint/keyenv/model/compact，LLM disabled、API/DFN 0、原 parego 设置保持。模板只表明传输设置；A1/A2 消融设置仍由独立实验配置明确选用，不靠此模板切换算法。不得默认加载新站密钥。
 - [x] **Step 2: 软件集成。** 用注入的 Responses HTTP fixtures 跑 ParEGO/WarmStart-only/Full-ID/Full-none；继承当前拟合倍率，旧3C不引入。完整日志注明 mock，不产生真实 RMSE 结果声明。
-- [ ] **Step 3: 全量与兼容。** 最终全量回归，保护 MAIN/旧档案、旧 Prompts 和数值模块 hash；新配置/源码签名隔离。失败要定位、修复并重跑适用验收，不忽略。
-- [ ] **Step 4: 分支审阅与封存。** 沿用 inline 执行，最后按 executing-plans 做一次 fresh-context 整分支审阅；所需修复 RED→GREEN+全量通过。显式提交全部清单文件，记录 commit/源码 SHA/JUnit、正负结果、调用0、未验证事项，保持现有工作树。
-- [ ] **Step 5: 只准备后续协议。** 专用 key 未就绪或无新预算则保持0请求。若届时申请1次 API，冻结确切payload/model/endpoint/token/timeout/总截止且无自动模型发现/重试；先审阅协议再请求额度，不沿用旧vsllm预检的已关闭1次预算。
+- [x] **Step 3: 全量与兼容。** 最终全量回归，保护 MAIN/旧档案、旧 Prompts 和数值模块 hash；新配置/源码签名隔离。失败要定位、修复并重跑适用验收，不忽略。
+- [x] **Step 4: 分支审阅与封存。** 沿用 inline 执行，最后按 executing-plans 做一次 fresh-context 整分支审阅；所需修复 RED→GREEN+全量通过。显式提交全部清单文件，记录 commit/源码 SHA/JUnit、正负结果、调用0、未验证事项，保持现有工作树。
+- [x] **Step 5: 只准备后续协议。** 专用 key 未就绪或无新预算则保持0请求。若届时申请1次 API，冻结确切payload/model/endpoint/token/timeout/总截止且无自动模型发现/重试；先审阅协议再请求额度，不沿用旧vsllm预检的已关闭1次预算。
 
 ## 可执行测试入口
 
@@ -130,9 +130,9 @@ $etRunner = 'D:\Users\aa133\Desktop\LLMBO_Para\bo-repair-work\20261017_et_implem
 - [x] 用户用途已明确为 LLMBO；新端点与精确模型保持，专用环境变量未就绪；本站请求0。
 - [x] 规格覆盖、接口前后类型、失败状态、Review Focus和旧档案签名逐项自检；没有修改算法主线或推断新站 thinking 扩展。
 - [x] 用户确认本具体计划（直接批准软件适配与本地测试）。
-- [ ] 软件实现与本轮实际测试、独立审阅。
+- [x] 软件实现与本轮实际测试、独立审阅。
 - [ ] 专用 key 和真实 API 预算；不属于计划默认批准范围。
 
-当前Task1–3和Task4模板/软件集成已实现并分阶段验证，最终全量与整分支审阅仍待完成；没有发往sidrune的请求。Codex CLI 的 service_tier 或 feature 兼容性不属于本项目适配计划，不修改其全局设置。
+Task1–4软件交付完成：受测产品提交52b9813，最终全量781/781、失败/错误/跳过0、退出0、1206.71s；网络尝试/电池求解尝试0，既有非电池fixture2次。整分支审阅5项Important已通过失败测试和修复验证，未延期Minor。没有发往sidrune的请求。Codex CLI 的 service_tier 或 feature 兼容性不属于本项目适配计划，不修改其全局设置。最终证据在sub2api-responses-20261021/delivery-seal.json封存；保留工作树/分支/ledger，真实API/DFN仍为0。
 
-阶段证据：新基线669/669退出0；Task1 RED45fail→GREEN57；Task2 RED13fail7pass→GREEN96；Task3相关210/210；模板与三模式集成5/5；CLI validate-config/preflight退出0。完整目录与正负记录见docs/audits/sub2api-responses-2026-10-21.md。
+阶段证据：新基线669/669退出0；Task1 RED45fail→GREEN57；Task2 RED13fail7pass→GREEN96；Task3相关210/210；模板与三模式集成5/5；审阅修复67/67；最终全量781/781；CLI validate-config/preflight及修复后复核退出0。首个全量中断且无最终计数/JUnit，不记通过。完整目录与正负记录见docs/audits/sub2api-responses-2026-10-21.md。

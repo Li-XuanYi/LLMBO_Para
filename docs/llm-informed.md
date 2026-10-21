@@ -205,4 +205,6 @@ Responses 请求使用 instructions/input/max_output_tokens/text.format，固定
 
 新bounded worker共用原硬截止与自有进程清理，保留真实response_status和usage；缺失计量为unknown，不补0。Y、GP、EI、Lift、fair guard和信任不变。Responses另存 `.responses-formal.json`，审计重建最终请求及冻结边界，核对原始回复、正式收据、完成状态、绑定、监督及成本；真实接收记录不能通过删除HTTP证据并改掉诊断标记逃避审计。旧Chat档案按旧协议重放。
 
+审阅修复另要求：每个请求的payload/outcome/cost完整对应；原始回复存在时完成摘要不可省略。WarmStart正式候选按原顺序对应真实筛选评价、重复/无效候选及预算计数；full和compact的bounds回复均对应实际使用区域。缺密钥在构造传输前跳过，不记API成本且可审计；连接字段类型错误在配置阶段拒绝。以上均不改变WarmStart的Pareto＋Max–Min选择或Region数值公式。
+
 本次软件验证与此前vsllm单次目录预检分别归档。Sub2API真实请求、DFN和正式BO仍为0；需要专用密钥和新明确预算才能测试本站，不能沿用vsllm已关闭额度。实际证据见 `docs/audits/sub2api-responses-2026-10-21.md`。
