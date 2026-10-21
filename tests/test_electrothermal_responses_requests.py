@@ -4,6 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 import json
 import multiprocessing
+import math
 import time
 
 import pytest
@@ -41,11 +42,22 @@ def offline_worker(mode, spec, sent, run_path, connection):
             if wire['task'] == 'warm_start_electrothermal':
                 formal = {k: wire[k] for k in ('schema_version', 'parameter_profile', 'fit_rates', 'signatures')}
                 formal['candidates'] = []
+                if 'parameters' in wire:
+                    for fraction in (.2,.8,.21,.7):
+                        point={}
+                        for item in wire['parameters']:
+                            lo,hi=item['lower'],item['upper']
+                            point[item['name']]=(10**(math.log10(lo)+fraction*(math.log10(hi)-math.log10(lo)))
+                                if item['transform']=='log10' else lo+fraction*(hi-lo))
+                        formal['candidates'].append({'parameters':point})
             else:
                 region = {'kind': 'none', 'coordinate_space': 'normalized', 'confidence': .7,
                           'reason': os.environ[spec['api_key_env']]}
                 if wire.get('region_proposal') == 'catalog_v1':
                     region['proposal_binding'] = wire['proposal_binding']
+                    if mode=='prefer_region':
+                        region.update(kind='region',region_id=wire['region_catalog']['entries'][0]['region_id'],
+                                      evidence_ids=[wire['history'][0]['evaluation_id']])
                 formal = ({'request_id': wire['request_id'], 'region': region} if 'request_id' in wire else
                     {**{k: wire[k] for k in ('schema_version', 'parameter_profile', 'fit_rates', 'signatures', 'context_id')}, 'region': region})
             raw = response(formal, usage={'input_tokens': 50, 'output_tokens': 20, 'total_tokens': 70})
@@ -197,3 +209,51 @@ def test_response_completion_dispatch_is_explicit_and_preserves_chat_shape():
     chat = {'choices': [{'finish_reason': 'stop', 'message': {'content': '{}'}}]}
     assert completion_summary(chat, 1536) == {'finish_reason': 'stop', 'answer_characters': 2, 'state': 'complete_answer'}
     assert completion_summary(chat, 1536, transport='openai_responses')['state'] != 'complete_answer'
+
+
+def test_sub2api_template_has_zero_live_budget():
+    from llmbo_para.electrothermal_config import electrothermal_configuration_errors
+    root=Path(__file__).resolve().parents[1]
+    path=root/'configs/electrothermal-sub2api-software-template.json'
+    assert path.is_file(), 'zero-budget Sub2API template not implemented'
+    cfg=json.loads(path.read_text());base=json.loads((root/'configs/electrothermal-synthetic.json').read_text())
+    assert electrothermal_configuration_errors(cfg)==[]
+    assert cfg['llm']['transport']=='openai_responses'
+    assert cfg['llm']['endpoint']=='https://sidrune.ai/v1/responses'
+    assert cfg['llm']['model']=='deepseek-v4-pro' and cfg['llm']['api_key_env']=='SUB2API_API_KEY'
+    assert cfg['llm']['enabled'] is False and cfg['optimization']['mode']=='parego'
+    assert cfg['budgets']['max_llm_requests']==cfg['budgets']['max_solver_calls']==0
+    assert cfg['llm']['region_wire_format']=='compact_v1' and 'thinking' not in cfg['llm']
+    for key in ('parameters','fixed','property_law','conditions_by_rate','data','model','fit_rates','optimization'):
+        assert cfg[key]==base[key]
+
+
+def preferred_responses_worker(*args): offline_worker('prefer_region', *args)
+
+
+@pytest.mark.parametrize('mode,preference',[('parego','none'),('warmstart_only','none'),
+    ('full_llmbo_mo','none'),('full_llmbo_mo','region')])
+def test_software_modes_share_responses_definition(monkeypatch,tmp_path,mode,preference):
+    from llmbo_para.electrothermal_workflow import run_electrothermal_experiment
+    from llmbo_para.electrothermal_audit import audit_electrothermal_run
+    root=Path(__file__).resolve().parents[1]
+    cfg=json.loads((root/'configs/electrothermal-sub2api-software-template.json').read_text())
+    cfg['optimization'].update(mode=mode,region_evidence='dynamic_decision_v3',region_proposal='catalog_v1',
+        region_advice='candidate_aware_v1',region_selection='fair_region_v1')
+    cfg['optimization']['region'].update(max_plain_log_ei_gap=100.,min_sigma_ratio=0.)
+    # The full production worker is exercised against an in-child fake HTTP opener.
+    # No production credential or provider hostname is used by these fixtures.
+    cfg['llm'].update(endpoint='https://provider.invalid/v1/responses',api_key_env=ENV,enabled=mode!='parego')
+    cfg['budgets']['max_llm_requests']=0 if mode=='parego' else 5
+    monkeypatch.setenv(ENV,'offline-responses-unit-credential')
+    monkeypatch.setattr(feature(),'_responses_request_worker',
+        preferred_responses_worker if preference=='region' else successful_responses_worker)
+    result=run_electrothermal_experiment(cfg,tmp_path,base_dir=tmp_path)
+    assert result['BO_rounds']==2 and result['costs']['solver_calls']==0
+    run=Path(result['run_directory']);report=audit_electrothermal_run(run,deep=True)
+    assert report['passed'],report['issues']
+    # This ledger counts mocked invocations through the production path; the
+    # software boundary guard separately proves zero actual network/DFN calls.
+    assert len(list((run/'http').glob('*.request.json')))==result['costs']['llm_requests']
+    if mode=='parego': assert result['costs']['llm_requests']==0
+    else: assert list((run/'llm').glob('*.responses-formal.json'))

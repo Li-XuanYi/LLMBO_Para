@@ -194,3 +194,15 @@ controller保留私有序列化请求，只向transport传递独立深拷贝。�
 catalog审计还会重放失败的HTTP completion/JSON/wire，而非依赖outcome声称失败；修复原回复后仍声称invalid_binding会被发现。注入transport须返回原生JSON类型，非原生Python值保留拒绝标记，不能在归档中由tuple变list而变成合法回复。host重建请求则使用与controller相同的canonical JSON边界处理科学数值，不将这一处理用于放宽模型回复。
 
 本轮最终全量软件验收通过，实际数量、源码提交、待机时限失败及恢复、原数值不变和旧归档证据均见region-dynamic-catalog审计。临时测试唤醒请求已释放；真实API/DFN增益与实测没有由此验证，未来契约预检仍是未执行草案。
+
+### Sub2API Responses 传输（2026-10-21）
+
+电热 schema v2 可显式设置 `llm.transport="openai_responses"`。缺省保持原 Chat Completions；schema v1 不接受新取值。新模板为 `configs/electrothermal-sub2api-software-template.json`：目标 `https://sidrune.ai/v1/responses`、模型 `deepseek-v4-pro`、凭据环境变量 `SUB2API_API_KEY`。模板保留原人工软件问题和 ParEGO，LLM disabled、API/DFN 预算均为0；不会默认测试连通性或启动真实辨识。
+
+Responses 请求使用 instructions/input/max_output_tokens/text.format，固定 store=false、stream=false，无工具、会话续接、自动重试或模型发现。Codex CLI 的 review_model、model_catalog_url、features 等不导入科研配置，不修改全局Codex设置。store=false 是客户端请求，不能据此保证第三方日志保留政策；本地脱敏科研归档继续保留。
+
+只接受 completed 且无 error/incomplete_details、单个 completed assistant message 中的单个 output_text JSON 对象。reasoning不作为答案；refusal、截断、多答案、工具、非法JSON和非有限数值拒绝，不从choices或便利output_text猜测补救。现有WarmStart/Region封套、compact绑定、目录校验随后照常执行。新站thinking扩展未确认，首版拒绝显式thinking设置，不静默映射或宣称已关闭推理。
+
+新bounded worker共用原硬截止与自有进程清理，保留真实response_status和usage；缺失计量为unknown，不补0。Y、GP、EI、Lift、fair guard和信任不变。Responses另存 `.responses-formal.json`，审计重建最终请求及冻结边界，核对原始回复、正式收据、完成状态、绑定、监督及成本；真实接收记录不能通过删除HTTP证据并改掉诊断标记逃避审计。旧Chat档案按旧协议重放。
+
+本次软件验证与此前vsllm单次目录预检分别归档。Sub2API真实请求、DFN和正式BO仍为0；需要专用密钥和新明确预算才能测试本站，不能沿用vsllm已关闭额度。实际证据见 `docs/audits/sub2api-responses-2026-10-21.md`。
