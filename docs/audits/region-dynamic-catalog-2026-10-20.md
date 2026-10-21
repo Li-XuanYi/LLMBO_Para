@@ -2,6 +2,8 @@
 
 用户已明确批准`2026-10-20-region-dynamic-catalog-plan.md`的A1→A2软件实施。真实API/DFN预算仍0；不替换Lift公式，不修改六参数、双目标、物性或数据协议。工作树沿用electrothermal-refactor，产品基线为d3e2fa1，实施前HEAD77af49f。
 
+最终结果：A1/A2代码完成，新增139项参数化测试（dynamic52、catalog87）；源码96d6167的最终全量669/669通过、退出0。真实API与DFN调用均0，真实性能仍未验证。完整计数、待机失败及恢复证据见文末最终软件验收。
+
 ## 本轮新基线
 
 完整重跑530项通过、失败/错误/跳过0、退出0、882.65秒。证据：`D:/Users/aa133/Desktop/LLMBO_Para/bo-repair-work/20261017_et_implementation/tests/dynamic-catalog-baseline-recovered-1020100237548048/`，包含pytest.log、junit.xml、result.json及exit-code.txt。网络尝试0、真实电池solve0；允许的非电池解析fixture solve2。
@@ -38,4 +40,44 @@ fresh-context全分支审阅另发现：协议失败的紧凑HTTP回复未重放
 
 随后全量发现两项本轮引入的请求侧JSON重建回归；定向5项RED为2失败/3通过、错误0、退出1（catalog-request-json-regression-red-1021022543828300）。修复为按controller相同的canonical JSON边界规范化host重建请求，模型回复仍严格校验。完整相关回归226/226通过、失败/错误/跳过0、退出0、297.20秒（dynamic-catalog-fix-complete-related-1021022655629455）。各次网络/电池/非电池solve均0。
 
-两次尚未完成的全量均中断保留（dynamic-catalog-final-1021020109293914、dynamic-catalog-final-verified-1021021317275670），exec退出1，没有完整JUnit/总计，均不计通过。最终全量仍待新运行完成后补记。不将历史530或针对性结果冒充最终全量。新版本真实API响应、DFN收益、参数唯一恢复和实测辨识均未验证；旧3C及既有失败/负结果保持原样。
+两次尚未完成的全量均中断保留（dynamic-catalog-final-1021020109293914、dynamic-catalog-final-verified-1021021317275670），exec退出1，没有完整JUnit/总计，均不计通过。当时最终全量尚待恢复；最终实际结果见下。不将历史530或针对性结果冒充最终全量。新版本真实API响应、DFN收益、参数唯一恢复和实测辨识均未验证；旧3C及既有失败/负结果保持原样。
+
+
+## 最终软件验收（2026-10-21）
+
+测试源码提交为`96d6167f3699a8b84792f3562c5193b8669b0079`，分支`codex/electrothermal-mo-20261016`。A1提交737187a、A2提交6d3df78，独立分支审阅后的修复为605f117与96d6167；本节之后的文档提交不改变测试源码。实际变更共12个仓库文件：dynamic/catalog两个新模块，config/llm/audit三处接线，两个独立Prompt、两个测试文件及本audit/llm-informed/本计划三个文档；外部守护入口、审阅、测试和协议证据单列于证据根目录。
+
+| 检查 | 测试/通过/失败/错误/跳过 | 退出码 | 证据目录 |
+|---|---|---|---|
+| 本轮新基线 | 530/530/0/0/0 | 0 | dynamic-catalog-baseline-recovered-1020100237548048 |
+| 最终相关回归 | 226/226/0/0/0 | 0 | dynamic-catalog-fix-complete-related-1021022655629455 |
+| 首次完整全量（保留失败） | 669/668/1/0/0 | 1 | dynamic-catalog-delivery-regression-1021023449741735 |
+| 原失败用例同源码复跑 | 1/1/0/0/0 | 0 | dynamic-deadline-isolated-recheck-1021031818131286 |
+| 最终恢复全量 | 669/669/0/0/0 | 0 | dynamic-catalog-delivery-stable-1021031943682859 |
+
+最终pytest报告用时1118.95秒；JUnit suite用时1123.451秒（含入口/会话开销）。线程配置OMP/OPENBLAS/MKL/NUMEXPR均1。真实LLM网络尝试0、电池/DFN solve0，允许的非电池解析fixture solve2。最终归档：[dynamic-catalog-delivery-stable-1021031943682859/pytest.log](D:/Users/aa133/Desktop/LLMBO_Para/bo-repair-work/20261017_et_implementation/tests/dynamic-catalog-delivery-stable-1021031943682859/pytest.log)、[JUnit](D:/Users/aa133/Desktop/LLMBO_Para/bo-repair-work/20261017_et_implementation/tests/dynamic-catalog-delivery-stable-1021031943682859/junit.xml)、[result.json](D:/Users/aa133/Desktop/LLMBO_Para/bo-repair-work/20261017_et_implementation/tests/dynamic-catalog-delivery-stable-1021031943682859/result.json)、[退出码](D:/Users/aa133/Desktop/LLMBO_Para/bo-repair-work/20261017_et_implementation/tests/dynamic-catalog-delivery-stable-1021031943682859/exit-code.txt)。
+
+首次完整全量失败发生在MO initialize前的60秒期限检查，而非Region数值断言。该用例耗时1160.34秒；同源码/相同期限单独复跑7.39秒通过。Windows Kernel-Power日志确认10:46:05因Idle Timeout进入新型待机，11:07:48退出，覆盖该停顿。未放宽生产期限或改数学公式。恢复期间仅针对已核验的测试进程句柄临时持有SYSTEM_REQUIRED请求，进程退出自动释放，keep-awake-released.json确认已释放；没有修改电源方案。首次包装器重入、两次不完整全量、完整失败全量及全部TDD失败记录均保留，不删除、不合并为通过。
+
+旧归档4/4只读重放通过；120次GP.fit(max_sweeps=0)仅用于恢复状态，超参数搜索0、API/DFN0。原7个数值模块和15个旧Prompt共22文件SHA保持，apply_electrothermal_region/update_electrothermal_trust的AST保持。最终复核155个测试输入源码/配置/测试文件均未改变。主工程HEAD811c4c6、原status/index/Method及123个受保护文件均保持；原电压任务及旧缓存严格校验保留。详见compatibility-result.json、workspace-protection-final-result.json、stable-source-manifest.json及delivery-check.json。
+
+### 独立审阅与取舍
+
+fresh-context分支审阅覆盖77af49f..6d3df78的12文件；其I1及主审升级为Important的M1均按RED→GREEN修复，随后通过上述相关与最终全量。后续请求JSON规范化回归也保留RED与修复证据。未再次派生审阅替代测试；未解决Critical/Important和延期Minor均0。原审阅及fix-record/continuation记录保留。
+
+- Windows原生薄适配器复用既有守护，只写本计划ledger；代价是维护一个外部入口。
+- 遵用户要求保留工作树、所有证据与失败记录；代价是磁盘占用。
+- 真实API/DFN增益、唯一恢复和实测效果不作本轮判断；代价是暂无真实性能结论。
+- B协方差、C候选池和旧Method公式对齐仍延期；代价是保留原数值方法的限制。
+- 全量和旧归档重放由主审执行；代价是验证耗时。
+- 共享HTTP预解析层不改，新增catalog层已脱敏加固；代价是保留既有共享行为。
+- 审计核对保存的原始证据与派生信息，不新增外部真实性根；代价是不能证明整套原始证据被重写后的外部真实性。
+- 测试期间的临时唤醒请求已自动释放；代价是该时段设备保持唤醒。
+
+### 下一步草案与未验证项
+
+future-probe-verified-draft/protocol.json冻结同源码已归档的软件测试请求、目录/完整绑定及SHA，inspect_verified_probe.py离线检查通过；source_kind明确为解析软件fixture，宽门槛仅用于覆盖分支。草案状态NOT_APPROVED_NOT_EXECUTED，现行API/DFN/BO预算均0，未发送请求。若另行批准，仅提议1次契约请求、0 DFN/BO、30秒超时、60秒窗口、1536输出tokens、thinking disabled、不重试；合法none同样是契约通过，不是RMSE/HV收益。旧草案与所有旧额度/失败保留，不能自动恢复。
+
+后续真实配对仍须独立协议、共享有效初始化、等预算及事先注册的新验证种子；101/211/307仅作开发诊断。已完成的是代码和软件验证，新版本真实API行为与DFN RMSE/HV增益仍未验证，实测未开展。实际电流、温度单位/测点、初态和冷却边界仍需预检；旧3C继续排除，可靠3C应另建配置/签名/归档。没有宣称LLM有效或参数唯一可辨识。
+
+完整外部证据根目录：`D:/Users/aa133/Desktop/LLMBO_Para/bo-repair-work/20261017_et_implementation/region-dynamic-catalog-20261020/`。其中test-evidence-index.json逐项核对本轮实际JUnit，delivery-check.json为最终一致性检查；SHA封存见delivery-seal.json。

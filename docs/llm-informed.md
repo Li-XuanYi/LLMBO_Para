@@ -189,3 +189,8 @@ resolver严格验证键集合、类型、有限置信度、历史ID和绑定，�
 controller保留私有序列化请求，只向transport传递独立深拷贝。正式回复另存脱敏JSON文本，非法NaN可作为文本保留用于失败重放，不能进入优化；键和值中的token形文本均遮罩且不合并键。transport修改clone时另存独立证据并单次失败回退，不自动重试。审计从冻结历史、曲线、候选池及配置独立重建完整请求、目录和回复契约，再核对正式回复、resolution、HTTP full/compact封套和canonical结果；不信任自洽重签的派生摘要或失败标志。
 
 本轮只验证接口与软件行为，真实API、DFN和实测预算均0。下一步真实契约预检与独立验证种子的配对实验须另立协议；既有负结果和开发诊断种子101/211/307保留，不将目录采纳率视为RMSE/HV增益。详细证据见`docs/audits/region-dynamic-catalog-2026-10-20.md`。
+
+
+catalog审计还会重放失败的HTTP completion/JSON/wire，而非依赖outcome声称失败；修复原回复后仍声称invalid_binding会被发现。注入transport须返回原生JSON类型，非原生Python值保留拒绝标记，不能在归档中由tuple变list而变成合法回复。host重建请求则使用与controller相同的canonical JSON边界处理科学数值，不将这一处理用于放宽模型回复。
+
+本轮最终全量软件验收通过，实际数量、源码提交、待机时限失败及恢复、原数值不变和旧归档证据均见region-dynamic-catalog审计。临时测试唤醒请求已释放；真实API/DFN增益与实测没有由此验证，未来契约预检仍是未执行草案。
