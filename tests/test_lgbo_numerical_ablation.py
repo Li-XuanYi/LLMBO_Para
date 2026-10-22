@@ -136,6 +136,42 @@ def initialize(tmp_path):
     path=Path(result['run_directory'])/'initial-plan.json'
     return {'path':str(path),'sha256':hashlib.sha256(path.read_bytes()).hexdigest()},result
 
+
+def test_controlled_recovery_reuses_verified_screening_and_subtracts_prior_costs(tmp_path):
+    m=load();assert hasattr(m,'recovery_protocol'),'controlled recovery contract is missing'
+    spec,_=initialize(tmp_path/'origin');original=Path(spec['path']).read_bytes()
+    recovery=dict(initial_plan=spec,prior_costs={'new_objective_evaluations':16,'software_calls':32})
+    protocol=m.recovery_protocol(base(),recovery)
+    assert protocol['max_software_candidates']==480 and protocol['max_software_calls']==960
+    assert protocol['recovery']==recovery and len(protocol['cases'])==24
+    assert Path(spec['path']).read_bytes()==original
+    bad=deepcopy(recovery);bad['prior_costs']['new_objective_evaluations']=0
+    with pytest.raises(ValueError):m.recovery_protocol(base(),bad)
+    bad=deepcopy(recovery);bad['initial_plan']['sha256']='0'*64
+    with pytest.raises(ValueError):m.recovery_protocol(base(),bad)
+
+
+def test_recovery_worker_never_repeats_initialization_evaluation(tmp_path,monkeypatch):
+    m=load();assert hasattr(m,'recovery_protocol'),'controlled recovery contract is missing'
+    spec,_=initialize(tmp_path/'origin')
+    recovery=dict(initial_plan=spec,prior_costs={'new_objective_evaluations':16,'software_calls':32})
+    protocol=m.recovery_protocol(base(),recovery);protocol['cases']=[]
+    from llmbo_para.electrothermal_provenance import source_fingerprint
+    from llmbo_para import electrothermal_workflow as workflow
+    def unexpected_run(*args,**kwargs):pytest.fail('recovery must not start a screening workflow')
+    monkeypatch.setattr(workflow,'run_electrothermal_experiment',unexpected_run)
+    protocol.update(monotonic_deadline=time.monotonic()+60,source_fingerprint=source_fingerprint(),script_sha256=hashlib.sha256(SCRIPT.read_bytes()).hexdigest())
+    class Connection:
+        messages=[]
+        def send(self,message):self.messages.append(message)
+        def recv(self):return 'continue'
+    connection=Connection();m._ablation_worker(protocol,str(tmp_path/'reused'),connection)
+    _,result=connection.messages[-1]
+    assert result['costs']=={'new_objective_evaluations':0,'software_calls':0}
+    assert result['failure'] is None and not (tmp_path/'reused/init').exists()
+    ref=read(tmp_path/'reused/initialization-reference.json')
+    assert ref['spec']==spec and ref['prior_costs']==recovery['prior_costs']
+
 def test_initialization_semantics_and_no_screening_leak(tmp_path):
     m=load();spec,initial=initialize(tmp_path/'init');original=Path(spec['path']).read_bytes()
     from llmbo_para.electrothermal_workflow import prepare_electrothermal_experiment

@@ -138,6 +138,27 @@ def make_case_config(base_config: dict, *, global_pool_size: int, gp_sweeps: int
     return cfg
 
 
+def recovery_protocol(base_config: dict, recovery: dict) -> dict:
+    """The human-approved single recovery: preserve the actual 16/32 history."""
+    from llmbo_para.electrothermal_workflow import prepare_electrothermal_experiment
+    protocol = ablation_protocol(base_config)
+    if (type(recovery) is not dict or set(recovery) != {'initial_plan','prior_costs'}
+            or recovery['prior_costs'] != {'new_objective_evaluations':16,'software_calls':32}):
+        raise ValueError('controlled recovery requires the original 16/32 cost attribution')
+    cfg = make_case_config(base_config, global_pool_size=16, gp_sweeps=0, seed=17,
+                           mode='warmstart_only', initial_plan=recovery['initial_plan'])
+    report, prepared = prepare_electrothermal_experiment(cfg, base_dir=WT)
+    if not report['ready']:
+        raise ValueError('recovery initialization failed: '+'; '.join(report['errors']))
+    plan = prepared.initial_plan; evidence = plan.history_evidence
+    if (len(plan.records)!=8 or evidence is None or len(evidence['screening_records'])!=16
+            or evidence['costs']['software_calls']!=32 or evidence['costs']['solver_calls']!=0
+            or evidence['costs']['llm_requests']!=0):
+        raise ValueError('recovery requires verified software-only 16-select-8 screening')
+    protocol.update(recovery=deepcopy(recovery), max_software_candidates=480, max_software_calls=960)
+    return protocol
+
+
 class FitObserver:
     """Observe calls, including audit refits, without changing the GP state."""
     def __init__(self, path, *, phase):
@@ -370,7 +391,8 @@ def _ablation_worker(protocol: dict, output: str, connection) -> None:
     root = Path(output); deadline = protocol['monotonic_deadline']
     results, round_rows, representatives = [], [], []
     stage_started = protocol.get('perf_counter_started', time.perf_counter())
-    budget = SoftwareBudget(root/'software-costs.jsonl', max_candidates=496, max_rate_calls=992)
+    budget = SoftwareBudget(root/'software-costs.jsonl', max_candidates=protocol['max_software_candidates'],
+                            max_rate_calls=protocol['max_software_calls'])
     with SoftwareBoundary() as boundary:
         try:
             from llmbo_para.electrothermal_workflow import prepare_electrothermal_experiment, run_electrothermal_experiment
@@ -402,19 +424,34 @@ def _ablation_worker(protocol: dict, output: str, connection) -> None:
                         raise RuntimeError('invalid workflow finish acknowledgement')
             cfg = deepcopy(protocol['base_config'])
             cfg['optimization'].update(mode='warmstart_only', total_candidate_budget=8)
+            recovery = protocol.get('recovery')
+            if recovery is not None:
+                # Recheck the original bytes, screening curves and signatures in
+                # this child. No optimizer or evaluator is called for reuse.
+                recovery_protocol(protocol['base_config'], recovery)
+                cfg['optimization']['initial_plan'] = deepcopy(recovery['initial_plan'])
             cfg['budgets']['wall_clock_s'] = min(PER_RUN_WALL_CLOCK_S, deadline-time.monotonic())
             report, prepared = prepare_electrothermal_experiment(cfg, base_dir=WT)
             if not report['ready']:
                 raise ValueError(str(report['errors']))
-            controller = ElectrothermalLLMController(transport=FixedSoftwareActions(prepared.space, protocol['fixed_mock_region']), is_mock=True)
-            with workflow_phase('initialization'), budget.observe():
-                initial = run_electrothermal_experiment(cfg, root/'init', base_dir=WT, llm_controller=controller)
-            init_run = Path(initial['run_directory']); audit(init_run, 'initialization')
-            plan = init_run/'initial-plan.json'; plan_data = _read(plan)
-            spec = dict(path=str(plan.resolve()), sha256=_sha(plan))
+            if recovery is None:
+                controller = ElectrothermalLLMController(transport=FixedSoftwareActions(prepared.space, protocol['fixed_mock_region']), is_mock=True)
+                with workflow_phase('initialization'), budget.observe():
+                    initial = run_electrothermal_experiment(cfg, root/'init', base_dir=WT, llm_controller=controller)
+                init_run = Path(initial['run_directory'])
+                plan = init_run/'initial-plan.json'
+                spec = dict(path=str(plan.resolve()), sha256=_sha(plan))
+                screening_costs = initial['initialization_cost_attribution']
+            else:
+                spec = deepcopy(recovery['initial_plan']); plan = (WT/spec['path']).resolve(); init_run = plan.parent
+                screening_costs = dict(historical_costs=prepared.initial_plan.history_evidence['costs'],
+                    included_in_current_costs=False, origin_run_id=prepared.initial_plan.history_evidence['origin_run_id'])
+            audit(init_run, 'initialization')
+            plan_data = _read(plan)
             initialization_ids = [r['evaluation_id'] for r in plan_data['records']]
             _write(root/'initialization-reference.json', dict(spec=spec, initialization_ids=initialization_ids,
-                screening_costs=initial['initialization_cost_attribution']))
+                screening_costs=screening_costs, prior_costs=recovery['prior_costs'] if recovery else
+                    dict(new_objective_evaluations=0,software_calls=0)))
             for case in protocol['cases']:
                 check_time()
                 cfg = make_case_config(protocol['base_config'], **{k:case[k] for k in ('global_pool_size','gp_sweeps','seed','mode')}, initial_plan=spec)
@@ -456,6 +493,9 @@ def _ablation_worker(protocol: dict, output: str, connection) -> None:
             result.update(status='incomplete', boundary=boundary.counts(), costs=budget.counts(), failure=type(exc).__name__+': '+str(exc))
             _write(root/'worker-failure.json', result)
         result['elapsed_s'] = time.perf_counter()-stage_started
+        prior = protocol.get('recovery',{}).get('prior_costs',dict(new_objective_evaluations=0,software_calls=0))
+        result['prior_costs'] = prior
+        result['cumulative_costs'] = {k:prior[k]+budget.counts()[k] for k in prior}
         _write(root/'summary.json', result)
         (root/'exit-code.txt').write_text('0\n' if result['status']=='completed' else '1\n', encoding='utf-8')
         files = {}
@@ -469,11 +509,11 @@ def _ablation_worker(protocol: dict, output: str, connection) -> None:
         connection.send(('result', result))
 
 
-def run_software_ablation(base_config: dict, output: Path) -> dict:
+def run_software_ablation(base_config: dict, output: Path, *, recovery: dict | None = None) -> dict:
     _environment()
     from llmbo_para.electrothermal_provenance import source_fingerprint
     from llmbo_para.runstore import canonical_json
-    protocol = ablation_protocol(base_config)
+    protocol = recovery_protocol(base_config,recovery) if recovery is not None else ablation_protocol(base_config)
     root = Path(output).resolve()
     layout = validate_archive_paths(root)
     root.mkdir(parents=True, exist_ok=False)
@@ -513,11 +553,14 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--execute', action='store_true')
     parser.add_argument('--dry-run', action='store_true')
+    parser.add_argument('--recovery-spec', type=Path, help='Strict original initialization and already-used 16/32 costs')
     args = parser.parse_args()
     if args.execute and args.dry_run:
         parser.error('choose either execute or dry-run')
     cfg = _read(args.base_config)
-    result = run_software_ablation(cfg, args.output) if args.execute else ablation_protocol(cfg)
+    recovery = _read(args.recovery_spec) if args.recovery_spec is not None else None
+    result = (run_software_ablation(cfg, args.output, recovery=recovery) if args.execute else
+              recovery_protocol(cfg,recovery) if recovery is not None else ablation_protocol(cfg))
     print(json.dumps(result, ensure_ascii=False, allow_nan=False))
     return 0 if not args.execute or result['status']=='completed' else 1
 
