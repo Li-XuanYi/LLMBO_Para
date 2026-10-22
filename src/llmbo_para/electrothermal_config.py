@@ -141,7 +141,10 @@ def electrothermal_configuration_errors(config):
     if transport=='openai_responses' and ('thinking' in llm or isinstance(options,dict) and any(isinstance(v,dict) and 'thinking' in v for v in options.values())):
         errors.append('Responses thinking mapping has not been confirmed')
     from .electrothermal_region_wire import region_wire_format
-    try:region_wire_format(config)
+    try:
+        wire_format=region_wire_format(config)
+        if wire_format=='compact_action_v2' and opt.get('region_proposal')!='catalog_v1':
+            errors.append('action Region wire requires catalog_v1')
     except (ValueError,TypeError,KeyError):errors.append('invalid Region wire format')
     if type(llm.get('enabled')) is not bool:errors.append('llm.enabled must be boolean')
     if type(llm.get('json_mode')) is not bool:errors.append('llm.json_mode must be boolean')

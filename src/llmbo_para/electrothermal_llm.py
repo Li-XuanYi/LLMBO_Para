@@ -65,7 +65,8 @@ def build_electrothermal_payload(task,*,prepared,history,context=None):
     if dynamic_evidence:prompt_name='region_preference_dynamic_electrothermal'
     if catalog_proposal:
         if not dynamic_evidence:raise ValueError('Region catalog requires dynamic evidence')
-        prompt_name='region_preference_catalog_electrothermal'
+        prompt_name=('region_preference_action_electrothermal' if cfg['llm'].get('region_wire_format')=='compact_action_v2'
+                     else 'region_preference_catalog_electrothermal')
     scalar_by_id={}
     if is_region:
         if context is None:raise ValueError('frozen context required for Region request')
@@ -158,8 +159,8 @@ def build_electrothermal_payload(task,*,prepared,history,context=None):
         'temperature_target_K':summary(case.cell_temperature_k),'cooling_group_id':case.cooling_group_id}
         for rate,case in prepared.dataset.cases.items()}
     payload['response_contract']={'type':'object','additionalProperties':False,'required':list(properties),'properties':properties}
-    if is_region and cfg['llm'].get('region_wire_format','full_v1')=='compact_v1':
-        payload['region_wire_format']='compact_v1'
+    if is_region and cfg['llm'].get('region_wire_format','full_v1') in ('compact_v1','compact_action_v2'):
+        payload['region_wire_format']=cfg['llm']['region_wire_format']
     if catalog_proposal:
         from .electrothermal_region_catalog import build_region_catalog,catalog_proposal_binding,catalog_region_contract
         payload['region_proposal']='catalog_v1'

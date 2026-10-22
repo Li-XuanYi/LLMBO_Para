@@ -250,12 +250,13 @@ class BoundedChatCompletionsTransport(ChatCompletionsTransport):
             self.store.write_json("http/" + task + ".supervision.json", diagnostic)
 
     def post(self, payload, *, deadline=None):
+        from .electrothermal_region_wire import FORMATS
         started = time.monotonic()
         task = payload.get("artifact_task", payload.get("task", "request")) if isinstance(payload, dict) else "request"
         wire_format=payload.get('region_wire_format','full_v1') if isinstance(payload,dict) else 'full_v1'
         base = {"configured_timeout_s": self.timeout_s, "max_tokens": self.max_tokens,
                 "http_request_started": False, "http_status": None,
-                'wire_format':wire_format if wire_format in ('full_v1','compact_v1') else 'invalid'}
+            'wire_format':wire_format if wire_format in FORMATS else 'invalid'}
         if self.thinking is not None: base['thinking'] = self.thinking
         if getattr(self, 'response_protocol', None) == 'openai_responses':
             base['response_protocol'] = 'openai_responses'

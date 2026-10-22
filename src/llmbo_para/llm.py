@@ -148,7 +148,7 @@ class ChatCompletionsTransport(HttpJsonTransport):
         wire = {"model": self.model, "messages": [
                     {"role": "system", "content": instructions},
                     {"role": "user", "content": json.dumps({k: v for k, v in payload.items() if k != "instructions"}, ensure_ascii=False, allow_nan=False,
-                        separators=(',',':') if payload.get('region_wire_format')=='compact_v1' else None)}
+                        separators=(',',':') if payload.get('region_wire_format') in ('compact_v1','compact_action_v2') else None)}
                 ], "max_tokens": self.max_tokens, "stream": False}
         if self.json_mode:
             wire["response_format"] = {"type": "json_object"}
