@@ -509,6 +509,36 @@ def _ablation_worker(protocol: dict, output: str, connection) -> None:
         connection.send(('result', result))
 
 
+def _interrupted_costs(root, protocol):
+    """Keep the durable cost prefix; a killed writer cannot certify totals."""
+    costs = dict(new_objective_evaluations=0, software_calls=0)
+    prior = deepcopy(protocol.get('recovery', {}).get('prior_costs', costs))
+    limits = dict(new_objective_evaluations=protocol['max_software_candidates'],
+                  software_calls=protocol['max_software_calls'])
+    issue = None
+    try:
+        with (root/'software-costs.jsonl').open('rb') as stream:
+            for line in stream:
+                try:
+                    event = json.loads(line)
+                    counts = {key:event[key] for key in costs}
+                    if (event['kind'] not in ('candidate_started','candidate_finished','software_call')
+                            or any(type(value) is not int or not costs[key]<=value<=limits[key]
+                                   for key,value in counts.items())
+                            or counts['software_calls']>2*counts['new_objective_evaluations']):
+                        raise ValueError('invalid counters')
+                except (UnicodeDecodeError, ValueError, KeyError, TypeError):
+                    issue = 'invalid_or_truncated_record'; break
+                costs = counts
+    except FileNotFoundError:
+        issue = 'missing'
+    except OSError:
+        issue = 'unreadable'
+    return dict(costs=costs, prior_costs=prior,
+        cumulative_costs={key:prior[key]+costs[key] for key in prior},
+        costs_complete=False, costs_attribution='persisted_lower_bound_after_termination', cost_ledger_issue=issue)
+
+
 def run_software_ablation(base_config: dict, output: Path, *, recovery: dict | None = None) -> dict:
     _environment()
     from llmbo_para.electrothermal_provenance import source_fingerprint
@@ -534,7 +564,7 @@ def run_software_ablation(base_config: dict, output: Path, *, recovery: dict | N
     except (RuntimeError, TimeoutError, EOFError, OSError, KeyError, ValueError) as exc:
         rows = [_read(p) for p in sorted((root/'case-results').glob('*.json'))] if (root/'case-results').exists() else []
         result = summarize_numerical_ablation(rows)
-        result.update(status='incomplete', boundary=None, failure=type(exc).__name__)
+        result.update(status='incomplete', boundary=None, failure=type(exc).__name__, **_interrupted_costs(root,protocol))
         if isinstance(exc,CaseTimeout):
             result['timed_out_case'] = exc.case_id
     result['elapsed_s'] = time.perf_counter()-started

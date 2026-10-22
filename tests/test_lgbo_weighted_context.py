@@ -120,5 +120,3 @@ def test_v2_explains_rows_without_changing_warmstart_or_scalar_labels(tmp_path):
     prompt=payload['instructions']
     assert 200<=len(prompt.split())<=300
     assert 'wide' in prompt.lower() and 'temperature' in prompt.lower() and 'request_id' in prompt
-
-

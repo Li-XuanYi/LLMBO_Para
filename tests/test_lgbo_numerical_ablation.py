@@ -358,6 +358,48 @@ def test_benchmark_timeout_is_incomplete_without_fabricated_boundary(tmp_path,mo
     assert len(result['missing_cases'])==24
     assert {p.pid for p in multiprocessing.active_children()}==before
 
+
+@pytest.mark.parametrize('failure',['case_timeout','stage_timeout','worker_exit','EOF'])
+@pytest.mark.parametrize('ledger',['missing','valid','torn'])
+@pytest.mark.parametrize('existing_summary',[False,True])
+def test_recovery_supervisor_failure_preserves_prior_and_persisted_costs(tmp_path,monkeypatch,failure,ledger,existing_summary):
+    m=load()
+    prior={'new_objective_evaluations':16,'software_calls':32}
+    recovery=dict(initial_plan={'path':'unit-only','sha256':'a'*64},prior_costs=prior)
+    protocol=m.ablation_protocol(base());protocol['recovery']=deepcopy(recovery)
+    monkeypatch.setattr(m,'recovery_protocol',lambda cfg,spec:deepcopy(protocol))
+    def interrupted(worker,args,*,deadline):
+        root=Path(args[1])
+        if existing_summary:
+            (root/'summary.json').write_text('{"worker_evidence":"preserve"}',encoding='utf8')
+            (root/'stage-a-seal.json').write_text('{"partial_worker_seal":"preserve"}',encoding='utf8')
+        if ledger!='missing':
+            events=[dict(kind='candidate_started',new_objective_evaluations=1,software_calls=0),
+                    dict(kind='software_call',rate='0.5C',new_objective_evaluations=1,software_calls=1)]
+            content=''.join(json.dumps(event)+'\n' for event in events)
+            if ledger=='torn':content+='{"kind":"software_call","software_calls":'
+            (root/'software-costs.jsonl').write_text(content,encoding='utf8')
+        if failure=='case_timeout':raise m.CaseTimeout('G016_S0_17_warmstart_only')
+        if failure=='stage_timeout':raise TimeoutError('unit total deadline')
+        if failure=='EOF':raise EOFError('unit closed pipe')
+        raise RuntimeError('unit worker exited')
+    monkeypatch.setattr(m,'_supervise_ablation',interrupted)
+    root=tmp_path/'interrupted'
+    result=m.run_software_ablation(base(),root,recovery=recovery)
+    expected={'new_objective_evaluations':int(ledger!='missing'),'software_calls':int(ledger!='missing')}
+    assert result['status']=='incomplete' and result['boundary'] is None
+    assert result['prior_costs']==prior
+    assert result['costs']==expected and result['costs_complete'] is False
+    assert result['cumulative_costs']=={key:prior[key]+expected[key] for key in prior}
+    assert result['costs_attribution']=='persisted_lower_bound_after_termination'
+    assert result['cost_ledger_issue']==({'missing':'missing','valid':None,'torn':'invalid_or_truncated_record'}[ledger])
+    assert read(root/'supervisor-incomplete.json')==result
+    if existing_summary:
+        assert read(root/'summary.json')=={'worker_evidence':'preserve'}
+        assert read(root/'stage-a-seal.json')=={'partial_worker_seal':'preserve'}
+    else:assert read(root/'summary.json')==result
+    assert len(result['missing_cases'])==24 and result['HV'] is None
+
 def test_summary_keeps_missing_cases_and_missing_objectives(tmp_path):
     m=load();result=m.summarize_numerical_ablation([])
     assert result['status']=='incomplete' and len(result['missing_cases'])==24
