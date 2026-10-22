@@ -208,3 +208,16 @@ Responses 请求使用 instructions/input/max_output_tokens/text.format，固定
 审阅修复另要求：每个请求的payload/outcome/cost完整对应；原始回复存在时完成摘要不可省略。WarmStart正式候选按原顺序对应真实筛选评价、重复/无效候选及预算计数；full和compact的bounds回复均对应实际使用区域。缺密钥在构造传输前跳过，不记API成本且可审计；连接字段类型错误在配置阶段拒绝。以上均不改变WarmStart的Pareto＋Max–Min选择或Region数值公式。
 
 本次软件验证与此前vsllm单次目录预检分别归档。Sub2API真实请求、DFN和正式BO仍为0；需要专用密钥和新明确预算才能测试本站，不能沿用vsllm已关闭额度。实际证据见 `docs/audits/sub2api-responses-2026-10-21.md`。
+
+
+### 无解释 Region 动作接口（2026-10-22）
+
+显式选择 `llm.region_wire_format=compact_action_v2` 后，Region 只要求动作 JSON，不要求模型生成解释文字。该模式仅支持已有 `catalog_v1`、`dynamic_decision_v3`、candidate-aware/fair 组合；WarmStart、full_v1、compact_v1 和缺省行为保持原语义。
+
+线上必需字段仍为 request_id 和 region；region 包含 kind、coordinate_space、confidence、proposal_binding，kind=region 时附加 region_id 与 evidence_ids。reason 不在 required 内，Prompt 明确要求不输出理由或分析。若模型仍附带 reason，仅按兼容元数据处理，原始 HTTP 回复保留它，长度和内容不参与动作校验；其他额外动作字段仍拒绝。全体回复须先通过 JSON 原生类型和有限值检查，不能以忽略元数据为由接受 NaN、Python tuple 或其它非 JSON 值。
+
+完整请求使用新绑定版本 region_compact_action_v2，涵盖 wire 模式、Prompt、签名、权重、尺度、历史、候选与目录。接收器严格校验绑定后，从本地请求恢复身份封套并补固定代码标记 reason=structured_catalog_response，再交给原目录解析和数值守卫；固定标记不是模型解释。旧模式仍按旧规则校验理由，旧失败不会重标成功，旧回复不能跨模式或跨上下文重放。
+
+这是参考 WarmStart 的必要数据接口作出的传输修复：模型提出动作，宿主构造规范结果并验证。GP、原始标签/后验方差、协方差 Lift、Gaussian EI、候选池、fair guard 与同轮冻结信任反馈不变。审计按归档模式和 Prompt，从原始 HTTP 独立恢复动作及后续数值结果。
+
+新模板 `configs/electrothermal-sub2api-action-software-template.json` 保留人工软件数据和物理定义，默认 parego、LLM 关闭、API/DFN 预算 0。全局及 Region 输出上限为8192、请求时限上限120秒；WarmStart任务上限4096/120秒，实际还受剩余运行预算限制。没有增加未经核验的 provider thinking 扩展。该模板不授权真实调用或实测辨识；真实 API 契约与 DFN/RMSE/HV 增益仍须独立有限协议。

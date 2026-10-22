@@ -389,7 +389,8 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                                     if opt.get('region_evidence')=='dynamic_decision_v3':
                                         from .electrothermal_dynamic_evidence import dynamic_evidence_contract
                                         equal(payload.get('dynamic_history_evidence'),dynamic_evidence_contract(),'dynamic residual evidence contract differs')
-                                        prompt='region_preference_catalog_electrothermal' if opt.get('region_proposal')=='catalog_v1' else 'region_preference_dynamic_electrothermal'
+                                        prompt=('region_preference_action_electrothermal' if cfg['llm'].get('region_wire_format')=='compact_action_v2'
+                                            else 'region_preference_catalog_electrothermal') if opt.get('region_proposal')=='catalog_v1' else 'region_preference_dynamic_electrothermal'
                                 equal(payload['instructions'],(root/('source/src/llmbo_para/prompts/'+prompt+'.txt')).read_text(encoding='utf8'),'signed evidence prompt differs')
                             if advice_mode=='candidate_aware_v1':
                                 require(n not in region_request_references,'Region request referenced more than once')
@@ -405,7 +406,9 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                                 expected=build_electrothermal_payload('region_preference_electrothermal',
                                     prepared=SimpleNamespace(config=cfg,space=space,dataset=dataset,signatures=signatures),
                                     history=history,context=c)
-                                expected['instructions']=(root/'source/src/llmbo_para/prompts/region_preference_catalog_electrothermal.txt').read_text(encoding='utf8')
+                                catalog_prompt=('region_preference_action_electrothermal' if cfg['llm'].get('region_wire_format')=='compact_action_v2'
+                                    else 'region_preference_catalog_electrothermal')
+                                expected['instructions']=(root/('source/src/llmbo_para/prompts/'+catalog_prompt+'.txt')).read_text(encoding='utf8')
                                 expected['proposal_binding']=catalog_proposal_binding(expected)
                                 expected['response_contract']['properties']['region']=catalog_region_contract(expected)
                                 expected['artifact_task']=expected['task']+'_request_'+'a'*(n+1)
