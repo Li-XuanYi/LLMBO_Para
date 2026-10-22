@@ -30,7 +30,31 @@ Post-repair related regression: **57/57**, exit 0, no failures/errors/skips, `te
 
 One independent read-only review found tuple/list summary sealing and cooperative per-run deadline problems, plus understated stage timing. All were reproduced before repair. The runner now compares canonical scientific JSON, retains objective-tamper rejection, and extends the existing owned pipe protocol with parent-enforced workflow phases. Both blocking and late-return fixtures terminate within the per-run limit with no next case or surviving process. Separate stage/case clocks retain complete timing; an actual two-case software unit fixture verifies 33 synthetic clock units for initialization and both cases, versus 11 per case. Workflow exceptions close their phase before archiving a known failure. These pytest fixtures are not additional executions of the formal 24-case experiment.
 
-Review: `final-review.md` in the evidence root; RED/GREEN results are in the execution ledger. Full new regression is required before delivering the repair; its final results will be recorded in the closure report. No second review or experimental retry is implied.
+Review: `final-review.md` in the evidence root; RED/GREEN results are in the execution ledger. No second review or experimental retry was performed.
+
+## Final verification of this partial delivery
+
+Code repair commit: `9b7f4b0f33a0424ae1fedb476ac41386bef1050c`.
+
+| Check | Tests | Passed | Failures | Errors | Skips | Exit |
+|---|---:|---:|---:|---:|---:|---:|
+| Fresh baseline | 955 | 955 | 0 | 0 | 0 | 0 |
+| Final related regression | 57 | 57 | 0 | 0 | 0 | 0 |
+| Final full regression | 999 | 999 | 0 | 0 | 0 | 0 |
+
+Final full test duration: **1792.84 seconds**. Evidence directory:
+`D:/Users/aa133/Desktop/LLMBO_Para/bo-repair-work/20261017_et_implementation/tests/np-final-full-1022142918208570/`.
+Files: `pytest.log`, `junit.xml`, `exit-code.txt`, `result.json`. JUnit counts were independently checked against the result JSON. Boundary network/battery attempts both zero; two existing nonbattery algebraic PyBaMM simulations were allowed. Pytest software/mock fixtures are separate from formal experiment costs.
+
+`closure.json` and `workspace-final.json` record an exact match of all 124 protected main files, old numerical/Prompt hashes and LGBO tilt AST to Task0. Product source fingerprint remains `054f0a7ca110a23640a802055516b9734c536d17d68192c7a53fa27949e8ccb8`. All 444 files in the original incomplete seal were rechecked without modification. Old voltage behavior remains covered by the passing full suite; no source/model/Prompt edits occurred in this delivery.
+
+The selected eight points' archived predictions were independently rescored, with results in `initialization-only-RMSE.{json,csv}`. The fixed equal-weight representative has **F_U=0.05415334424957664 V, F_T=0.24916451270262385 K**. These are initialization-only errors on the four-second algebraic fixture, not results of twenty BO rounds, real DFN or measured identification.
+
+`recovery-preflight/index.json` contains 24 prepared configurations: all pass existing strict initialization checks, share one initialization-compatibility signature and have 24 distinct algorithm signatures. No re-signing, objective evaluation or execution occurred. Repaired archive preflight predicts a maximum path of 250 characters for the proposed new output. `controlled-recovery-protocol.json` remains **approved=false**: reuse the original eight selected points with at most 480 new candidate evaluations / 960 software calls, cumulative caps496/992, a new3600-second supervised window, one thread and API/DFN0, no retry. Original failure and expired window remain preserved.
+
+Execution decisions and costs: reuse the Windows guarded adapter with a new ledger (adapter maintenance), retain all workspaces/evidence/worktree per user instruction (disk use), and extend the owned supervisor only in the research script during the source freeze (duplicate supervisor maintenance). No deferred minor findings; the timing finding was upgraded because complete cost reporting is required, then fixed by RED→GREEN.
+
+Task1 and this runner repair are complete. Task2 remains stopped/incomplete; Tasks3–4 and full-plan Task5 remain unfinished. Successful local regression is not a completed gain experiment. Method and old LLM documentation were not rewritten to imply a v2 implementation.
 
 The failed batch is not overwritten, resumed or re-signed. Its selected initialization remains bound to its actual source and original screening costs. It may only be reused after the existing strict plan/hash/curve checks and explicit authorization for a controlled recovery.
 
