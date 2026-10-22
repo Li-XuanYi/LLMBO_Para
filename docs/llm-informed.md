@@ -228,7 +228,7 @@ Responses 请求使用 instructions/input/max_output_tokens/text.format，固定
 
 新策略不使用目录、证据ID、解释字段、fair gate、eligible条件、trust/退火/consistency、置信度0.6阈值或前12轮限制。保留完整请求绑定、原生有限JSON、物理域、预算与数值校验；失败/弃权/退化回退Plain。低confidence按原值生效，零confidence精确Plain；合法动作不保证改变选点或真实改善。
 
-只用一个策略入口，不再叠加旧策略开关；显式region_advice/region_selection/region_evidence/region_proposal、llm.region_wire_format或非空optimization.region与lgbo_v1冲突时拒绝。旧配置不含region_method时继续旧行为，旧cache/回复/初始计划仍通过原严格签名核验。WarmStart及其Pareto＋Max–Min规则不变。
+只用一个策略入口，不再叠加旧策略开关；显式region_advice/region_selection/region_evidence/region_proposal、llm.region_wire_format或非空optimization.region与lgbo_v1或lgbo_v2冲突时拒绝。旧配置不含region_method时继续旧行为，旧cache/回复/初始计划仍通过原严格签名核验。WarmStart及其Pareto＋Max–Min规则不变。
 
 最小线上回复仅含request_id和region。kind=region要求lb、ub、confidence；kind=none仅kind。request_id覆盖完整内部冻结请求、Prompt、签名、权重、尺度及历史，host校验后恢复身份。模型返回值不做隐式裁剪或类型转换；宿主签名中的tuple规范化仅用于本地身份恢复。
 
@@ -240,3 +240,17 @@ $env:PYTHONPATH = 'C:\Users\aa133\.codex\worktrees\electrothermal-refactor\LLMBO
 ```
 
 本轮软件演示使用0.5C/1C标签的人工4秒代数数据及固定mock区域，三个种子两臂各8初始化＋20轮；双RMSE/固定HV记录及深审计用于验证闭环，不证明真实DFN或LLM增益。详见 `docs/audits/lgbo-region-simplification-2026-10-22.md`。新LGBO真实API契约、真实DFN配对和实测辨识仍未运行。
+
+### 独立数值对照与Prompt v2（2026-10-22）
+
+`scripts/run_lgbo_numerical_ablation.py` 默认只打印dry-run协议；显式`--execute`才运行批准的四档×三种子×两臂软件对照。G016/G512是全局候选数，local8保持不变；S0/S4是双方相同的GP拟合上限。固定mock矩形与LGBO公式不变。首批因Windows长路径停止，修复短目录和父进程硬时限后，经明确受控恢复复用原16选8，完成24组。新480/960加原16/32，累计496次候选/992次软件调用；真实API/DFN0。全部负结果、曲线和对照见`docs/audits/lgbo-numerical-ablation-2026-10-22.md`。
+
+这组固定mock结果没有稳定Region增益：12个配对HV差中8负4正。GP拟合从0到4 sweeps的共享改善与Region效应分别统计；加密候选改善盒内覆盖，但不能单独保证引导更好。它们是同一初始化、三种子、四秒代数夹具的描述性结果。
+
+`optimization.region_method="lgbo_v2"` 只版本化提示词与解释，不增加可叠加策略。新Prompt为`region_preference_lgbo_v2_electrothermal.txt`，在已有权重、尺度、理想点、top4/极值/recent3和动态残差外，为历史行提供 `weighted_objective_evidence`：q=w*(F/scales-ideal)、最大分量、精确同分的active_objectives及g=max(q)+rho*sum(q)。输入/派生值必须有限，当前ideal仍固定零。Prompt允许证据不足的维度保持宽边界，不要求reason。v1提示词字节与冻结身份后的科学内容保持不变。
+
+wire仍为`lgbo_action_v1`，只回复request_id/region；绑定涵盖完整版本/Prompt/解释。v2与v1共用数值骨干，同动作下后验、倾斜、EI、选点及真实目标一致；GP标签和原方差不变。审计独立使用经曲线核验的历史Y重算解释，可识别生产辅助函数自身算错的情况。请求失败、缺失已解码原始回复和真正的无回复故障分别核验，两种生产worker都有离线测试。
+
+软件入口`configs/electrothermal-sub2api-lgbo-v2-software-template.json`由本轮R2模板复制，采用预定G512_S4、默认parego、LLM关闭、API/DFN0；没有配置实际API连接。可使用原CLI `preflight CONFIG --output NEW_DIRECTORY`。真实调用需另备明确的transport/端点/模型/专用环境变量及批准预算；该模板不自动测试API。新源码指纹包含v2文件，StageA旧初始化不得换签导入；v1/v2在同一新源码下可共享严格核验的计划。
+
+当前已验证软件契约和同动作等价，未验证真实Prompt增益、真实DFN新配对或实测辨识。未来确认协议使用预留种子101/131/167，并在同source/有效初始化下比较；预算另行审批。电流、温度测点/单位、初态和冷却边界仍待科研组确认，旧3C继续排除。
