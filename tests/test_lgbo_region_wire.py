@@ -155,3 +155,22 @@ def test_native_decoded_action_survives_controller_validation(tmp_path, monkeypa
     assert result is not None, controller.last_request_outcome
     assert result['region_method'] == 'lgbo_v1'
     assert controller.last_request_outcome['status'] == 'received'
+
+
+@pytest.mark.parametrize('damage',['version','component','prompt'])
+def test_v2_action_binds_version_explanation_and_prompt(tmp_path,damage):
+    from test_lgbo_weighted_context import v2_request
+    _,_,_,payload=v2_request(tmp_path)
+    from llmbo_para.electrothermal_lgbo_wire import lgbo_request_id,decode_lgbo_action,WIRE_VERSION
+    from llmbo_para.electrothermal_region_wire import region_wire_payload,decode_region_wire
+    assert WIRE_VERSION=='lgbo_action_v1'
+    reply={'request_id':lgbo_request_id(payload),'region':{'kind':'none'}}
+    wire=region_wire_payload(payload)
+    assert set(wire['response_contract']['properties'])=={'request_id','region'}
+    canonical=decode_region_wire(reply,payload)
+    assert canonical['region_method']=='lgbo_v2' and canonical['region']=={'kind':'none'}
+    changed=deepcopy(payload)
+    if damage=='version':changed['region_method']='lgbo_v1'
+    elif damage=='component':changed['history'][0]['weighted_objective_evidence']['weighted_components'][0]+=.01
+    else:changed['instructions']+=' altered'
+    with pytest.raises(ValueError):decode_lgbo_action(reply,changed)

@@ -100,9 +100,10 @@ def electrothermal_configuration_errors(config):
     if model.get('pybamm_version')!='25.10.2':errors.append('locked PyBaMM 25.10.2 required')
     if model.get('options')!={'thermal':'lumped','use lumped thermal capacity':'true','surface temperature':'ambient'}:errors.append('verified lumped thermal options required')
     opt=section('optimization');strict(opt,('mode','initial_count','total_candidate_budget','seed','gp_sweeps','global_pool_size','local_pool_size','local_radius','max_rate_attempts','parallel_workers','objective_scales','rho_aug','weights','hv_reference','warmstart','region','region_advice','region_selection','region_evidence','region_proposal','region_method','initial_plan'),'optimization')
-    if 'region_method' in opt and (type(opt['region_method']) is not str or opt['region_method']!='lgbo_v1'):
+    from .electrothermal_lgbo import is_lgbo_method
+    if 'region_method' in opt and not is_lgbo_method(opt['region_method']):
         errors.append('invalid Region method')
-    if opt.get('region_method')=='lgbo_v1':
+    if is_lgbo_method(opt.get('region_method')):
         if 'region' in opt and (type(opt['region']) is not dict or bool(opt['region'])):
             errors.append('LGBO does not accept legacy Region controls')
         if any(k in opt for k in ('region_advice','region_selection','region_evidence','region_proposal')):
@@ -142,7 +143,7 @@ def electrothermal_configuration_errors(config):
     for key in ('max_solver_calls','max_llm_requests'):numeric(budget.get(key),'budgets.'+key,positive=False,integer=True)
     numeric(budget.get('wall_clock_s'),'budgets.wall_clock_s')
     llm=section('llm');strict(llm,('enabled','endpoint','api_key_env','model','max_tokens','timeout_s','json_mode','task_options','region_wire_format','thinking','transport'),'llm')
-    if opt.get('region_method')=='lgbo_v1' and 'region_wire_format' in llm:
+    if is_lgbo_method(opt.get('region_method')) and 'region_wire_format' in llm:
         errors.append('LGBO method fixes its own direct-action wire')
     transport=llm.get('transport','openai_chat_completions')
     if transport not in ('openai_chat_completions','openai_responses'):errors.append('invalid electrothermal LLM transport')

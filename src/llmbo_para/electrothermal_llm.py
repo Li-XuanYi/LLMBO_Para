@@ -9,6 +9,7 @@ from .scalarization import augmented_tchebycheff
 from .pareto import pareto_indices
 from .electrothermal_provenance import candidate_key,write_initial_plan,load_initial_plan
 from .runstore import digest_value,canonical_json
+from .electrothermal_lgbo import is_lgbo_method,lgbo_prompt_filename
 
 
 def warmstart_selection_details(records,*,space,count,objective_scales,rho_aug=.05):
@@ -52,7 +53,7 @@ def build_electrothermal_payload(task,*,prepared,history,context=None):
     cfg=prepared.config;valid=[r for r in history if r.complete_pair_valid]
     front=[valid[i] for i in pareto_indices([r.objectives for r in valid])]
     is_region=task=='region_preference_electrothermal'
-    lgbo=is_region and cfg['optimization'].get('region_method')=='lgbo_v1'
+    lgbo=is_region and is_lgbo_method(cfg['optimization'].get('region_method'))
     candidate_aware=is_region and cfg['optimization'].get('region_advice','legacy_v1')=='candidate_aware_v1'
     dynamic_evidence=is_region and (lgbo or cfg['optimization'].get('region_evidence','legacy_v1')=='dynamic_decision_v3')
     catalog_proposal=is_region and cfg['optimization'].get('region_proposal','bounds_v1')=='catalog_v1'
@@ -69,7 +70,7 @@ def build_electrothermal_payload(task,*,prepared,history,context=None):
         if not dynamic_evidence:raise ValueError('Region catalog requires dynamic evidence')
         prompt_name=('region_preference_action_electrothermal' if cfg['llm'].get('region_wire_format')=='compact_action_v2'
                      else 'region_preference_catalog_electrothermal')
-    if lgbo:prompt_name='region_preference_lgbo_electrothermal'
+    if lgbo:prompt_name=lgbo_prompt_filename(cfg['optimization']['region_method']).removesuffix('.txt')
     scalar_by_id={}
     if is_region:
         if context is None:raise ValueError('frozen context required for Region request')
@@ -92,6 +93,10 @@ def build_electrothermal_payload(task,*,prepared,history,context=None):
             row.pop('objective_components')
             row['normalized_parameters']=[round(float(x),6) for x in prepared.space.normalize(row['parameters'])]
             row['current_scalar_g']=scalar_by_id.get(row['evaluation_id']) if row['complete_pair_valid'] else None
+            if cfg['optimization'].get('region_method')=='lgbo_v2' and row['complete_pair_valid']:
+                from .electrothermal_region_context import weighted_objective_evidence
+                row['weighted_objective_evidence']=weighted_objective_evidence(row['objectives'],weights=c.weights,
+                    objective_scales=c.objective_scales,ideal=c.ideal,rho_aug=c.rho_aug)
         if signed_evidence:
             from .electrothermal_residuals import signed_record_summary
             for row,record in zip(rows,selected.values()):row['signed_residuals']=signed_record_summary(record)
@@ -165,8 +170,8 @@ def build_electrothermal_payload(task,*,prepared,history,context=None):
     payload['response_contract']={'type':'object','additionalProperties':False,'required':list(properties),'properties':properties}
     if lgbo:
         from .electrothermal_lgbo_wire import lgbo_region_contract
-        payload['region_method']='lgbo_v1'
-        properties['region_method']={'const':'lgbo_v1'}
+        payload['region_method']=cfg['optimization']['region_method']
+        properties['region_method']={'const':payload['region_method']}
         properties['region']=lgbo_region_contract()
         payload['response_contract']['required']=list(properties)
     if is_region and cfg['llm'].get('region_wire_format','full_v1') in ('compact_v1','compact_action_v2'):
@@ -231,7 +236,7 @@ class ElectrothermalLLMController:
         outcome['ordinal']=ordinal
         payload={**payload,'artifact_task':payload['task']+'_request_'+'a'*(ordinal+1)}
         catalog_proposal=task=='region_preference_electrothermal' and payload.get('region_proposal')=='catalog_v1'
-        lgbo_proposal=task=='region_preference_electrothermal' and payload.get('region_method')=='lgbo_v1'
+        lgbo_proposal=task=='region_preference_electrothermal' and is_lgbo_method(payload.get('region_method'))
         frozen_request=canonical_json(payload) if catalog_proposal or lgbo_proposal else None
         sent_payload=json.loads(frozen_request) if frozen_request is not None else payload
         store.ledger.record({'event_id':f'llm:{ordinal}','kind':'mock_llm_request' if self.is_mock else 'llm_request','phase':payload['task']})
@@ -261,7 +266,7 @@ class ElectrothermalLLMController:
                         raise ValueError('transport mutated frozen LGBO request')
                     response=deepcopy(response) if native else decode_lgbo_action(response,json.loads(frozen_request))
                     validate_lgbo_region(response,expected_context_id=payload['context_id'],
-                                         expected_signatures=payload['signatures'])
+                                         expected_signatures=payload['signatures'],expected_region_method=payload['region_method'])
                 except (ValueError,TypeError,KeyError,OverflowError):
                     outcome.update(status='failed',reason='invalid_lgbo_response',error_type='ValueError')
                     store.write_json(f'llm/{ordinal:06d}.error.json',

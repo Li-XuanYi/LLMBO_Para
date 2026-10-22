@@ -16,6 +16,17 @@ ENVELOPE = {'schema_version', 'parameter_profile', 'fit_rates', 'signatures',
             'context_id', 'region_method', 'region'}
 
 
+def is_lgbo_method(value: object) -> bool:
+    return type(value) is str and value in ('lgbo_v1','lgbo_v2')
+
+
+def lgbo_prompt_filename(method: str) -> str:
+    if not is_lgbo_method(method):
+        raise ValueError('unknown LGBO method version')
+    return ('region_preference_lgbo_electrothermal.txt' if method=='lgbo_v1'
+            else 'region_preference_lgbo_v2_electrothermal.txt')
+
+
 def _native(value):
     if type(value) is dict:
         return all(type(k) is str and _native(v) for k, v in value.items())
@@ -24,9 +35,9 @@ def _native(value):
     return value is None or type(value) in (str, int, float, bool)
 
 
-def validate_lgbo_region(response, *, expected_context_id, expected_signatures):
+def validate_lgbo_region(response, *, expected_context_id, expected_signatures, expected_region_method='lgbo_v1'):
     """Validate restored host identities and the exact direct-region action."""
-    if not _native(response):
+    if not is_lgbo_method(expected_region_method) or not _native(response):
         raise ValueError('LGBO action must use native JSON')
     try:
         canonical_json(response)
@@ -35,7 +46,7 @@ def validate_lgbo_region(response, *, expected_context_id, expected_signatures):
     if (type(response) is not dict or set(response) != ENVELOPE
             or type(response['schema_version']) is not int or response['schema_version'] != 2
             or response['parameter_profile'] != 'electrothermal_4e2t'
-            or response['region_method'] != METHOD
+            or response['region_method'] != expected_region_method
             or response['context_id'] != expected_context_id
             or response['fit_rates'] != list(expected_signatures['fit_rates'])
             or digest_value(response['signatures']) != digest_value(expected_signatures)):
@@ -88,14 +99,16 @@ def lgbo_mean_tilt(*, mean, std, cov_xa, cov_aa, confidence):
             'adjusted_mean': adjusted.tolist()}
 
 
-def apply_lgbo_region(gp, context, pool, response, *, space, request_outcome=None):
+def apply_lgbo_region(gp, context, pool, response, *, space, request_outcome=None, region_method='lgbo_v1'):
     """Apply a direct regional preference, then maximize EI over the whole pool."""
+    if not is_lgbo_method(region_method):
+        raise ValueError('unknown LGBO method version')
     x = np.asarray(pool, dtype=float)
     mean, std = gp.predict(x)
     mean, std = np.asarray(mean, dtype=float), np.asarray(std, dtype=float)
     ei = gaussian_ei(mean, std, context.scalarization.best)
     plain = int(np.argmax(ei))
-    result = {'region_method': METHOD, 'context_id': context.context_id,
+    result = {'region_method': region_method, 'context_id': context.context_id,
               'mean': mean.tolist(), 'std': std.tolist(), 'plain_ei': ei.tolist(),
               'signed_delta': np.zeros_like(mean).tolist(), 'adjusted_mean': mean.tolist(),
               'effective_ei': ei.tolist(), 'plain_index': plain, 'selected_index': plain,
@@ -109,7 +122,7 @@ def apply_lgbo_region(gp, context, pool, response, *, space, request_outcome=Non
         return fallback('no_response')
     try:
         region = validate_lgbo_region(response, expected_context_id=context.context_id,
-                                     expected_signatures=json.loads(context.signatures_json))
+                                     expected_signatures=json.loads(context.signatures_json), expected_region_method=region_method)
     except (ValueError, TypeError, KeyError, OverflowError):
         return fallback('invalid_lgbo_action')
     result['action_valid'] = True

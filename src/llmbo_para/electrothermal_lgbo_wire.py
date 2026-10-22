@@ -2,7 +2,7 @@
 from copy import deepcopy
 import json
 
-from .electrothermal_lgbo import METHOD, validate_lgbo_region
+from .electrothermal_lgbo import is_lgbo_method, validate_lgbo_region
 from .runstore import canonical_json, digest_value
 
 WIRE_VERSION = 'lgbo_action_v1'
@@ -24,7 +24,7 @@ def lgbo_region_contract():
 
 
 def lgbo_request_id(payload):
-    if (payload.get('task') != TASK or payload.get('region_method') != METHOD
+    if (payload.get('task') != TASK or not is_lgbo_method(payload.get('region_method'))
             or 'request_id' in payload or any(k not in payload for k in IDENTITIES)):
         raise ValueError('complete internal LGBO request required')
     return digest_value({'wire_version': WIRE_VERSION,
@@ -53,5 +53,5 @@ def decode_lgbo_action(response, payload):
     canonical = json.loads(canonical_json({k: payload[k] for k in IDENTITIES}))
     canonical['region'] = deepcopy(response['region'])
     validate_lgbo_region(canonical, expected_context_id=payload['context_id'],
-                         expected_signatures=payload['signatures'])
+                         expected_signatures=payload['signatures'],expected_region_method=payload['region_method'])
     return canonical

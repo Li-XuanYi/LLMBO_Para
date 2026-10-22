@@ -6,6 +6,7 @@ checking the returned binding. Old wire replies and cache validation are intact.
 """
 from copy import deepcopy
 from .runstore import digest_value,canonical_json
+from .electrothermal_lgbo import is_lgbo_method
 
 FORMATS=('full_v1','compact_v1','compact_action_v2')
 TASK='region_preference_electrothermal'
@@ -33,7 +34,7 @@ def _binding(payload):
         'request':{k:v for k,v in payload.items() if k!='artifact_task'}})
 
 def region_wire_payload(payload):
-    if payload.get('task')==TASK and payload.get('region_method')=='lgbo_v1':
+    if payload.get('task')==TASK and is_lgbo_method(payload.get('region_method')):
         from .electrothermal_lgbo_wire import lgbo_wire_payload
         return lgbo_wire_payload(payload)
     if not _compact(payload):return deepcopy(payload)
@@ -55,7 +56,7 @@ def region_wire_payload(payload):
     return wire
 
 def decode_region_wire(response,payload):
-    if payload.get('task')==TASK and payload.get('region_method')=='lgbo_v1':
+    if payload.get('task')==TASK and is_lgbo_method(payload.get('region_method')):
         from .electrothermal_lgbo_wire import decode_lgbo_action
         return decode_lgbo_action(response,payload)
     if not _compact(payload):return response

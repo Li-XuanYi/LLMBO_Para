@@ -15,6 +15,7 @@ import time
 from .electrothermal_execution import run_with_deadline
 from .llm import ChatCompletionsTransport
 from .runstore import RunStore, reject_inline_secrets
+from .electrothermal_lgbo import is_lgbo_method
 
 
 TASKS = ("warm_start_electrothermal", "region_preference_electrothermal")
@@ -254,7 +255,7 @@ class BoundedChatCompletionsTransport(ChatCompletionsTransport):
         started = time.monotonic()
         task = payload.get("artifact_task", payload.get("task", "request")) if isinstance(payload, dict) else "request"
         wire_format=payload.get('region_wire_format','full_v1') if isinstance(payload,dict) else 'full_v1'
-        lgbo_wire=isinstance(payload,dict) and payload.get('task')=='region_preference_electrothermal' and payload.get('region_method')=='lgbo_v1'
+        lgbo_wire=isinstance(payload,dict) and payload.get('task')=='region_preference_electrothermal' and is_lgbo_method(payload.get('region_method'))
         if lgbo_wire:wire_format='lgbo_action_v1'
         base = {"configured_timeout_s": self.timeout_s, "max_tokens": self.max_tokens,
                 "http_request_started": False, "http_status": None,
