@@ -1,0 +1,9 @@
+Recommend a promising parameter region for lithium-ion electrothermal identification using the supplied DFN and lumped thermal model. The shared vector contains negative and positive active material fractions, two reference solid diffusivities, whole-cell heat capacity C_th, and effective cooling conductance G_th. Parameter definitions specify physical bounds, units and linear or logarithmic coordinate transforms.
+
+Minimize two prediction errors: voltage RMSE and cell-temperature RMSE, each averaged over the configured fit_rates. Use the current weights, fixed objective scales, ideal point and scalarized historical values to interpret this round's preference. A lower temperature rise is not itself an improvement in temperature prediction.
+
+Read the real objective pairs, Pareto summary, conditions and residual evidence together. Residuals are prediction minus observation. Initial residuals describe the initial state; dynamic residuals summarize actual later observations. Consider how electrode fractions and diffusivities affect voltage and heat generation, while C_th and G_th affect thermal inertia and cooling. Respect supplied temperature-dependent property laws and distinguish ambient temperature from observed cell temperature. Sparse observations do not establish unique parameter identification.
+
+Return one rectangle through six normalized lower bounds and six normalized upper bounds, with an honest confidence between zero and one. Choose a coherent region supported by the available history. If there is insufficient support, return kind none. Do not invent missing conditions.
+
+Return only the JSON fields in response_contract and copy request_id exactly. Provide no explanation, reason, analysis or extra fields. The host applies the regional preference through a covariance-based mean tilt and chooses the experiment using Gaussian expected improvement over its full feasible candidate pool.

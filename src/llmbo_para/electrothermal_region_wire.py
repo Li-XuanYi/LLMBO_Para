@@ -33,6 +33,9 @@ def _binding(payload):
         'request':{k:v for k,v in payload.items() if k!='artifact_task'}})
 
 def region_wire_payload(payload):
+    if payload.get('task')==TASK and payload.get('region_method')=='lgbo_v1':
+        from .electrothermal_lgbo_wire import lgbo_wire_payload
+        return lgbo_wire_payload(payload)
     if not _compact(payload):return deepcopy(payload)
     if any(k not in payload for k in ENVELOPE):raise ValueError('complete frozen Region envelope required')
     wire=deepcopy(payload);wire.pop('signatures')
@@ -52,6 +55,9 @@ def region_wire_payload(payload):
     return wire
 
 def decode_region_wire(response,payload):
+    if payload.get('task')==TASK and payload.get('region_method')=='lgbo_v1':
+        from .electrothermal_lgbo_wire import decode_lgbo_action
+        return decode_lgbo_action(response,payload)
     if not _compact(payload):return response
     action=payload.get('region_wire_format')=='compact_action_v2'
     if action:
