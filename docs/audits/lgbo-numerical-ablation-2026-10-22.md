@@ -1,8 +1,8 @@
-# LGBO numerical controls: stopped software batch
+# LGBO numerical controls: controlled recovery completed
 
 ## Status
 
-Approved plan: [numerical controls before Prompt v2](../superpowers/plans/2026-10-22-lgbo-numerical-prompt-plan.md), approved as e11838f. Stage A **incomplete**; Stage B **not started**. No claim of Region gain or lack of gain can be made from this batch.
+Approved plan: [numerical controls before Prompt v2](../superpowers/plans/2026-10-22-lgbo-numerical-prompt-plan.md), approved as e11838f. The original attempt stopped as documented below. The human-approved controlled recovery is now **complete and sealed**; Stage B is **not started** at this evidence boundary. The final section reports all paired deltas; no real LLM/DFN gain is claimed.
 
 Worktree: `C:/Users/aa133/.codex/worktrees/electrothermal-refactor/LLMBO_Para`, branch `codex/electrothermal-mo-20261016`. Protected main and reference projects were not modified.
 
@@ -54,7 +54,7 @@ The selected eight points' archived predictions were independently rescored, wit
 
 Execution decisions and costs: reuse the Windows guarded adapter with a new ledger (adapter maintenance), retain all workspaces/evidence/worktree per user instruction (disk use), and extend the owned supervisor only in the research script during the source freeze (duplicate supervisor maintenance). No deferred minor findings; the timing finding was upgraded because complete cost reporting is required, then fixed by RED→GREEN.
 
-Task1 and this runner repair are complete. Task2 remains stopped/incomplete; Tasks3–4 and full-plan Task5 remain unfinished. Successful local regression is not a completed gain experiment. Method and old LLM documentation were not rewritten to imply a v2 implementation.
+At the earlier partial-delivery boundary Task1 and the runner repair were complete, while Task2 remained stopped/incomplete and Tasks3–4/full-plan Task5 unfinished. The subsequent controlled recovery completes Task2, as recorded below. Successful local regression is not a completed gain experiment. Method and old LLM documentation were not rewritten to imply a v2 implementation.
 
 The failed batch is not overwritten, resumed or re-signed. Its selected initialization remains bound to its actual source and original screening costs. It may only be reused after the existing strict plan/hash/curve checks and explicit authorization for a controlled recovery.
 
@@ -63,3 +63,17 @@ The failed batch is not overwritten, resumed or re-signed. Its selected initiali
 The approved stop rule says “任一运行未完成/审计失败或总预算耗尽即停止本批次，不开启后续case、不转入Stage B、不重置计数”. Therefore no automatic recovery and no Prompt v2 implementation follow this failure.
 
 Unspent candidate/call allowance is at most **480 / 960**. It is not a new or automatically renewed run permission. A concrete recovery would retain the failed archive, reuse the verified eight selected points, run the same 24 cases under a new supervised time window, and preserve cumulative 496/992 caps. Prompt v2 remains conditional on a completed and sealed Stage A. Any real API/DFN confirmation still needs a separate protocol; present budget remains zero.
+
+## Controlled recovery completed
+Human approved one controlled recovery after the stopped batch. The original failed archive remains unchanged. New evidence root: `D:/Users/aa133/Desktop/LLMBO_Para/bo-repair-work/20261017_et_implementation/lgbo-numerical-recovery-20261022/`.
+Recovered run exit0, **24/24 cases, 20 BO attempts each, all25 deep audits passed**. Initial eight were strictly imported without another screening evaluation. New480 candidates/960 software calls, prior16/32, cumulative496/992; boundary network/battery0. Seal10164 files independently verified; total through sealing153.8224411 seconds. Source stayed054f0a7c.
+|Setting|seed17 deltaHV|seed41 deltaHV|seed59 deltaHV|Mean deltaHV|
+|---|---:|---:|---:|---:|
+|G016_S0|0.0357294998|-0.0283143121|-0.0381248992|-0.0102365705|
+|G512_S0|-0.0087038390|-0.0244391381|-0.0287412836|-0.0206280869|
+|G016_S4|0.0040403579|-0.0007480396|0.0000109609|0.0011010931|
+|G512_S4|-0.0000039172|-0.0040372249|0.0012273419|-0.0009379334|
+
+Delta is Full−Plain in the fixed Y/scales HV space. Results are mixed and mostly negative, with no stable gain across seeds. This is a fixed-mock region study on a four-second algebraic fixture, not evidence of real Prompt or DFN benefit. Candidate density and GP fitting are shared controls; their changes must be reported separately from Region deltas. Three seeds with one shared initialization support only conditional descriptive comparisons.
+
+Artifacts: `stage-a/{summary.json,run-index.jsonl,round-RMSE.csv,representative-RMSE.csv,factorial-contrasts.csv,factorial-effects.csv,fit-times.jsonl,stage-a-seal.json}`, `stage-a-seal-verification.json`, and `cli-exit-code.txt`. Full per-rate errors/raw curves and costs remain in every case. StageA is complete and sealed before any StageB source or Prompt edit.
