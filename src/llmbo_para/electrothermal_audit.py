@@ -175,7 +175,7 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                 equal(artifact,outcome['task']+'_request_'+'a'*(n+1),'Responses artifact task differs')
             request_path=root/'http'/(artifact+'.request.json');response=root/'http'/(artifact+'.response.json')
             supervision_path=root/'http'/(artifact+'.supervision.json')
-            if transport_kind=='openai_responses' and (outcome['status']=='received' or outcome.get('reason')=='invalid_catalog_response'):
+            if transport_kind=='openai_responses' and (outcome['status']=='received' or outcome.get('reason') in ('invalid_catalog_response','invalid_lgbo_response')):
                 live_cost=any(e.get('type')=='electrothermal_cost' and e.get('event_id')==f'llm:{n}'
                     and e.get('kind')=='llm_request' for e in events)
                 if live_cost:
@@ -216,12 +216,12 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                         expected['instructions']=(root/'source/src/llmbo_para/prompts/warm_start_electrothermal.txt').read_text(encoding='utf8')
                         expected['artifact_task']=artifact
                         equal(payload,expected,'independently rebuilt Responses WarmStart request differs')
-                    frozen_payload=json.loads(canonical_json(payload)) if payload.get('region_proposal')=='catalog_v1' else payload
+                    frozen_payload=json.loads(canonical_json(payload)) if payload.get('region_proposal')=='catalog_v1' or payload.get('region_method')=='lgbo_v1' else payload
                     expected_body=responses_request_body(region_wire_payload(frozen_payload),model=cfg['llm']['model'],
                         max_tokens=controls['max_tokens'],json_mode=cfg['llm']['json_mode'])
                     equal(request,expected_body,'Responses final HTTP request differs')
                     formal_path=root/'llm'/file.name.replace('.outcome.json','.responses-formal.json')
-                    needs_formal=outcome['status']=='received' or outcome.get('reason')=='invalid_catalog_response'
+                    needs_formal=outcome['status']=='received' or outcome.get('reason') in ('invalid_catalog_response','invalid_lgbo_response')
                     if response.exists():
                         decoded,issue=decode_catalog_http_response(json.loads(response.read_text(encoding='utf8')),
                             payload=payload,transport=transport_kind)
@@ -283,7 +283,10 @@ def audit_electrothermal_run(run_directory,*,deep=False):
             from .informed import InformedSettings
             from .mo_optimizer import MORoundContext
             from .electrothermal_llm import apply_electrothermal_region,update_electrothermal_trust
-            opt=cfg['optimization'];scheduler=WeightScheduler(opt['weights'],opt['seed']);settings=InformedSettings.parse(opt['region']);trust=settings.trust_init
+            opt=cfg['optimization'];scheduler=WeightScheduler(opt['weights'],opt['seed'])
+            lgbo=opt.get('region_method')=='lgbo_v1'
+            settings=None if lgbo else InformedSettings.parse(opt['region'])
+            trust=None if lgbo else settings.trust_init
             advice_mode=opt.get('region_advice','legacy_v1');region_request_references=set()
             selection_mode=opt.get('region_selection','global_lift_v1')
             for ordinal,file in enumerate(round_files,1):
@@ -311,7 +314,19 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                 require(feedback['improved']==(new is not None and new<float(raw.min())),'improvement differs')
                 if advice_mode=='candidate_aware_v1' and opt['mode']=='full_llmbo_mo':
                     require(isinstance(event.get('region'),dict),'candidate-aware round requires Region precheck evidence')
-                if event.get('region') is not None:
+                if event.get('region') is not None and lgbo:
+                    from types import SimpleNamespace
+                    from .electrothermal_lgbo_audit import audit_lgbo_round
+                    c=MORoundContext(context,dataset.fit_rates,canonical_json(asdict(signatures)).decode(),
+                        canonical_json(state).decode(),tuple(map(tuple,pool)),ordinal,saved['context_id'])
+                    checked=audit_lgbo_round(root,event=event,context=c,gp=gp,history=history,
+                        prepared=SimpleNamespace(config=cfg,space=space,dataset=dataset,signatures=signatures),
+                        cost_events=cost_events)
+                    for ident in checked['request_ordinals']:
+                        require(ident not in region_request_references,'LGBO request referenced more than once')
+                        region_request_references.add(ident)
+                    index=checked['selected_index']
+                elif event.get('region') is not None:
                     c=MORoundContext(context,dataset.fit_rates,canonical_json(asdict(signatures)).decode(),canonical_json(state).decode(),tuple(map(tuple,pool)),ordinal,saved['context_id'])
                     outcome=event['region'].get('request_outcome')
                     if advice_mode=='candidate_aware_v1':
@@ -509,7 +524,7 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                     equal(tf,feedback['trust'],'frozen trust feedback differs');trust=tf['trust_after']
                 require(event['selected_index']==index,'EI selection differs')
                 if record.complete_pair_valid and tuple(record.parameters) not in {tuple(r.parameters) for r in history}:history.append(record)
-            if advice_mode=='candidate_aware_v1':
+            if advice_mode=='candidate_aware_v1' or lgbo:
                 actual_region_requests={int(e['event_id'].split(':')[1]) for e in cost_events.values()
                     if e['kind'] in ('llm_request','mock_llm_request') and e.get('phase')=='region_preference_electrothermal'}
                 equal(sorted(region_request_references),sorted(actual_region_requests),'orphan Region request cost')
@@ -525,6 +540,10 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                     'responses':sum(o.get('status')=='received' or not o and r['response'] is not None for r,o in zip(regions,outcomes)),
                     'accepted':sum(r['accepted'] for r in regions),'request_failures':sum(o.get('status')=='failed' for o in outcomes),
                     'fallback_counts':dict(Counter(r['fallback_reason'] for r in regions if r['fallback_reason'] is not None))}
+                if lgbo:
+                    expected_diagnostics.update(valid_actions=sum(r['action_valid'] for r in regions),
+                        tilt_applied=sum(r['tilt_applied'] for r in regions),
+                        selection_changed=sum(r['selection_changed'] for r in regions))
                 equal(summary['region_diagnostics'],expected_diagnostics,'Region request/adoption summary differs')
             checks.append('past_only_context_labels_GP_EI_Region_Pareto_HV')
         terminal=read('terminal.json');equal(terminal['summary'],summary,'terminal/summary mismatch')
