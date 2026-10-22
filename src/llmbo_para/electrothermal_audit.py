@@ -1,4 +1,5 @@
 """Read-only v2 audit from archived curves, physical metadata and past history."""
+from .electrothermal_lgbo import is_lgbo_method
 from dataclasses import asdict
 import json
 import math
@@ -216,7 +217,7 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                         expected['instructions']=(root/'source/src/llmbo_para/prompts/warm_start_electrothermal.txt').read_text(encoding='utf8')
                         expected['artifact_task']=artifact
                         equal(payload,expected,'independently rebuilt Responses WarmStart request differs')
-                    frozen_payload=json.loads(canonical_json(payload)) if payload.get('region_proposal')=='catalog_v1' or payload.get('region_method')=='lgbo_v1' else payload
+                    frozen_payload=json.loads(canonical_json(payload)) if payload.get('region_proposal')=='catalog_v1' or is_lgbo_method(payload.get('region_method')) else payload
                     expected_body=responses_request_body(region_wire_payload(frozen_payload),model=cfg['llm']['model'],
                         max_tokens=controls['max_tokens'],json_mode=cfg['llm']['json_mode'])
                     equal(request,expected_body,'Responses final HTTP request differs')
@@ -284,7 +285,7 @@ def audit_electrothermal_run(run_directory,*,deep=False):
             from .mo_optimizer import MORoundContext
             from .electrothermal_llm import apply_electrothermal_region,update_electrothermal_trust
             opt=cfg['optimization'];scheduler=WeightScheduler(opt['weights'],opt['seed'])
-            lgbo=opt.get('region_method')=='lgbo_v1'
+            lgbo=is_lgbo_method(opt.get('region_method'))
             settings=None if lgbo else InformedSettings.parse(opt['region'])
             trust=None if lgbo else settings.trust_init
             advice_mode=opt.get('region_advice','legacy_v1');region_request_references=set()

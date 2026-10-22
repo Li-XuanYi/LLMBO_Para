@@ -9,6 +9,7 @@ from .pareto import pareto_indices,hypervolume_2d
 from .sobol import Sobol6
 from .electrothermal_provenance import candidate_key,verify_evaluation
 from .runstore import digest_value,canonical_json
+from .electrothermal_lgbo import is_lgbo_method
 
 
 @dataclass(frozen=True)
@@ -38,7 +39,7 @@ class MOOptimizer:
         self.initialized=False;self.gp=None;self.last_context=None
         self.region_method=options.get('region_method')
         from .informed import InformedSettings
-        self.region_settings=None if self.region_method=='lgbo_v1' else InformedSettings.parse(options['region'])
+        self.region_settings=None if is_lgbo_method(self.region_method) else InformedSettings.parse(options['region'])
         self.trust=None if self.region_settings is None else self.region_settings.trust_init
 
     def key(self,parameters):return candidate_key(parameters,self.space.profile,self.store.signatures)
@@ -113,18 +114,18 @@ class MOOptimizer:
         region=None
         if self.options['mode']=='full_llmbo_mo':
             response=None;request_outcome=None
-            if self.region_method=='lgbo_v1':
+            if is_lgbo_method(self.region_method):
                 from .electrothermal_lgbo import apply_lgbo_region
                 if self.llm_controller is not None:
                     response=self.llm_controller.request_region(self.llm_controller.prepared,self.history,context,self.store)
                     request_outcome=getattr(self.llm_controller,'last_request_outcome',None)
-                region=apply_lgbo_region(self.gp,context,pool,response,space=self.space,request_outcome=request_outcome)
+                region=apply_lgbo_region(self.gp,context,pool,response,space=self.space,request_outcome=request_outcome,region_method=self.region_method)
             elif context.ordinal<self.region_settings.active_until and self.llm_controller is not None:
                 response=self.llm_controller.request_region(self.llm_controller.prepared,self.history,context,self.store)
                 request_outcome=getattr(self.llm_controller,'last_request_outcome',None)
             elif context.ordinal>=self.region_settings.active_until:
                 request_outcome={'status':'skipped','reason':'inactive','context_id':context.context_id}
-            if self.region_method!='lgbo_v1':
+            if not is_lgbo_method(self.region_method):
                 from .electrothermal_llm import apply_electrothermal_region
                 region=apply_electrothermal_region(self.gp,context,pool,response,settings=self.region_settings,trust=self.trust,space=self.space,
                     request_outcome=request_outcome,advice_mode=self.options.get('region_advice','legacy_v1'),
@@ -134,7 +135,7 @@ class MOOptimizer:
         result,cached=self.evaluate(self.space.denormalize(pool[index]))
         new=float(scalar.scalarize([result.objectives])[0]) if result.complete_pair_valid else None
         feedback={'context_id':context.context_id,'previous_best':old_best,'new_scalar':new,'improved':new is not None and new<old_best,'cached':cached}
-        if region is not None and self.region_method!='lgbo_v1':
+        if region is not None and not is_lgbo_method(self.region_method):
             from .electrothermal_llm import update_electrothermal_trust
             feedback['trust']=update_electrothermal_trust(context,result,previous_trust=self.trust,beta=self.region_settings.trust_beta,
                 adoption={'accepted':region['accepted'],'cached':cached})
@@ -154,7 +155,7 @@ class MOOptimizer:
             'responses':sum(o.get('status')=='received' or not o and r['response'] is not None for r,o in zip(regions,outcomes)),
             'accepted':sum(r['accepted'] for r in regions),'request_failures':sum(o.get('status')=='failed' for o in outcomes),
             'fallback_counts':dict(Counter(r['fallback_reason'] for r in regions if r['fallback_reason'] is not None))}
-        if self.region_method=='lgbo_v1':
+        if is_lgbo_method(self.region_method):
             diagnostics.update(valid_actions=sum(r['action_valid'] for r in regions),
                 tilt_applied=sum(r['tilt_applied'] for r in regions),
                 selection_changed=sum(r['selection_changed'] for r in regions))

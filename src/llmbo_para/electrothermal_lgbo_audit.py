@@ -9,6 +9,7 @@ import numpy as np
 from .acquisition import gaussian_ei
 from .runstore import canonical_json
 from .sobol import Sobol6
+from .electrothermal_lgbo import is_lgbo_method,lgbo_prompt_filename
 
 
 def _require(value, message):
@@ -20,13 +21,37 @@ def _equal(actual, expected, message):
     _require(canonical_json(actual) == canonical_json(expected), message)
 
 
-def _independent_tilt(gp, context, response, outcome, space):
+def _audit_weighted_evidence(payload, context, history):
+    """Recompute from curve-verified records; do not call the request producer."""
+    _require(payload.get('region_method')=='lgbo_v2','LGBO weighted context version differs')
+    records={r.evaluation_id:r for r in history}
+    scalar=context.scalarization
+    raw=dict(zip(scalar.observation_ids,scalar.raw_labels))
+    names=('F_U_V','F_T_K')
+    for row in payload['history']:
+        record=records[row['evaluation_id']]
+        _require(record.complete_pair_valid,'LGBO weighted history lacks a complete pair')
+        components=[float(w*(value/scale-z)) for value,w,scale,z in
+                    zip(record.objectives,scalar.weights,scalar.objective_scales,scalar.ideal)]
+        maximum=max(components)
+        augmented=maximum+scalar.rho_aug*sum(components)
+        expected=dict(version='weighted_tchebycheff_v1',weighted_components=components,
+            max_component=maximum,active_objectives=[names[j] for j in range(2) if components[j]==maximum],
+            augmented_scalar=augmented)
+        _require(all(math.isfinite(v) for v in [*components,augmented]),'LGBO weighted evidence is nonfinite')
+        _equal(row.get('weighted_objective_evidence'),expected,'LGBO weighted objective evidence differs')
+        _require(math.isclose(augmented,raw[record.evaluation_id],rel_tol=1e-14,abs_tol=1e-15),
+                 'LGBO weighted evidence differs from frozen scalar label')
+
+
+def _independent_tilt(gp, context, response, outcome, space, *, region_method='lgbo_v1'):
     """Re-derive the published covariance rule without calling the product tilt."""
+    _require(is_lgbo_method(region_method),'unknown LGBO method')
     pool = np.asarray(context.pool)
     mean, std = gp.predict(pool)
     ei = gaussian_ei(mean, std, context.scalarization.best)
     plain = int(np.argmax(ei))
-    result = dict(region_method='lgbo_v1', context_id=context.context_id,
+    result = dict(region_method=region_method, context_id=context.context_id,
         mean=mean.tolist(), std=std.tolist(), plain_ei=ei.tolist(),
         signed_delta=np.zeros(len(pool)).tolist(), adjusted_mean=mean.tolist(),
         effective_ei=ei.tolist(), plain_index=plain, selected_index=plain,
@@ -113,10 +138,12 @@ def audit_lgbo_round(root, *, event, context, gp, history, prepared, cost_events
         _equal(read(f'llm/{n:06d}.outcome.json'), outcome, 'LGBO outcome archive differs')
         expected = build_electrothermal_payload('region_preference_electrothermal',
             prepared=prepared, history=history, context=context)
-        expected['instructions'] = (root/'source/src/llmbo_para/prompts/region_preference_lgbo_electrothermal.txt').read_text(encoding='utf-8')
+        expected['instructions'] = (root/'source/src/llmbo_para/prompts'/lgbo_prompt_filename(cfg['optimization']['region_method'])).read_text(encoding='utf-8')
         expected['artifact_task'] = expected['task']+'_request_'+'a'*(n+1)
         expected = json.loads(canonical_json(expected))
         payload = read(f'llm/{n:06d}.payload.json')
+        if cfg['optimization']['region_method']=='lgbo_v2':
+            _audit_weighted_evidence(payload,context,history)
         _equal(payload, expected, 'LGBO past-only request or dynamic evidence differs')
         _require(cost_events.get(f'llm:{n}', {}).get('phase') == expected['task'],
                  'LGBO request lacks cost reference')
@@ -191,7 +218,8 @@ def audit_lgbo_round(root, *, event, context, gp, history, prepared, cost_events
         if canonical is not None:
             _require(outcome['status'] == 'received', 'valid LGBO action has unexplained failure')
     _equal(saved.get('response'), canonical, 'LGBO action differs from original wire')
-    expected_region = _independent_tilt(gp, context, canonical, outcome, prepared.space)
+    expected_region = _independent_tilt(gp, context, canonical, outcome, prepared.space,
+                                       region_method=cfg['optimization']['region_method'])
     _require(set(saved) == set(expected_region), 'LGBO decision fields differ')
     numeric = {'mean', 'std', 'plain_ei', 'signed_delta', 'adjusted_mean', 'effective_ei',
                'sampled_anchors', 'anchors', 'anchor_weights', 'region_variance', 'lambda'}
