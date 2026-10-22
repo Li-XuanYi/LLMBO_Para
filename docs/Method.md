@@ -1,10 +1,11 @@
 # Method — 基于 LLMBO-MO 的锂离子电池电热耦合多目标参数辨识
 
-> **论文方法草稿（中文，2026-10-17；Stage 0 倍率协议修订）**
+> **论文方法草稿（中文，2026-10-22；LGBO Region 简化修订）**
 >
-> 研究定位：将现有 LLMBO-MO 框架应用于电化学–热耦合参数辨识；本研究不声称提出新的 DFN、集总热方程、ParEGO 或高斯过程算法。本文件描述拟采用的方法，不代表电热辨识代码、实测拟合和多种子实验已经完成。
+> 研究定位：将现有 LLMBO-MO 框架应用于电化学–热耦合参数辨识；本研究不声称提出新的 DFN、集总热方程、ParEGO 或高斯过程算法。软件实现、真实DFN合成验证和实测辨识分别验收；软件闭环不证明参数唯一可辨识或LLM有效。
 >
 > 与项目设计的关系：以 **docs/superpowers/specs/2026-10-16-electrothermal-identification-design.md（R1.1）** 的物理与优化约定为依据。2026-10-16的scope审计保留为历史；用户2026-10-17确认旧3C数据有问题，当前新版电热拟合排除该数据。其它实测元数据仍待确认。此文是论文正文草稿，不是批准实施计划或实验结果。
+> Region的新策略依据已批准的 **docs/superpowers/specs/2026-10-22-lgbo-region-simplification-design.md**，实现及软件证据见 **docs/audits/lgbo-region-simplification-2026-10-22.md**。
 
 ## III. Method
 
@@ -246,6 +247,10 @@ k_{\mathrm{M52},t}(\boldsymbol x,\boldsymbol x')
 
 ### F. Weight-Conditioned LLM Region-Lift
 
+2026-10-22用户确认新的电热研究策略采用下述F.2的`lgbo_v1`。F.1保留已有相关性启发式及其历史公式，缺少新策略字段的旧配置按原语义执行；两者不混用控制项或LLM回复。
+
+#### F.1 Historical Correlation Policy
+
 除 WarmStart 外，LLM 在迭代搜索时根据当前目标偏好给出候选的优选区域。输入包括 \(\boldsymbol w_t\)、尺度、理想点、当前真实二维观测的摘要与 Pareto 信息；输出为归一化参数空间中的一个有界区域 \(\mathcal B_t\subseteq[0,1]^6\)，或明确弃权。
 
 在区域内生成 \(M\) 个锚点 \(A_t=\{\boldsymbol a_1,\ldots,\boldsymbol a_M\}\)。结合锚点的 EI、GP 不确定性和新颖性，得到非负、和为一的锚点权重 \(\boldsymbol\beta_t\)。以当前真实数据条件下、同一标量化 GP 的后验协方差定义候选与区域响应的相关程度：
@@ -308,6 +313,37 @@ g_t(\boldsymbol\theta_t^{\mathrm{best}})
 
 完整目标对缺失时，此次已采用的新增评价算作未改善，但不伪造 \(g_t\)；若 LLM 弃权、调整未实际采用或仅复用旧缓存，则信任保持不变。**LLM 只改变采集阶段候选排序，不修改真实二维目标、GP 训练标签或原始后验方差**。这一过程属于受约束的启发式引导，不是将语言建议转化为新的概率观测。
 
+#### F.2 LGBO Regional Mean Tilt
+
+参考[LGBO论文§3.2](https://arxiv.org/html/2605.17976v1#S3.SS2)，LLM直接给出归一化矩形及置信度 \(c_t\in[0,1]\)，或弃权，不要求解释、区域目录ID或证据ID。输入保留当前权重、尺度、理想点、Pareto及真实历史和动态残差摘要。区域内固定种子生成32个Sobol锚点，按已有物理参数域筛除非法点，对剩余 \(M\) 个点使用均匀权重 \(a_i=1/M\)。
+
+在当轮标准化标量GP空间，令 \(v_t=a^\top K_t(A_t,A_t)a\)。最小化偏好的指数倾斜为
+
+\[
+\widetilde p(f_t\mid D_t)\propto
+p(f_t\mid D_t)\exp[-\lambda_t a^\top f_t(A_t)],
+\quad
+\lambda_t=\frac{c_t}{\sqrt{v_t}},
+\quad
+\widetilde\mu_t(x)=\mu_t(x)-\lambda_t K_t(x,A_t)a,
+\quad
+\widetilde K_t=K_t.
+\tag{17}
+\]
+
+这里采用论文直接置信度映射及最大化到最小化的符号适配，不混用作者代码的分位数映射/guidance_scale。保留协方差符号，负相关位置可均值上移；其自然不确定性界为
+
+\[
+|\mu_t(x)-\widetilde\mu_t(x)|\le c_t\,\sigma_t(x).
+\tag{18}
+\]
+
+将倾斜均值及原标准差代入式（12），在整个原可行候选池选择最大EI。没有目录、eligible筛选、公平竞争门槛、trust/退火/consistency乘子或区域内选点限制。置信度小于0.6仍可产生较弱引导，第12轮后也不自动停用。候选仍可自然与Plain相同。
+
+仅保留JSON/请求身份/参数边界/物理域/预算和数值校验；无可行锚点、\(v_t\le10^{-12}\)、非有限后验、错误回复或弃权时回退Plain，\(c_t=0\)精确回到Plain。真实Y、训练标签、原GP及原后验方差不被改写，下一轮倾斜不累计。前述冻结上下文和失败轮换权重规则仍适用。
+
+这一策略是LGBO核心机制的电热多目标适配，沿用本项目Gaussian EI。LGBO论文§3.4的固定方向GP-UCB分析不等于动态ParEGO/EI的性能保证；真实API合法率、非零倾斜、选点变化及真实RMSE/HV增益须分别报告。
+
 ### G. Pareto Updating and Overall Procedure
 
 电热模型每次评价后，只有同一拟合倍率集合下、签名和目标有效性均通过检查的完整 \([F_U,F_T]\) 观测，才加入用于下一轮模型拟合的历史数据。同一参数输入的重复评价保留记录和成本，但不重复加入GP训练集；不同参数即使目标相同，仍是不同训练样本。二维非支配筛选维护Pareto参数集，并保留选中各倍率的原始电压曲线、温度曲线、误差、终止状态和求解成本。
@@ -338,11 +374,11 @@ g_t(\boldsymbol\theta_t^{\mathrm{best}})
     6:     Choose w_t, recompute scalarized labels g_t using only past complete pairs.
     7:     Standardize labels, fit one GP, and freeze current context C_t.
     8:     Generate parameter candidates; compute plain Gaussian EI in context C_t.
-    9:     Query weight-conditioned LLM region and form bounded posterior Region-Lift.
-    10:    Use lifted EI only when the acceptance checks pass; otherwise use plain EI.
+    9:     Query a direct region/confidence; form the LGBO mean tilt in context C_t.
+    10:    Maximize tilted Gaussian EI over the full feasible pool; use plain EI on invalid/none guidance.
     11:    For each r in R_fit, evaluate selected parameters with one coupled DFN–thermal solve.
     12:    Compute valid F_U and F_T; preserve partial failures and actual costs.
-    13:    Update the Pareto set and Region-Lift trust under frozen C_t, then advance context.
+    13:    Update the Pareto set, preserve frozen-context feedback, then advance context.
     14: Return the non-dominated parameter set, per-rate errors and trajectories,
         fixed-space HV (when configured), and simulation/API cost ledger.
 

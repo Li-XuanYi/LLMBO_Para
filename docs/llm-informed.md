@@ -221,3 +221,22 @@ Responses 请求使用 instructions/input/max_output_tokens/text.format，固定
 这是参考 WarmStart 的必要数据接口作出的传输修复：模型提出动作，宿主构造规范结果并验证。GP、原始标签/后验方差、协方差 Lift、Gaussian EI、候选池、fair guard 与同轮冻结信任反馈不变。审计按归档模式和 Prompt，从原始 HTTP 独立恢复动作及后续数值结果。
 
 新模板 `configs/electrothermal-sub2api-action-software-template.json` 保留人工软件数据和物理定义，默认 parego、LLM 关闭、API/DFN 预算 0。全局及 Region 输出上限为8192、请求时限上限120秒；WarmStart任务上限4096/120秒，实际还受剩余运行预算限制。没有增加未经核验的 provider thinking 扩展。该模板不授权真实调用或实测辨识；真实 API 契约与 DFN/RMSE/HV 增益仍须独立有限协议。
+
+### 简化 LGBO 电热 Region（2026-10-22）
+
+新电热配置显式设置 `optimization.region_method="lgbo_v1"`。LLM返回归一化矩形与confidence，host以32个可行Sobol锚点的均匀权重计算有符号协方差均值倾斜，保留原方差，然后直接在全候选池最大化Gaussian EI。论文直接映射为lambda=c/sqrt(a.T*K(A,A)*a)，最小化均值为mu-lambda*K(X,A)*a。
+
+新策略不使用目录、证据ID、解释字段、fair gate、eligible条件、trust/退火/consistency、置信度0.6阈值或前12轮限制。保留完整请求绑定、原生有限JSON、物理域、预算与数值校验；失败/弃权/退化回退Plain。低confidence按原值生效，零confidence精确Plain；合法动作不保证改变选点或真实改善。
+
+只用一个策略入口，不再叠加旧策略开关；显式region_advice/region_selection/region_evidence/region_proposal、llm.region_wire_format或非空optimization.region与lgbo_v1冲突时拒绝。旧配置不含region_method时继续旧行为，旧cache/回复/初始计划仍通过原严格签名核验。WarmStart及其Pareto＋Max–Min规则不变。
+
+最小线上回复仅含request_id和region。kind=region要求lb、ub、confidence；kind=none仅kind。request_id覆盖完整内部冻结请求、Prompt、签名、权重、尺度及历史，host校验后恢复身份。模型返回值不做隐式裁剪或类型转换；宿主签名中的tuple规范化仅用于本地身份恢复。
+
+新入口 `configs/electrothermal-sub2api-lgbo-software-template.json` 为人工软件数据，默认parego、LLM关闭、真实API/DFN预算0。预检示例（PowerShell）：
+
+```powershell
+$env:PYTHONPATH = 'C:\Users\aa133\.codex\worktrees\electrothermal-refactor\LLMBO_Para\src'
+& 'D:\Users\aa133\Desktop\LLMBO_Para\.venv-pybamm312\Scripts\python.exe' -m llmbo_para.cli preflight 'C:\Users\aa133\.codex\worktrees\electrothermal-refactor\LLMBO_Para\configs\electrothermal-sub2api-lgbo-software-template.json' --output '<新的预检归档目录>'
+```
+
+本轮软件演示使用0.5C/1C标签的人工4秒代数数据及固定mock区域，三个种子两臂各8初始化＋20轮；双RMSE/固定HV记录及深审计用于验证闭环，不证明真实DFN或LLM增益。详见 `docs/audits/lgbo-region-simplification-2026-10-22.md`。新LGBO真实API契约、真实DFN配对和实测辨识仍未运行。
