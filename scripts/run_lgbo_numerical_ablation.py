@@ -13,6 +13,7 @@ from dataclasses import asdict
 import hashlib
 import json
 import math
+import multiprocessing
 import os
 from pathlib import Path
 import socket
@@ -21,6 +22,7 @@ import time
 
 WT = Path(__file__).resolve().parents[1]
 STAGE_WALL_CLOCK_S = 3600
+PER_RUN_WALL_CLOCK_S = 120
 MATRIX = [('G016_S0', 16, 0), ('G512_S0', 512, 0),
           ('G016_S4', 16, 4), ('G512_S4', 512, 4)]
 SEEDS = (17, 41, 59)
@@ -64,6 +66,32 @@ def _cases():
             for mode in (MODES[::-1] if seed == 41 else MODES)]
 
 
+def case_output_root(output: Path, case: dict) -> Path:
+    """Keep the scientific case ID in the index, with a short disk directory."""
+    ids = [c['case_id'] for c in _cases()]
+    try:
+        index = ids.index(case['case_id'])
+    except (KeyError, ValueError):
+        raise ValueError('unknown archive case') from None
+    return Path(output)/f'r{index:02d}'
+
+
+def validate_archive_paths(output: Path) -> dict:
+    """Check all snapshot/long Region filenames before spending any budget."""
+    output = Path(output).resolve()
+    relative = [p.relative_to(WT) for folder in ('src', 'configs', 'scripts', 'tests', 'docs')
+                for p in (WT/folder).rglob('*') if p.is_file() and '__pycache__' not in p.parts]
+    run_bases = [output/'init', *[case_output_root(output, c) for c in _cases()]]
+    paths = [base/('0'*38)/'source'/p for base in run_bases for p in relative]
+    paths += [base/('0'*38)/'http'/('region_preference_electrothermal_request_'+'a'*20+'.response.json')
+              for base in run_bases]
+    longest = max(paths, key=lambda p:len(str(p)))
+    maximum = len(str(longest))
+    if os.name == 'nt' and maximum >= 260:
+        raise ValueError(f'archive path exceeds Windows limit ({maximum}); use a shorter output root')
+    return dict(maximum_path_length=maximum, longest_path=str(longest), case_layout='r00-r23', initialization_layout='init')
+
+
 def ablation_protocol(base_config: dict) -> dict:
     from llmbo_para.electrothermal_config import electrothermal_configuration_errors
     cfg = deepcopy(base_config)
@@ -88,7 +116,7 @@ def ablation_protocol(base_config: dict) -> dict:
     return dict(version='lgbo_numerical_software_v1', base_config=cfg,
         matrix=[dict(cell=c, global_pool_size=n, gp_sweeps=s) for c, n, s in MATRIX],
         seeds=list(SEEDS), cases=_cases(), max_software_candidates=496, max_software_calls=992,
-        wall_clock_s=STAGE_WALL_CLOCK_S, per_run_wall_clock_s=120,
+        wall_clock_s=STAGE_WALL_CLOCK_S, per_run_wall_clock_s=PER_RUN_WALL_CLOCK_S,
         fixed_mock_region=dict(kind='region', lb=[.3]*6, ub=[.8]*6, confidence=.65),
         API_requests=0, DFN_solves=0, new_objective_evaluations=0, dry_run=True)
 
@@ -228,7 +256,8 @@ def summarize_numerical_ablation(case_results: list[dict]) -> dict:
         if row['status'] == 'completed' and (not row['audit_passed'] or row['summary']['BO_rounds'] != 20):
             raise ValueError('case cannot be certified complete')
         hv = row.get('summary', {}).get('HV')
-        if hv is not None and (type(hv) not in (int, float) or not math.isfinite(hv)):
+        if (hv is None and row['status']=='completed'
+                or hv is not None and (type(hv) not in (int, float) or not math.isfinite(hv) or hv<0)):
             raise ValueError('invalid HV')
     completed = {r['case_id']: r for r in case_results if r['status'] == 'completed'}
     missing = sorted(expected-set(completed))
@@ -256,6 +285,65 @@ def _csv(path, rows):
         writer = csv.DictWriter(stream, list(rows[0])); writer.writeheader(); writer.writerows(rows)
 
 
+class CaseTimeout(TimeoutError):
+    def __init__(self, case_id):
+        self.case_id = case_id
+        super().__init__('owned workflow deadline exhausted: '+case_id)
+
+
+def _supervise_ablation(worker, args, *, deadline):
+    """The existing owned-pipe protocol, extended with hard workflow phases.
+
+    Keep the entire batch in one child for cumulative instrumentation; the
+    parent enforces both clocks, including while the child is in native code.
+    No changes to the scientific execution module or descendant workers.
+    """
+    parent, child = multiprocessing.get_context('spawn').Pipe()
+    process = multiprocessing.get_context('spawn').Process(target=worker, args=(*args,child), daemon=True)
+    process.start(); child.close()
+    active = None; phase_deadline = deadline
+    try:
+        while True:
+            now = time.monotonic()
+            if active is not None and now >= phase_deadline:
+                raise CaseTimeout(active)
+            if now >= deadline:
+                raise TimeoutError('stage deadline exhausted')
+            if parent.poll(min(deadline-now, phase_deadline-now, .05)):
+                try:
+                    kind, value = parent.recv()
+                except EOFError:
+                    raise RuntimeError('owned ablation worker closed without a result') from None
+                if time.monotonic()>=deadline:
+                    raise TimeoutError('stage deadline exhausted')
+                if kind == 'case_started':
+                    if active is not None or value not in {'initialization',*[c['case_id'] for c in _cases()]}:
+                        raise RuntimeError('invalid workflow start')
+                    active = value; phase_deadline = min(deadline,time.monotonic()+PER_RUN_WALL_CLOCK_S)
+                    parent.send('continue')
+                elif kind == 'case_finished':
+                    if value != active or active is None:
+                        raise RuntimeError('invalid workflow finish')
+                    if time.monotonic() >= phase_deadline:
+                        raise CaseTimeout(active)
+                    active = None; phase_deadline = deadline; parent.send('continue')
+                elif kind == 'result':
+                    if active is not None:
+                        raise RuntimeError('result before workflow finished')
+                    return value
+                else:
+                    raise RuntimeError('invalid ablation worker protocol')
+            if not process.is_alive() and not parent.poll():
+                raise RuntimeError('owned ablation worker exited without a result')
+    finally:
+        if process.is_alive():
+            process.terminate()
+        process.join(timeout=1)
+        if process.is_alive():
+            process.kill(); process.join(timeout=1)
+        parent.close()
+
+
 def _export_rounds(run, case):
     records = {_read(p)['evaluation_id']: _read(p) for p in (run/'electrothermal-evaluations').glob('*.json')}
     rounds = [_read(p) for p in sorted((run/'mo-rounds').glob('*.json'))]
@@ -281,7 +369,7 @@ def _ablation_worker(protocol: dict, output: str, connection) -> None:
     _environment()
     root = Path(output); deadline = protocol['monotonic_deadline']
     results, round_rows, representatives = [], [], []
-    started = time.perf_counter()
+    stage_started = protocol.get('perf_counter_started', time.perf_counter())
     budget = SoftwareBudget(root/'software-costs.jsonl', max_candidates=496, max_rate_calls=992)
     with SoftwareBoundary() as boundary:
         try:
@@ -301,15 +389,26 @@ def _ablation_worker(protocol: dict, output: str, connection) -> None:
                 _write(root/'audits'/f'{label}.json', result)
                 if not result['passed']:
                     raise RuntimeError('deep audit failed: '+label)
+            @contextmanager
+            def workflow_phase(label):
+                connection.send(('case_started',label))
+                if connection.recv()!='continue':
+                    raise RuntimeError('invalid workflow start acknowledgement')
+                try:
+                    yield
+                finally:
+                    connection.send(('case_finished',label))
+                    if connection.recv()!='continue':
+                        raise RuntimeError('invalid workflow finish acknowledgement')
             cfg = deepcopy(protocol['base_config'])
             cfg['optimization'].update(mode='warmstart_only', total_candidate_budget=8)
-            cfg['budgets']['wall_clock_s'] = min(120., deadline-time.monotonic())
+            cfg['budgets']['wall_clock_s'] = min(PER_RUN_WALL_CLOCK_S, deadline-time.monotonic())
             report, prepared = prepare_electrothermal_experiment(cfg, base_dir=WT)
             if not report['ready']:
                 raise ValueError(str(report['errors']))
             controller = ElectrothermalLLMController(transport=FixedSoftwareActions(prepared.space, protocol['fixed_mock_region']), is_mock=True)
-            with budget.observe():
-                initial = run_electrothermal_experiment(cfg, root/'initialization', base_dir=WT, llm_controller=controller)
+            with workflow_phase('initialization'), budget.observe():
+                initial = run_electrothermal_experiment(cfg, root/'init', base_dir=WT, llm_controller=controller)
             init_run = Path(initial['run_directory']); audit(init_run, 'initialization')
             plan = init_run/'initial-plan.json'; plan_data = _read(plan)
             spec = dict(path=str(plan.resolve()), sha256=_sha(plan))
@@ -319,21 +418,21 @@ def _ablation_worker(protocol: dict, output: str, connection) -> None:
             for case in protocol['cases']:
                 check_time()
                 cfg = make_case_config(protocol['base_config'], **{k:case[k] for k in ('global_pool_size','gp_sweeps','seed','mode')}, initial_plan=spec)
-                cfg['budgets']['wall_clock_s'] = min(120., deadline-time.monotonic())
+                cfg['budgets']['wall_clock_s'] = min(PER_RUN_WALL_CLOCK_S, deadline-time.monotonic())
                 _write(root/'case-configs'/(case['case_id']+'.json'), cfg)
                 report, prepared = prepare_electrothermal_experiment(cfg, base_dir=WT)
                 if not report['ready']:
                     raise ValueError(str(report['errors']))
                 controller = ElectrothermalLLMController(transport=FixedSoftwareActions(prepared.space, protocol['fixed_mock_region']), is_mock=True)
-                started = time.perf_counter()
-                with budget.observe(), FitObserver(root/'fit-times.jsonl', phase='BO:'+case['case_id']):
-                    result = run_electrothermal_experiment(cfg, root/'cases'/case['case_id'], base_dir=WT, llm_controller=controller)
+                case_started = time.perf_counter()
+                with workflow_phase(case['case_id']), budget.observe(), FitObserver(root/'fit-times.jsonl', phase='BO:'+case['case_id']):
+                    result = run_electrothermal_experiment(cfg, case_output_root(root, case), base_dir=WT, llm_controller=controller)
                 run = Path(result['run_directory']); audit(run, case['case_id'])
                 rows, records = _export_rounds(run, case); round_rows.extend(rows)
                 row = dict(**case, status='completed', run_directory=str(run), summary=result,
                     initial_plan_sha256=spec['sha256'], initialization_ids=initialization_ids,
                     source_fingerprint=prepared.signatures.source, comparison_protocol=prepared.signatures.comparison_protocol,
-                    audit_passed=True, elapsed_s=time.perf_counter()-started)
+                    audit_passed=True, elapsed_s=time.perf_counter()-case_started)
                 results.append(row); _append(root/'run-index.jsonl', row)
                 front = result['pareto']
                 best = min(front, key=lambda r:(float(augmented_tchebycheff([r['objectives']], [.5,.5], [.1,1.], rho_aug=.05)[0]),
@@ -356,7 +455,7 @@ def _ablation_worker(protocol: dict, output: str, connection) -> None:
             result = summarize_numerical_ablation(results)
             result.update(status='incomplete', boundary=boundary.counts(), costs=budget.counts(), failure=type(exc).__name__+': '+str(exc))
             _write(root/'worker-failure.json', result)
-        result['elapsed_s'] = time.perf_counter()-started
+        result['elapsed_s'] = time.perf_counter()-stage_started
         _write(root/'summary.json', result)
         (root/'exit-code.txt').write_text('0\n' if result['status']=='completed' else '1\n', encoding='utf-8')
         files = {}
@@ -366,35 +465,38 @@ def _ablation_worker(protocol: dict, output: str, connection) -> None:
             if path.is_file():
                 files[path.relative_to(root).as_posix()] = _sha(path)
         _write(root/'stage-a-seal.json', dict(status=result['status'], source_fingerprint=protocol['source_fingerprint'],
-            script_sha256=protocol['script_sha256'], files=files, elapsed_s=time.perf_counter()-started))
+            script_sha256=protocol['script_sha256'], files=files, elapsed_s=time.perf_counter()-stage_started))
         connection.send(('result', result))
 
 
 def run_software_ablation(base_config: dict, output: Path) -> dict:
     _environment()
-    from llmbo_para.electrothermal_execution import run_with_deadline
     from llmbo_para.electrothermal_provenance import source_fingerprint
+    from llmbo_para.runstore import canonical_json
     protocol = ablation_protocol(base_config)
-    root = Path(output).resolve(); root.mkdir(parents=True, exist_ok=False)
+    root = Path(output).resolve()
+    layout = validate_archive_paths(root)
+    root.mkdir(parents=True, exist_ok=False)
+    started = time.perf_counter()
     deadline = time.monotonic()+STAGE_WALL_CLOCK_S
     protocol.update(dry_run=False, monotonic_deadline=deadline, source_fingerprint=source_fingerprint(),
-                    script_sha256=_sha(__file__))
+                    script_sha256=_sha(__file__), archive_paths=layout, perf_counter_started=started)
     _write(root/'protocol.json', protocol)
-    started = time.perf_counter()
     try:
-        result = run_with_deadline(_ablation_worker, (protocol, str(root)), deadline=deadline,
-                                   on_solve_start=lambda: (_ for _ in ()).throw(RuntimeError('unexpected real solve/API')))
+        result = _supervise_ablation(_ablation_worker, (protocol, str(root)), deadline=deadline)
         seal = _read(root/'stage-a-seal.json')
         if (seal['status'] != result['status'] or seal['source_fingerprint'] != protocol['source_fingerprint']
                 or seal['script_sha256'] != protocol['script_sha256']
                 or seal['files']['summary.json'] != _sha(root/'summary.json')
-                or _read(root/'summary.json') != result):
+                or canonical_json(_read(root/'summary.json')) != canonical_json(result)):
             raise ValueError('owned worker seal differs')
         return result
     except (RuntimeError, TimeoutError, EOFError, OSError, KeyError, ValueError) as exc:
         rows = [_read(p) for p in sorted((root/'case-results').glob('*.json'))] if (root/'case-results').exists() else []
         result = summarize_numerical_ablation(rows)
         result.update(status='incomplete', boundary=None, failure=type(exc).__name__)
+        if isinstance(exc,CaseTimeout):
+            result['timed_out_case'] = exc.case_id
     result['elapsed_s'] = time.perf_counter()-started
     # Do not overwrite a partial worker summary/seal: preserve both accounts.
     _write(root/'supervisor-incomplete.json', result)

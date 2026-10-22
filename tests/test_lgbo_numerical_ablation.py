@@ -93,6 +93,32 @@ def test_cli_default_dry_run_does_not_create_an_experiment(tmp_path):
     assert result['API_requests']==result['DFN_solves']==result['new_objective_evaluations']==0
     assert not out.exists()
 
+
+def test_windows_archive_layout_snapshots_all_sources_before_any_evaluation(tmp_path):
+    m=load();assert hasattr(m,'case_output_root'),'compact archive layout is missing'
+    import tempfile,uuid
+    # Reproduce the failed batch's output-root length, independent of pytest's
+    # longer per-test name. This is filesystem-only: no objective evaluations.
+    parent=Path(tempfile.mkdtemp(prefix='np-',dir=os.environ['TEMP']))
+    root=parent/('p'*max(1,112-len(str(parent))-1))
+    cfg=base();protocol=m.ablation_protocol(cfg)
+    check=m.validate_archive_paths(root)
+    assert check['maximum_path_length']<260
+    from llmbo_para.runstore import RunStore
+    store=RunStore(m.case_output_root(root,protocol['cases'][0]),cfg,command='Windows archive path regression')
+    hashes=read(store.path/'source-sha256.json')
+    assert 'src/llmbo_para/prompts/region_preference_candidate_aware_electrothermal.txt' in {Path(k).as_posix() for k in hashes}
+    assert m.case_output_root(root,protocol['cases'][0])!=m.case_output_root(root,protocol['cases'][1])
+
+
+def test_impossible_windows_archive_path_is_rejected_before_creating_a_batch(tmp_path):
+    m=load();assert hasattr(m,'validate_archive_paths'),'archive path preflight is missing'
+    if os.name!='nt':pytest.skip('Windows path-length preflight')
+    root=tmp_path/('p'*180)
+    with pytest.raises(ValueError,match='archive path'):
+        m.run_software_ablation(base(),root)
+    assert not root.exists()
+
 class Proposals:
     def __init__(self,space):self.space=space
     def post(self,payload):
@@ -178,6 +204,108 @@ def unsealed_worker(protocol,output,connection):
     connection.send(('result',dict(status='completed',cases=[],boundary={'network_attempts':0,'battery_solve_attempts':0})))
 
 
+def tuple_seal_reply(protocol,output,connection,*,tamper=False):
+    rows=fake_complete_cases()
+    for row in rows:row['summary']['pareto']=[{'parameters':(.5,)*6,'objectives':(.04,.3)}]
+    result=dict(status='completed',cases=rows,boundary={'network_attempts':0,'battery_solve_attempts':0})
+    root=Path(output);summary=root/'summary.json'
+    summary.write_text(json.dumps(result),encoding='utf-8')
+    (root/'stage-a-seal.json').write_text(json.dumps(dict(status='completed',
+        source_fingerprint=protocol['source_fingerprint'],script_sha256=protocol['script_sha256'],
+        files={'summary.json':hashlib.sha256(summary.read_bytes()).hexdigest()})),encoding='utf-8')
+    if tamper:rows[0]['summary']['pareto'][0]['objectives']=(.9,.8)
+    connection.send(('result',result))
+
+
+def tuple_worker(protocol,output,connection):
+    tuple_seal_reply(protocol,output,connection)
+
+
+def tampered_tuple_worker(protocol,output,connection):
+    tuple_seal_reply(protocol,output,connection,tamper=True)
+
+
+@pytest.mark.parametrize('worker,expected',[(tuple_worker,'completed'),(tampered_tuple_worker,'incomplete')])
+def test_real_pipe_seal_compares_scientific_json_without_losing_tamper_checks(tmp_path,monkeypatch,worker,expected):
+    m=load();monkeypatch.setattr(m,'_ablation_worker',worker)
+    result=m.run_software_ablation(base(),tmp_path/expected)
+    assert result['status']==expected
+
+
+def blocking_case_worker(protocol,output,connection):
+    connection.send(('case_started','G016_S0_17_warmstart_only'))
+    assert connection.recv()=='continue'
+    time.sleep(10)
+
+
+def late_case_worker(protocol,output,connection):
+    connection.send(('case_started','G016_S0_17_warmstart_only'))
+    assert connection.recv()=='continue'
+    time.sleep(.5)
+    connection.send(('case_finished','G016_S0_17_warmstart_only'))
+    assert connection.recv()=='continue'
+    (Path(output)/'next-case-started').write_text('must not happen',encoding='utf-8')
+
+
+@pytest.mark.parametrize('worker',[blocking_case_worker,late_case_worker])
+def test_per_case_hard_deadline_terminates_owned_worker_before_next_case(tmp_path,monkeypatch,worker):
+    m=load();monkeypatch.setattr(m,'_ablation_worker',worker)
+    monkeypatch.setattr(m,'PER_RUN_WALL_CLOCK_S',.2,raising=False)
+    monkeypatch.setattr(m,'STAGE_WALL_CLOCK_S',10)
+    before={p.pid for p in multiprocessing.active_children()};started=time.monotonic()
+    result=m.run_software_ablation(base(),tmp_path/'per-case-timeout')
+    assert result['status']=='incomplete' and result['failure']=='CaseTimeout'
+    assert result['timed_out_case']=='G016_S0_17_warmstart_only'
+    assert .1<=time.monotonic()-started<5
+    assert result['boundary'] is None and not (tmp_path/'per-case-timeout/next-case-started').exists()
+    assert {p.pid for p in multiprocessing.active_children()}==before
+
+
+def test_stage_elapsed_includes_initialization_and_all_cases(tmp_path,monkeypatch):
+    m=load()
+    from llmbo_para import electrothermal_workflow as workflow,electrothermal_audit as audit
+    from llmbo_para.electrothermal_provenance import source_fingerprint
+    real_run,real_audit=workflow.run_electrothermal_experiment,audit.audit_electrothermal_run
+    clock=[0.]
+    def run(*args,**kwargs):
+        result=real_run(*args,**kwargs);clock[0]+=10.;return result
+    def check(*args,**kwargs):
+        result=real_audit(*args,**kwargs);clock[0]+=1.;return result
+    monkeypatch.setattr(workflow,'run_electrothermal_experiment',run)
+    monkeypatch.setattr(audit,'audit_electrothermal_run',check)
+    monkeypatch.setattr(m.time,'perf_counter',lambda:clock[0])
+    protocol=m.ablation_protocol(base());protocol['cases']=protocol['cases'][:2]
+    protocol.update(monotonic_deadline=time.monotonic()+90,source_fingerprint=source_fingerprint(),script_sha256=hashlib.sha256(SCRIPT.read_bytes()).hexdigest())
+    class Connection:
+        messages=[]
+        def send(self,message):self.messages.append(message)
+        def recv(self):return 'continue'
+    connection=Connection();m._ablation_worker(protocol,str(tmp_path/'time'),connection)
+    kind,result=connection.messages[-1]
+    assert kind=='result' and len(result['cases'])==2
+    assert [c['elapsed_s'] for c in result['cases']]==[11.,11.]
+    assert result['elapsed_s']==33.
+
+
+def test_workflow_exception_closes_phase_before_preserving_failure(tmp_path,monkeypatch):
+    m=load()
+    from llmbo_para import electrothermal_workflow as workflow
+    from llmbo_para.electrothermal_provenance import source_fingerprint
+    def failed_snapshot(*args,**kwargs):raise OSError('fixture snapshot failed before evaluation')
+    monkeypatch.setattr(workflow,'run_electrothermal_experiment',failed_snapshot)
+    protocol=m.ablation_protocol(base())
+    protocol.update(monotonic_deadline=time.monotonic()+60,source_fingerprint=source_fingerprint(),script_sha256=hashlib.sha256(SCRIPT.read_bytes()).hexdigest())
+    class Connection:
+        messages=[]
+        def send(self,message):self.messages.append(message)
+        def recv(self):return 'continue'
+    connection=Connection();m._ablation_worker(protocol,str(tmp_path/'failure'),connection)
+    assert connection.messages[:2]==[('case_started','initialization'),('case_finished','initialization')]
+    kind,result=connection.messages[-1]
+    assert kind=='result' and result['status']=='incomplete' and result['boundary']=={'network_attempts':0,'battery_solve_attempts':0}
+    assert result['costs']=={'new_objective_evaluations':0,'software_calls':0}
+
+
 def test_completion_requires_worker_seal_inside_owned_deadline(tmp_path,monkeypatch):
     m=load();monkeypatch.setattr(m,'_ablation_worker',unsealed_worker)
     result=m.run_software_ablation(base(),tmp_path/'unsealed')
@@ -229,6 +357,12 @@ def test_inconsistent_cases_cannot_be_certified_as_complete(damage):
     elif damage=='initialization_ids':rows[-1]['initialization_ids']=['not-the-shared-plan']*8
     elif damage=='audit':rows[-1]['audit_passed']=False
     else:rows[-1]['summary']['BO_rounds']=19
+    with pytest.raises(ValueError):m.summarize_numerical_ablation(rows)
+
+
+@pytest.mark.parametrize('hv',[None,-1.])
+def test_completed_cases_require_actual_fixed_space_hv(hv):
+    m=load();rows=fake_complete_cases();rows[-1]['summary']['HV']=hv
     with pytest.raises(ValueError):m.summarize_numerical_ablation(rows)
 
 class NoPreference:
