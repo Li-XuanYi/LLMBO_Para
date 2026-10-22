@@ -24,6 +24,11 @@ def lgbo_offline_worker(protocol, kind, spec, payload, run_path, connection):
         def read(self, limit): return self.data[:limit]
     class Provider:
         def open(self, request, **kwargs):
+            if kind == 'transport_failure':
+                from urllib.error import URLError
+                raise URLError('offline connection failure')
+            if kind == 'timeout':
+                raise TimeoutError('offline timeout before headers')
             body = json.loads(request.data)
             wire = json.loads(body['input'] if protocol == 'responses' else body['messages'][1]['content'])
             assert body['stream'] is False
@@ -42,8 +47,12 @@ def lgbo_offline_worker(protocol, kind, spec, payload, run_path, connection):
                 raw = {'choices': [{'finish_reason': 'length' if kind == 'incomplete' else 'stop',
                                     'message': {'content': text}}],
                        'usage': {'prompt_tokens': 7, 'completion_tokens': 8, 'total_tokens': 15}}
-            result = HTTPResponse(); result.data = json.dumps(raw).encode('utf-8')
+            result = HTTPResponse()
+            result.data = b'not HTTP JSON' if kind == 'invalid_http_json' else json.dumps(raw).encode('utf-8')
             return result
+    if kind == 'startup_failure':
+        # Exercise the production worker's pre-HTTP constructor failure path.
+        spec = {**spec, 'model': ''}
     with patch('socket.socket.connect', side_effect=AssertionError('no network in software worker')), \
          patch('socket.create_connection', side_effect=AssertionError('no network in software worker')), \
          patch('llmbo_para.llm.build_opener', return_value=Provider()):
@@ -105,6 +114,37 @@ def test_production_workers_and_deep_replay(archives, monkeypatch, tmp_path_fact
         assert region['request_outcome']['wire_format'] == 'lgbo_action_v1'
         if kind not in ('region', 'none'):
             assert not region['tilt_applied']
+
+
+@pytest.mark.parametrize('protocol', ['chat', 'responses'])
+@pytest.mark.parametrize('kind', ['incomplete', 'nonjson', 'invalid_binding'])
+def test_audit_rejects_missing_decode_failure_reply(archives, monkeypatch, tmp_path_factory, protocol, kind):
+    from llmbo_para.electrothermal_audit import audit_electrothermal_run
+    run, _ = run_fixture(archives, monkeypatch, tmp_path_factory, protocol=protocol, kind=kind)
+    assert audit_electrothermal_run(run, deep=True)['passed']
+    reply = sorted((run/'http').glob('*.response.json'))[0]
+    held = reply.with_suffix('.held-for-deletion-test')
+    reply.rename(held)
+    try:
+        result = audit_electrothermal_run(run, deep=True)
+        assert not result['passed'], result
+    finally:
+        held.rename(reply)
+
+
+@pytest.mark.parametrize('protocol', ['chat', 'responses'])
+@pytest.mark.parametrize('kind', ['startup_failure', 'transport_failure', 'timeout', 'invalid_http_json'])
+def test_genuine_pre_response_failures_need_no_formal_reply(archives, monkeypatch, tmp_path_factory, protocol, kind):
+    from llmbo_para.electrothermal_audit import audit_electrothermal_run
+    run, summary = run_fixture(archives, monkeypatch, tmp_path_factory, protocol=protocol, kind=kind)
+    assert not list((run/'http').glob('*.response.json'))
+    assert bool(list((run/'http').glob('*.request.json'))) == (kind != 'startup_failure')
+    for path in (run/'llm').glob('*.outcome.json'):
+        outcome = read(path)
+        assert outcome['status'] == 'failed' and 'completion' not in outcome
+    result = audit_electrothermal_run(run, deep=True)
+    assert result['passed'], result['issues']
+    assert summary['API_calls'] == summary['costs']['solver_calls'] == 0
 
 
 @pytest.mark.parametrize('mode', ['parego', 'warmstart_only', 'full_llmbo_mo'])

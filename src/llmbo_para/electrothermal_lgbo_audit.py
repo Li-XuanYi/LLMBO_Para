@@ -123,6 +123,17 @@ def audit_lgbo_round(root, *, event, context, gp, history, prepared, cost_events
         artifact = expected['artifact_task']
         http_request = root/'http'/f'{artifact}.request.json'
         http_response = root/'http'/f'{artifact}.response.json'
+        supervision_path = root/'http'/f'{artifact}.supervision.json'
+        supervision = read(f'http/{artifact}.supervision.json') if supervision_path.exists() else {}
+        # Completion/parse evidence is emitted only after the transport saved
+        # the provider's JSON reply. A failed status must not erase that proof.
+        # A request or failure_stage alone is insufficient: malformed HTTP JSON,
+        # connection errors and worker startup can fail before this archive exists.
+        decoded_http = any(key in evidence for evidence in (outcome, supervision)
+                           for key in ('completion', 'protocol_issue')) or (
+                               root/'http'/f'{artifact}.parse-error.json').exists()
+        _require(not decoded_http or http_response.is_file(),
+                 'LGBO decoded HTTP response archive is missing')
         receipt = root/f'llm/{n:06d}.lgbo-response.json'
         mutation = root/f'llm/{n:06d}.lgbo-mutation.json'
         if http_request.exists():
