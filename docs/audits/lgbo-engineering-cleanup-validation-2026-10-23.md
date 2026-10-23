@@ -1,6 +1,6 @@
 # LGBO 工程整理验收（2026-10-23）
 
-范围：已批准计划40a8c54；当前会话原生实现、TDD和本地软件验证。工作树`C:/Users/aa133/.codex/worktrees/electrothermal-refactor/LLMBO_Para`，分支`codex/electrothermal-mo-20261016`。主工程、参考工程及旧交付只读。此文在最终全量回归结束后补充最终验收；当前不把运行中状态当作通过。
+范围：已批准计划40a8c54；当前会话原生实现、TDD和本地软件验证。工作树`C:/Users/aa133/.codex/worktrees/electrothermal-refactor/LLMBO_Para`，分支`codex/electrothermal-mo-20261016`。主工程、参考工程及旧交付只读。本轮Task0–4软件验收已完成，以下为实际测试与独立审阅结果；真实物理/方法增益未由本轮验证。
 
 ## 已实现的接口与兼容性
 
@@ -31,12 +31,13 @@
 |ge-view-green|102|0|0|0|0|
 |ge-payload-red|0|13|0|0|1|
 |ge-payload-green|332|0|0|0|0|
+|ge-final-full|1158|0|0|0|0|
 
 RED均为本轮新增测试对缺少实现的预期失败，不是既有回归失败。视图RED还实际观察到生产predict=2、基础EI=2；GREEN证明各一次。两个非零confidence在同一冻结视图上比较时，总predict=1、EI=3（一次基础加两次调整后），没有删掉调整后EI。独立数值oracle为mean[-1,0,1]、std[0,1,0]、best0时EI[1,0.3989422804014327,0]。新旧apply在有效/none/零confidence/缺回复/负交叉协方差/负或退化区域方差/无可行锚点下逐字段一致。
 
 八类payload/wire两次生成摘要相同，旧v1的77f3a8ca4e03e024578fff5bf9f9a35350bdb4a2b5272a7afdd153b34dbb39c2基准保持。生成golden的34次人工候选评价/68次软件工况调用单列为测试准备；不是正式BO、真实DFN或实测。其余mock/软件单元夹具也不记为物理验证。
 
-初始与Task1保护检查均通过：主工程HEAD811c4c6、status/index、124个文件，55个参考源码文件、固定物性/锁文件/Prompt及受保护函数AST。旧封存10908个文件加52个外部测试证据、另一份529个文件均匹配。最终回归、独立审阅、CLI和交付封存仍待本轮Task4完成后写入实际结果。
+初始与Task1保护检查均通过：主工程HEAD811c4c6、status/index、124个文件，55个参考源码文件、固定物性/锁文件/Prompt及受保护函数AST。旧封存10908个文件加52个外部测试证据、另一份529个文件均匹配。最终保护复核同样全部通过；具体哈希与旧seal核验见ge-protection-final.json。
 
 ## 科研结论边界与后续顺序
 
@@ -45,3 +46,15 @@ RED均为本轮新增测试对缺少实现的预期失败，不是既有回归�
 已确认设计中的Prompt候选继续只作研究文案。下一步先在相同payload/历史/选择规则/数值预算下比较Prompt；之后才单独研究历史选择或区域信息质量。预留种子101/131/167不是本轮运行结果。若另审c=0/.25/.65、32/128锚点，冻结诊断只报告均值扰动和EI排序，不为未实评替代点填RMSE/HV。实际API/DFN须独立具体协议和预算，保留全部负结果。
 
 实测仍待实际电流与时间、T列单位/测点、初态、冷却条件、热参数范围和固定物性来源确认。可靠3C须新配置与新实验归档；旧XLSX、实验和四倍率电压流程保留。
+
+## 最终交付记录
+
+最终全量回归1158/1158通过，失败/错误/跳过均0、退出码0；result记录墙钟1911.18秒，源码与保护快照在执行前后一致。网络/真实电池solve均0；允许的非电池代数ODE单元调用2次，不属于DFN验证。
+
+日志：[pytest.log](D:/Users/aa133/Desktop/LLMBO_Para/bo-repair-work/20261017_et_implementation/lgbo-engineering-20261023/tests/ge-final-full/pytest.log)；[JUnit](D:/Users/aa133/Desktop/LLMBO_Para/bo-repair-work/20261017_et_implementation/lgbo-engineering-20261023/tests/ge-final-full/junit.xml)；[结果JSON](D:/Users/aa133/Desktop/LLMBO_Para/bo-repair-work/20261017_et_implementation/lgbo-engineering-20261023/tests/ge-final-full/result.json)。
+
+LGBO v1/v2软件模板CLI预检均exit0，无目标评价；实际旧源码初始化档案预检exit2，错误为`initialization signatures incompatible`，未换签。已有软件测试还验证新同source计划在两版本共享。独立gpt-6-astra整体审阅40a8c54..7be4344：Critical0/Important0/Minor0，无代码修复或第二次审阅；审阅时全量回归尚在运行，交付以本节最终结果补足该条件。
+
+阶段提交：4a4b959（golden）、c11333e（JSON）、f8c3770（预测视图）、61a1939（payload）、7be4344（规范/说明）。最终文档提交以证据closure.json/final_HEAD为准。显式变更清单、完整裁决/审阅报告和封存位于本轮证据根；工作树、分支、独占临时档案均保留，不merge/push/清理。
+
+执行裁决完整记录在ledger-final.md/closure.json：原生Windows运行器替代bash工具（维护/证据遗漏风险）；按用户要求保留工作树和证据（磁盘成本）；只读审阅与全量回归并行但双重门禁（审阅初期缺最终结果）；伪造有限预测值不属于宿主视图算术保证（绕过所有权可能先错选再被审计发现）；直接修改GP内部缓存不属于fit/state生命周期（可能绕过早期检查）；伪造prepared混合策略不属于严格预检后的执行（绕过准备可形成不受支持请求）；不从软件结果声称真实增益、物理有效或固定百分比提速（否则造成无证据结论）。延期小项0。
