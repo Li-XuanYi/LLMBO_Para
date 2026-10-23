@@ -413,3 +413,24 @@ def test_final_source_mismatch_cancels_completed_revert():
     result=m.final_integrity_gate(original,expected={'source':'a'*64},actual={'source':'b'*64})
     assert result['status']=='inconclusive' and result['decision']['revert'] is False
     assert original['decision']['revert'] is True
+
+
+def test_changed_sealed_config_is_rejected_instead_of_used(tmp_path,monkeypatch):
+    import shutil
+    m=load();original=m.PROPOSAL
+    for path in original.iterdir():
+        if path.is_file():shutil.copy2(path,tmp_path/path.name)
+    monkeypatch.setattr(m,'PROPOSAL',tmp_path)
+    cfg=json.loads((tmp_path/'new_full.disabled-config.json').read_text())
+    cfg['llm']['task_options']['region_preference_electrothermal']['timeout_s']=120.
+    (tmp_path/'new_full.disabled-config.json').write_text(json.dumps(cfg),encoding='utf-8')
+    with pytest.raises(ValueError):m._configuration('new_full')
+
+
+def test_initialization_hash_is_pinned_once_and_never_refreshed(tmp_path):
+    m=load();assert hasattr(m,'checked_initial'), 'fixed initialization reference check missing'
+    path=tmp_path/'initial.json';path.write_text('{"value":1}')
+    reference={'path':str(path),'sha256':m.sha(path)}
+    assert m.checked_initial(reference)==reference
+    path.write_text('{"value":2}')
+    with pytest.raises(ValueError):m.checked_initial(reference)

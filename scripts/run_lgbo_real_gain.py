@@ -586,7 +586,18 @@ def _release():
 
 
 def _configuration(arm):
-    return read(PROPOSAL/(arm+'.disabled-config.json'))
+    protocol = validate_proposal()
+    entry = protocol['configs'][arm]
+    raw = (PROPOSAL/entry['path']).read_bytes()
+    if hashlib.sha256(raw).hexdigest() != entry['sha256']:
+        raise ValueError('sealed configuration changed')
+    return json.loads(raw)
+
+
+def checked_initial(reference):
+    if sha(reference['path']) != reference['sha256']:
+        raise ValueError('fresh initialization changed after its first pin')
+    return deepcopy(reference)
 
 
 def _pairs(results, seeds):
@@ -606,6 +617,11 @@ def execute():
         raise ValueError('experiment already claimed; automatic resume forbidden')
     if fingerprint(WT) != protocol['sources']['new_full_and_plain']['fingerprint']:
         raise ValueError('current product source changed')
+    templates = {arm: _configuration(arm) for arm in ('plain','old_full','new_full')}
+    coordinates_raw = (PROPOSAL/protocol['coordinates']['path']).read_bytes()
+    if hashlib.sha256(coordinates_raw).hexdigest() != protocol['coordinates']['sha256']:
+        raise ValueError('fixed coordinate input changed')
+    points = json.loads(coordinates_raw)['parameters']
     old_root = materialize_old(protocol)
     current_root = materialize_new(protocol)
     runtime = Path(__file__).resolve().parent
@@ -640,7 +656,7 @@ def execute():
         'runtime_root': str(runtime), 'integrity_expected': expected, 'output_root': str(OUTPUT),
         'runtime_sha256': sha(__file__), 'worker_sha256': sha(Path(__file__).with_name('lgbo_real_gain_worker.py'))})
     budget = ExperimentBudget.start(EVIDENCE/'budget-journal.jsonl', protocol_sha=sha(PROPOSAL/'protocol.json'))
-    results, initializations = [], {}
+    results, initializations, initial_references = [], {}, {}
     outcome = {'status': 'inconclusive', 'revert': False, 'needs_confirmation': False}
     stage = 'preflight'
     def run(spec):
@@ -660,21 +676,20 @@ def execute():
         budget.finish(True)
         stage = 'initialization'
         budget.begin(stage)
-        points = read(PROPOSAL/'fixed-eight-coordinates.json')['parameters']
         for i, source_arm in enumerate(('old_full', 'new_full')):
             result = run({'kind': 'initialization', 'arm': source_arm, 'seed': 1709,
-                'solve_cap': 16, 'coordinates': points, 'base_config': _configuration(source_arm),
+                'solve_cap': 16, 'coordinates': points, 'base_config': deepcopy(templates[source_arm]),
                 'output': str(OUTPUT/f'i{i}'), 'label': f'i{i}'})
             initializations[source_arm] = result
+            initial_references[source_arm] = {'path': result['plan_path'], 'sha256': sha(result['plan_path'])}
         check_initialization(initializations['old_full']['ordered_records'], initializations['new_full']['ordered_records'])
         budget.finish(True)
         stage = 'main'
         budget.begin(stage)
         for index, case in enumerate(cases()):
             source_arm = 'old_full' if case['arm'] == 'old_full' else 'new_full'
-            plan = initializations[source_arm]['plan_path']
             spec = {**case, 'kind': 'arm', 'solve_cap': 40,
-                'base_config': _configuration(case['arm']), 'initial': {'path': plan, 'sha256': sha(plan)},
+                'base_config': deepcopy(templates[case['arm']]), 'initial': checked_initial(initial_references[source_arm]),
                 'label': f'c{index:02d}', 'output': str(OUTPUT/f'c{index:02d}')}
             result = run(spec)
             if not _complete(result):
@@ -699,9 +714,8 @@ def execute():
             budget.begin(stage, confirmation_released=True)
             confirmation = []
             for index, source_arm in enumerate(('new_full', 'old_full'), start=9):
-                plan = initializations[source_arm]['plan_path']
                 result = run({'kind': 'arm', 'seed': 7919, 'arm': source_arm, 'solve_cap': 40,
-                    'base_config': _configuration(source_arm), 'initial': {'path': plan, 'sha256': sha(plan)},
+                    'base_config': deepcopy(templates[source_arm]), 'initial': checked_initial(initial_references[source_arm]),
                     'label': f'c{index:02d}', 'output': str(OUTPUT/f'c{index:02d}')})
                 if not _complete(result):
                     raise RuntimeError('confirmation incomplete')
