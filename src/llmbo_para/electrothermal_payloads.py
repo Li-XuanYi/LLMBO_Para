@@ -106,8 +106,7 @@ def _regional_payload(prepared, history, context, prompt_name: str, *,
                       lgbo: bool = False, signed: bool = False, dynamic: bool = False) -> dict:
     if context is None:
         raise ValueError('frozen context required for Region request')
-    _, front = _observations(history)
-    valid = [record for record in history if record.complete_pair_valid]
+    valid, front = _observations(history)
     scalar = context.scalarization
     if (signed or lgbo) and any(record.evaluation_id not in scalar.observation_ids for record in history):
         raise ValueError('history contains observations outside the frozen context')

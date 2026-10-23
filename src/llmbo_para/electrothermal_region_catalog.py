@@ -1,6 +1,5 @@
 """Host-owned geometry proposals and strict IDs bound to a complete request."""
 from copy import deepcopy
-import json
 import math
 import numpy as np
 

@@ -254,3 +254,15 @@ wire仍为`lgbo_action_v1`，只回复request_id/region；绑定涵盖完整版�
 软件入口`configs/electrothermal-sub2api-lgbo-v2-software-template.json`由本轮R2模板复制，采用预定G512_S4、默认parego、LLM关闭、API/DFN0；没有配置实际API连接。可使用原CLI `preflight CONFIG --output NEW_DIRECTORY`。真实调用需另备明确的transport/端点/模型/专用环境变量及批准预算；该模板不自动测试API。新源码指纹包含v2文件，StageA旧初始化不得换签导入；v1/v2在同一新源码下可共享严格核验的计划。
 
 当前已验证软件契约和同动作等价，未验证真实Prompt增益、真实DFN新配对或实测辨识。未来确认协议使用预留种子101/131/167，并在同source/有效初始化下比较；预算另行审批。电流、温度测点/单位、初态和冷却边界仍待科研组确认，旧3C继续排除。
+
+### LGBO 工程职责整理（2026-10-23）
+
+LGBO每轮从当轮历史重建标量化、拟合GP并生成候选池后，使用`acquisition.build_acquisition_view`计算一次基础mean/std/Gaussian EI。`FrozenAcquisitionView`拥有原生tuple数值，绑定context、有序pool、完整GP状态、标量化和真实incumbent。传入Region前严格校验；旧轮、换权重、同对象再训练和pool重排不能复用。独立调用`apply_lgbo_region`仍可不传视图，保持原接口。合法非零tilt后仍计算一次调整后EI；独立审计不调用视图来验证数学。
+
+`electrothermal_payloads`分别构造WarmStart、LGBO和旧Region请求，共享科学元数据、历史和工况序列化。旧`electrothermal_llm.build_electrothermal_payload`保留兼容入口；控制器继续负责预算、传输、归档和回退。LGBO直接创建动作契约，不先创建旧Region契约。返回内容拥有自己的嵌套数据，修改请求不污染prepared/history。
+
+`electrothermal_json`负责原生JSON结构、诊断脱敏和归档HTTP解码。catalog旧公开名称仍可调用；通用工具不依赖catalog或控制器。诊断NaN与被拒Python类型保留可审计表示，不能据此接受非有限动作。Chat/Responses完成状态与失败原因保持各自协议语义。
+
+现有WarmStart、LGBO v1/v2 Prompt、32锚点、均匀权重、协方差倾斜、原方差、真实标签/阈值、选点规则和归档schema保持。accepted仍只是selection_changed的兼容别名。源码指纹因重构改变，旧计划/缓存/回复不换签或放宽；八类重构前payload/wire golden仅在测试中冻结可信身份。
+
+本轮验收和实际日志/JUnit见`docs/audits/lgbo-engineering-cleanup-validation-2026-10-23.md`。工程等价、减少一次重复predict/EI或动作合法不等于真实RMSE/HV增益。候选Prompt仅在已确认设计文档中，不发布v3。本轮真实API、DFN、正式BO均0；下一步先比较相同payload下的Prompt，再独立考虑历史选择/区域质量。c与32/128锚点的冻结诊断另立协议，未经评价的替代点不给RMSE/HV。
