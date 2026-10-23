@@ -1,7 +1,6 @@
 """Electrothermal-only LLM contracts, bounded requests and Pareto/diversity seeds."""
 from dataclasses import asdict
 from copy import deepcopy
-from pathlib import Path
 import json
 import time
 import numpy as np
@@ -9,7 +8,7 @@ from .scalarization import augmented_tchebycheff
 from .pareto import pareto_indices
 from .electrothermal_provenance import candidate_key,write_initial_plan,load_initial_plan
 from .runstore import digest_value,canonical_json
-from .electrothermal_lgbo import is_lgbo_method,lgbo_prompt_filename
+from .electrothermal_lgbo import is_lgbo_method
 
 
 def warmstart_selection_details(records,*,space,count,objective_scales,rho_aug=.05):
@@ -49,140 +48,9 @@ def select_electrothermal_warmstart(records,*,space,count,objective_scales,rho_a
 
 
 def build_electrothermal_payload(task,*,prepared,history,context=None):
-    if task not in ('warm_start_electrothermal','region_preference_electrothermal'):raise ValueError('unknown electrothermal LLM task')
-    cfg=prepared.config;valid=[r for r in history if r.complete_pair_valid]
-    front=[valid[i] for i in pareto_indices([r.objectives for r in valid])]
-    is_region=task=='region_preference_electrothermal'
-    lgbo=is_region and is_lgbo_method(cfg['optimization'].get('region_method'))
-    candidate_aware=is_region and cfg['optimization'].get('region_advice','legacy_v1')=='candidate_aware_v1'
-    dynamic_evidence=is_region and (lgbo or cfg['optimization'].get('region_evidence','legacy_v1')=='dynamic_decision_v3')
-    catalog_proposal=is_region and cfg['optimization'].get('region_proposal','bounds_v1')=='catalog_v1'
-    decision_evidence=is_region and cfg['optimization'].get('region_evidence','legacy_v1') in ('decision_geometry_v2','dynamic_decision_v3')
-    signed_evidence=is_region and cfg['optimization'].get('region_evidence','legacy_v1') in ('signed_residual_v1','decision_geometry_v2','dynamic_decision_v3')
-    prompt_name='region_preference_candidate_aware_electrothermal' if candidate_aware else task
-    if candidate_aware and cfg['optimization'].get('region_selection')=='fair_region_v1':prompt_name='region_preference_fair_electrothermal'
-    if signed_evidence:
-        if not candidate_aware or cfg['optimization'].get('region_selection')!='fair_region_v1':raise ValueError('signed evidence requires candidate-aware fair selection')
-        prompt_name='region_preference_residual_electrothermal'
-    if decision_evidence:prompt_name='region_preference_decision_electrothermal'
-    if dynamic_evidence:prompt_name='region_preference_dynamic_electrothermal'
-    if catalog_proposal:
-        if not dynamic_evidence:raise ValueError('Region catalog requires dynamic evidence')
-        prompt_name=('region_preference_action_electrothermal' if cfg['llm'].get('region_wire_format')=='compact_action_v2'
-                     else 'region_preference_catalog_electrothermal')
-    if lgbo:prompt_name=lgbo_prompt_filename(cfg['optimization']['region_method']).removesuffix('.txt')
-    scalar_by_id={}
-    if is_region:
-        if context is None:raise ValueError('frozen context required for Region request')
-        c=context.scalarization;by_id={r.evaluation_id:r for r in history}
-        if (signed_evidence or lgbo) and any(r.evaluation_id not in c.observation_ids for r in history):
-            raise ValueError('history contains observations outside the frozen context')
-        scalar_by_id=dict(zip(c.observation_ids,c.raw_labels))
-        top=sorted(c.observation_ids,key=lambda i:(scalar_by_id[i],i))[:4]
-        extremes=[min(valid,key=lambda r:(r.objectives[j],r.evaluation_id)) for j in range(2)] if valid else []
-        # Stable bounded union: current incumbent/top four, two extremes, recent
-        # three. A Pareto-prefix truncation can omit the current best parameters.
-        selected={r.evaluation_id:r for r in [*[by_id[i] for i in top],*extremes,*history[-3:]]}
-    else:
-        selected={r.evaluation_id:r for r in [*front[:8],*history[-8:]]}
-    rows=[{'evaluation_id':r.evaluation_id,'parameters':list(r.parameters),'objectives':r.objectives,'complete_pair_valid':r.complete_pair_valid,
-           'objective_components':r.objective_components,'rates':{q.rate:{'voltage_valid':q.voltage.valid,'temperature_valid':q.cell_temperature.valid,
-           'rmse_v':q.voltage.rmse_v,'rmse_k':q.cell_temperature.rmse_k,'failure':q.cell_temperature.reason or q.voltage.reason} for q in r.rates}} for r in selected.values()]
-    if is_region:
-        for row in rows:
-            row.pop('objective_components')
-            row['normalized_parameters']=[round(float(x),6) for x in prepared.space.normalize(row['parameters'])]
-            row['current_scalar_g']=scalar_by_id.get(row['evaluation_id']) if row['complete_pair_valid'] else None
-            if cfg['optimization'].get('region_method')=='lgbo_v2' and row['complete_pair_valid']:
-                from .electrothermal_region_context import weighted_objective_evidence
-                row['weighted_objective_evidence']=weighted_objective_evidence(row['objectives'],weights=c.weights,
-                    objective_scales=c.objective_scales,ideal=c.ideal,rho_aug=c.rho_aug)
-        if signed_evidence:
-            from .electrothermal_residuals import signed_record_summary
-            for row,record in zip(rows,selected.values()):row['signed_residuals']=signed_record_summary(record)
-        if dynamic_evidence:
-            from .electrothermal_dynamic_evidence import dynamic_record_summary
-            for row,record in zip(rows,selected.values()):row['dynamic_residuals']=dynamic_record_summary(record)
-    payload={'task':task,'schema_version':2,'parameter_profile':prepared.space.profile,'fit_rates':list(prepared.dataset.fit_rates),
-        'signatures':asdict(prepared.signatures),'parameters':[{'name':s.name,'unit':s.unit,'lower':s.lower,'upper':s.upper,'transform':s.transform} for s in prepared.space.specs],
-        'fixed':cfg['fixed'],'property_law':cfg['property_law'],'conditions_by_rate':cfg['conditions_by_rate'],
-        'objective_scales':cfg['optimization']['objective_scales'],'objective_order':['F_U_V','F_T_K'],
-        'history':rows,'pareto':[{'evaluation_id':r.evaluation_id,'objectives':r.objectives} for r in front],
-        'instructions':(Path(__file__).parent/'prompts'/(prompt_name+'.txt')).read_text(encoding='utf8')}
-    if signed_evidence:
-        from .electrothermal_residuals import residual_evidence_contract
-        payload['history_evidence']=residual_evidence_contract()
-    if dynamic_evidence:
-        from .electrothermal_dynamic_evidence import dynamic_evidence_contract
-        payload['dynamic_history_evidence']=dynamic_evidence_contract()
-    if context is not None:
-        c=context.scalarization
-        payload['context_id']=context.context_id
-        payload['context']={'weights':list(c.weights),'objective_scales':list(c.objective_scales),'ideal':list(c.ideal),'rho_aug':c.rho_aug,
-            'mean':c.mean,'std':c.std,'incumbent_id':c.incumbent_id,'best':c.best,'history_ids':list(c.observation_ids),
-            'current_scalar_top':[{'evaluation_id':c.observation_ids[i],'g':c.raw_labels[i]} for i in sorted(range(len(c.y)),key=lambda i:(c.raw_labels[i],c.observation_ids[i]))[:8]]}
-        if is_region:
-            payload['context'].pop('history_ids')
-            payload['context'].update(history_count=len(c.observation_ids),history_digest=digest_value(list(c.observation_ids)))
-            payload['context']['current_scalar_top']=payload['context']['current_scalar_top'][:4]
-            if not lgbo:
-                from .informed import InformedSettings
-                settings=InformedSettings.parse(cfg['optimization']['region'])
-                payload['region_requirements']={'min_confidence':settings.min_confidence,'min_width':settings.min_width,'max_width':settings.max_width}
-            if candidate_aware:
-                from .electrothermal_region_advice import build_region_candidate_advice,candidate_region_requirements
-                payload['candidate_advice']=build_region_candidate_advice(context,space=prepared.space,settings=settings)
-                payload['region_requirements']=candidate_region_requirements(settings,selection_mode=cfg['optimization'].get('region_selection','global_lift_v1'))
-                if decision_evidence:
-                    from .electrothermal_region_evidence import build_region_decision_evidence
-                    payload['decision_evidence']=build_region_decision_evidence(context,
-                        advice=payload['candidate_advice'],settings=settings,observation_ids=[row['evaluation_id'] for row in rows])
-            payload['coordinate_mapping']={'space':'normalized','order':[s.name for s in prepared.space.specs],
-                'linear':'x=(theta-lower)/(upper-lower)',
-                'log10':'x=(log10(theta)-log10(lower))/(log10(upper)-log10(lower))',
-                'bounds':'Use each named parameter definition and its transform; history includes computed normalized coordinates.'}
-    properties={key:{'const':value} for key,value in (('schema_version',2),('parameter_profile',prepared.space.profile),
-        ('fit_rates',list(prepared.dataset.fit_rates)),('signatures',json.loads(json.dumps(asdict(prepared.signatures)))))}
-    if task=='warm_start_electrothermal':
-        names=[s.name for s in prepared.space.specs]
-        parameters={'type':'object','additionalProperties':False,'required':names,
-            'properties':{s.name:{'type':'number','minimum':s.lower,'maximum':s.upper} for s in prepared.space.specs}}
-        properties['candidates']={'type':'array','minItems':1,'maxItems':cfg['optimization']['warmstart']['max_candidates'],
-            'items':{'type':'object','additionalProperties':False,'required':['parameters'],'properties':{'parameters':parameters}}}
-        payload['requested_candidate_count']=max(0,cfg['optimization']['warmstart']['pool_size']-len(valid))
-    else:
-        if context is None:raise ValueError('frozen context required for Region request')
-        properties['context_id']={'const':context.context_id}
-        base={'kind':{'enum':['region','none']},'coordinate_space':{'const':'normalized'},
-              'confidence':{'type':'number','minimum':0,'maximum':1},'reason':{'type':'string','maxLength':2000}}
-        bounds={'type':'array','minItems':6,'maxItems':6,'items':{'type':'number','minimum':0,'maximum':1}}
-        properties['region']={'oneOf':[{'type':'object','additionalProperties':False,'required':list(base),
-            'properties':{**base,'kind':{'const':'none'}}},{'type':'object','additionalProperties':False,'required':[*base,'lb','ub'],
-            'properties':{**base,'kind':{'const':'region'},'lb':bounds,'ub':bounds}}]}
-    payload['simulation_kind']=cfg['run_kind'];payload['model_provider']=cfg['model']['provider']
-    def summary(signal):
-        return {'first':signal.values[0],'last':signal.values[-1],'minimum':min(signal.values),'maximum':max(signal.values),
-                'sample_count':len(signal.values),'time_span_s':[signal.time_s[0],signal.time_s[-1]],'unit':signal.unit}
-    payload['case_summaries']={rate:{'current_A':summary(case.current_a),'ambient_temperature_K':summary(case.ambient_temperature_k),
-        'initial_temperature_K':case.initial_state['temperature_k'],'voltage_target_V':summary(case.voltage),
-        'temperature_target_K':summary(case.cell_temperature_k),'cooling_group_id':case.cooling_group_id}
-        for rate,case in prepared.dataset.cases.items()}
-    payload['response_contract']={'type':'object','additionalProperties':False,'required':list(properties),'properties':properties}
-    if lgbo:
-        from .electrothermal_lgbo_wire import lgbo_region_contract
-        payload['region_method']=cfg['optimization']['region_method']
-        properties['region_method']={'const':payload['region_method']}
-        properties['region']=lgbo_region_contract()
-        payload['response_contract']['required']=list(properties)
-    if is_region and cfg['llm'].get('region_wire_format','full_v1') in ('compact_v1','compact_action_v2'):
-        payload['region_wire_format']=cfg['llm']['region_wire_format']
-    if catalog_proposal:
-        from .electrothermal_region_catalog import build_region_catalog,catalog_proposal_binding,catalog_region_contract
-        payload['region_proposal']='catalog_v1'
-        payload['region_catalog']=build_region_catalog(context,advice=payload['candidate_advice'],settings=settings)
-        payload['proposal_binding']=catalog_proposal_binding(payload)
-        payload['response_contract']['properties']['region']=catalog_region_contract(payload)
-    return payload
+    """Compatibility entry point; task construction lives outside the controller."""
+    from .electrothermal_payloads import build_electrothermal_payload as build_payload
+    return build_payload(task, prepared=prepared, history=history, context=context)
 
 
 def validate_warmstart_response(response,*,prepared):
