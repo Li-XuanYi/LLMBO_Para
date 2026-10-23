@@ -64,8 +64,8 @@ def decode_region_wire(response,payload):
     if action:
         # Check the entire reply before discarding metadata: invalid JSON must
         # not become a valid action merely because the bad value was in reason.
-        from .electrothermal_region_catalog import catalog_reply_is_json_native
-        if not catalog_reply_is_json_native(response):raise ValueError('action reply must use native JSON types')
+        from .electrothermal_json import is_json_native
+        if not is_json_native(response):raise ValueError('action reply must use native JSON types')
         try:canonical_json(response)
         except (ValueError,TypeError,OverflowError):raise ValueError('action reply must contain finite JSON') from None
     if not isinstance(response,dict) or set(response)!={'request_id','region'} or response['request_id']!=_binding(payload):

@@ -113,7 +113,7 @@ def audit_lgbo_round(root, *, event, context, gp, history, prepared, cost_events
     from .electrothermal_llm import build_electrothermal_payload
     from .electrothermal_lgbo_wire import decode_lgbo_action
     from .electrothermal_region_wire import region_wire_payload
-    from .electrothermal_region_catalog import decode_catalog_http_response, catalog_archival_json
+    from .electrothermal_json import decode_archived_http_response, archival_json
     from .electrothermal_requests import request_controls
     root = Path(root)
     def read(relative):
@@ -186,13 +186,13 @@ def audit_lgbo_round(root, *, event, context, gp, history, prepared, cost_events
                 _equal(json.loads(messages[1]['content']), {k: v for k, v in wire.items() if k != 'instructions'},
                        'LGBO Chat scientific content differs')
         if http_response.exists():
-            decoded, issue = decode_catalog_http_response(read(f'http/{artifact}.response.json'),
+            decoded, issue = decode_archived_http_response(read(f'http/{artifact}.response.json'),
                 payload=expected, transport=cfg['llm'].get('transport', 'openai_chat_completions'))
             if issue is None:
                 _require(receipt.exists(), 'LGBO valid HTTP response lacks controller receipt')
                 raw = read(f'llm/{n:06d}.lgbo-response.json')
                 _equal(raw, {'version': 'lgbo_response_v1', 'representation': 'canonical',
-                             'response_json': catalog_archival_json(decoded)}, 'LGBO native receipt differs')
+                             'response_json': archival_json(decoded)}, 'LGBO native receipt differs')
                 canonical = decoded
             else:
                 _require(outcome['status'] == 'failed' and outcome.get('reason') == 'protocol_error'

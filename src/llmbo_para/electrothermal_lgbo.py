@@ -7,6 +7,7 @@ import numpy as np
 
 from .acquisition import gaussian_ei
 from .runstore import canonical_json, digest_value
+from .electrothermal_json import is_json_native
 from .sobol import Sobol6
 
 METHOD = 'lgbo_v1'
@@ -28,11 +29,8 @@ def lgbo_prompt_filename(method: str) -> str:
 
 
 def _native(value):
-    if type(value) is dict:
-        return all(type(k) is str and _native(v) for k, v in value.items())
-    if type(value) is list:
-        return all(_native(v) for v in value)
-    return value is None or type(value) in (str, int, float, bool)
+    """Retain the private compatibility boundary for existing callers."""
+    return is_json_native(value)
 
 
 def validate_lgbo_region(response, *, expected_context_id, expected_signatures, expected_region_method='lgbo_v1'):

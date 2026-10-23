@@ -248,21 +248,21 @@ class ElectrothermalLLMController:
                 outcome['http_request_started']=transport.last_request_diagnostic['http_request_started']
                 outcome['effective_timeout_s']=transport.last_request_diagnostic['effective_timeout_s']
             if prepared.config['llm'].get('transport')=='openai_responses':
-                from .electrothermal_region_catalog import catalog_archival_json
+                from .electrothermal_json import archival_json
                 store.write_json(f'llm/{ordinal:06d}.responses-formal.json',
-                    {'version':'responses_formal_v1','response_json':catalog_archival_json(response)})
+                    {'version':'responses_formal_v1','response_json':archival_json(response)})
             if lgbo_proposal:
                 from .electrothermal_lgbo_wire import decode_lgbo_action
                 from .electrothermal_lgbo import validate_lgbo_region
-                from .electrothermal_region_catalog import catalog_archival_json
+                from .electrothermal_json import archival_json
                 native=isinstance(transport,BoundedChatCompletionsTransport)
                 store.write_json(f'llm/{ordinal:06d}.lgbo-response.json',
                     {'version':'lgbo_response_v1','representation':'canonical' if native else 'wire',
-                     'response_json':catalog_archival_json(response)})
+                     'response_json':archival_json(response)})
                 try:
                     if canonical_json(sent_payload)!=frozen_request:
                         store.write_json(f'llm/{ordinal:06d}.lgbo-mutation.json',
-                            {'sent_payload_json':catalog_archival_json(sent_payload)})
+                            {'sent_payload_json':archival_json(sent_payload)})
                         raise ValueError('transport mutated frozen LGBO request')
                     response=deepcopy(response) if native else decode_lgbo_action(response,json.loads(frozen_request))
                     validate_lgbo_region(response,expected_context_id=payload['context_id'],
@@ -276,14 +276,15 @@ class ElectrothermalLLMController:
                 try:
                     # A JSON string preserves malformed NaN formal replies for
                     # diagnostic replay without placing NaN in the archive JSON.
-                    from .electrothermal_region_catalog import resolve_catalog_region,catalog_archival_json,catalog_reply_is_json_native
-                    raw=catalog_archival_json(response)
+                    from .electrothermal_region_catalog import resolve_catalog_region
+                    from .electrothermal_json import archival_json, is_json_native
+                    raw=archival_json(response)
                     store.write_json(f'llm/{ordinal:06d}.catalog-response.json',{'version':'catalog_response_v1','response_json':raw})
-                    if not catalog_reply_is_json_native(response):
+                    if not is_json_native(response):
                         raise ValueError('catalog transport must return native JSON types')
                     if json.dumps(sent_payload,sort_keys=True,allow_nan=True)!=json.dumps(json.loads(frozen_request),sort_keys=True):
                         store.write_json(f'llm/{ordinal:06d}.catalog-mutation.json',
-                            {'version':'catalog_mutation_v1','sent_payload_json':catalog_archival_json(sent_payload)})
+                            {'version':'catalog_mutation_v1','sent_payload_json':archival_json(sent_payload)})
                         raise ValueError('transport mutated the frozen catalog request')
                     response,resolution=resolve_catalog_region(response,payload=json.loads(frozen_request))
                     store.write_json(f'llm/{ordinal:06d}.catalog-resolution.json',resolution)
