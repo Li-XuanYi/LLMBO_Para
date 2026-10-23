@@ -3,11 +3,88 @@
 from __future__ import annotations
 
 import math
+import json
+from dataclasses import dataclass
 from typing import Mapping, Sequence
 
 import numpy as np
 
 from .metrics import RATE_ORDER, LogRMSETransform
+from .runstore import digest_value
+
+
+@dataclass(frozen=True)
+class FrozenAcquisitionView:
+    """Owned immutable moments in one frozen standardized scalar target space."""
+
+    context_id: str
+    pool_digest: str
+    gp_state_digest: str
+    scalarization_digest: str
+    pool: tuple[tuple[float, ...], ...]
+    best: float
+    mean: tuple[float, ...]
+    std: tuple[float, ...]
+    plain_ei: tuple[float, ...]
+    plain_index: int
+
+
+def _acquisition_binding(gp, context, pool) -> tuple:
+    """Reject mismatched history/posterior/pool before predicting or evaluating."""
+    x = np.asarray(pool, dtype=float)
+    frozen_pool = np.asarray(context.pool, dtype=float)
+    if (x.ndim != 2 or not len(x) or x.shape[1] != 6
+            or np.any(~np.isfinite(x)) or np.any((x < 0) | (x > 1))
+            or frozen_pool.shape != x.shape or not np.array_equal(x, frozen_pool)):
+        raise ValueError('finite ordered pool must match the frozen six-dimensional context')
+    if type(context.context_id) is not str or not context.context_id:
+        raise ValueError('frozen context identity required')
+    state_digest = digest_value(gp.state_dict())
+    if state_digest != digest_value(json.loads(context.gp_state_json)):
+        raise ValueError('GP state differs from the frozen context')
+    best = context.scalarization.best
+    if not math.isfinite(best):
+        raise ValueError('finite frozen incumbent required')
+    owned_pool = tuple(tuple(float(value) for value in row) for row in x)
+    return (owned_pool, digest_value(owned_pool), state_digest,
+            digest_value(context.scalarization.to_dict()), float(best))
+
+
+def build_acquisition_view(gp, context, pool) -> FrozenAcquisitionView:
+    """Compute exactly one base prediction and Gaussian EI; own all output values."""
+    owned_pool, pool_digest, gp_digest, scalar_digest, best = _acquisition_binding(gp, context, pool)
+    mean, std = gp.predict(owned_pool)
+    ei = gaussian_ei(mean, std, best)
+    view = FrozenAcquisitionView(context.context_id, pool_digest, gp_digest, scalar_digest,
+        owned_pool, best, tuple(float(value) for value in mean),
+        tuple(float(value) for value in std), tuple(float(value) for value in ei), int(np.argmax(ei)))
+    validate_acquisition_view(view, gp, context, owned_pool)
+    return view
+
+
+def validate_acquisition_view(view: FrozenAcquisitionView, gp, context, pool) -> None:
+    """Validate binding and finite immutable moments, without prediction/EI replay.
+
+    This is a host-owned computation view, never an LLM credential. Independent
+    archive auditing still verifies posterior moments and acquisition arithmetic.
+    """
+    if type(view) is not FrozenAcquisitionView:
+        raise ValueError('a frozen acquisition view is required')
+    owned_pool, pool_digest, gp_digest, scalar_digest, best = _acquisition_binding(gp, context, pool)
+    if (view.context_id != context.context_id or view.pool_digest != pool_digest
+            or view.gp_state_digest != gp_digest or view.scalarization_digest != scalar_digest
+            or view.best != best or type(view.pool) is not tuple
+            or any(type(row) is not tuple for row in view.pool) or view.pool != owned_pool):
+        raise ValueError('stale acquisition view: context, pool, GP, scalarization or incumbent differs')
+    for name in ('mean', 'std', 'plain_ei'):
+        values = getattr(view, name)
+        if (type(values) is not tuple or len(values) != len(owned_pool)
+                or any(type(value) not in (int, float) or not math.isfinite(value) for value in values)):
+            raise ValueError('finite aligned immutable acquisition moments required')
+    if any(value < 0 for value in (*view.std, *view.plain_ei)):
+        raise ValueError('nonnegative acquisition standard deviations and EI required')
+    if type(view.plain_index) is not int or view.plain_index != int(np.argmax(view.plain_ei)):
+        raise ValueError('plain acquisition index must retain the original first-maximum rule')
 
 
 def gaussian_ei(mean, std, best: float) -> np.ndarray:

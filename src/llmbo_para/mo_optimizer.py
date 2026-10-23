@@ -4,7 +4,7 @@ import json
 import numpy as np
 from .scalarization import build_scalarization_context,WeightScheduler
 from .surrogate import Matern52GP
-from .acquisition import gaussian_ei
+from .acquisition import gaussian_ei, build_acquisition_view
 from .pareto import pareto_indices,hypervolume_2d
 from .sobol import Sobol6
 from .electrothermal_provenance import candidate_key,verify_evaluation
@@ -110,7 +110,14 @@ class MOOptimizer:
                       'gp_state':state,'pool':pool,'ordinal':len(self.rounds)+1}
         context=MORoundContext(scalar,self.dataset.fit_rates,canonical_json(asdict(self.store.signatures)).decode(),canonical_json(state).decode(),
                                pool,len(self.rounds)+1,digest_value(context_data));self.last_context=context
-        mean,std=self.gp.predict(pool);ei=gaussian_ei(mean,std,scalar.best);index=int(np.argmax(ei))
+        if is_lgbo_method(self.region_method):
+            acquisition_view = build_acquisition_view(self.gp, context, pool)
+            mean = np.asarray(acquisition_view.mean)
+            std = np.asarray(acquisition_view.std)
+            ei = np.asarray(acquisition_view.plain_ei)
+            index = acquisition_view.plain_index
+        else:
+            mean,std=self.gp.predict(pool);ei=gaussian_ei(mean,std,scalar.best);index=int(np.argmax(ei))
         region=None
         if self.options['mode']=='full_llmbo_mo':
             response=None;request_outcome=None
@@ -119,7 +126,9 @@ class MOOptimizer:
                 if self.llm_controller is not None:
                     response=self.llm_controller.request_region(self.llm_controller.prepared,self.history,context,self.store)
                     request_outcome=getattr(self.llm_controller,'last_request_outcome',None)
-                region=apply_lgbo_region(self.gp,context,pool,response,space=self.space,request_outcome=request_outcome,region_method=self.region_method)
+                region = apply_lgbo_region(self.gp, context, pool, response, space=self.space,
+                    request_outcome=request_outcome, region_method=self.region_method,
+                    acquisition_view=acquisition_view)
             elif context.ordinal<self.region_settings.active_until and self.llm_controller is not None:
                 response=self.llm_controller.request_region(self.llm_controller.prepared,self.history,context,self.store)
                 request_outcome=getattr(self.llm_controller,'last_request_outcome',None)

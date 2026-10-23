@@ -5,7 +5,7 @@ import math
 
 import numpy as np
 
-from .acquisition import gaussian_ei
+from .acquisition import gaussian_ei, FrozenAcquisitionView, validate_acquisition_view
 from .runstore import canonical_json, digest_value
 from .electrothermal_json import is_json_native
 from .sobol import Sobol6
@@ -97,15 +97,23 @@ def lgbo_mean_tilt(*, mean, std, cov_xa, cov_aa, confidence):
             'adjusted_mean': adjusted.tolist()}
 
 
-def apply_lgbo_region(gp, context, pool, response, *, space, request_outcome=None, region_method='lgbo_v1'):
+def apply_lgbo_region(gp, context, pool, response, *, space, request_outcome=None, region_method='lgbo_v1',
+                      acquisition_view: FrozenAcquisitionView | None = None):
     """Apply a direct regional preference, then maximize EI over the whole pool."""
     if not is_lgbo_method(region_method):
         raise ValueError('unknown LGBO method version')
     x = np.asarray(pool, dtype=float)
-    mean, std = gp.predict(x)
-    mean, std = np.asarray(mean, dtype=float), np.asarray(std, dtype=float)
-    ei = gaussian_ei(mean, std, context.scalarization.best)
-    plain = int(np.argmax(ei))
+    if acquisition_view is None:
+        mean, std = gp.predict(x)
+        mean, std = np.asarray(mean, dtype=float), np.asarray(std, dtype=float)
+        ei = gaussian_ei(mean, std, context.scalarization.best)
+        plain = int(np.argmax(ei))
+    else:
+        validate_acquisition_view(acquisition_view, gp, context, pool)
+        mean = np.asarray(acquisition_view.mean, dtype=float)
+        std = np.asarray(acquisition_view.std, dtype=float)
+        ei = np.asarray(acquisition_view.plain_ei, dtype=float)
+        plain = acquisition_view.plain_index
     result = {'region_method': region_method, 'context_id': context.context_id,
               'mean': mean.tolist(), 'std': std.tolist(), 'plain_ei': ei.tolist(),
               'signed_delta': np.zeros_like(mean).tolist(), 'adjusted_mean': mean.tolist(),
