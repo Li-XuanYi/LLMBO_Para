@@ -14,6 +14,29 @@ from .electrothermal_store import CostLedger
 from .runstore import digest_value,sha256_file,canonical_json
 
 
+def _audit_network_diagnostics(outcome, supervision, http_error, *, supported_source):
+    """Compare machine evidence independently across the three saved layers."""
+    from .http_diagnostics import public_network_diagnostic
+    if any(type(item) is not dict for item in (outcome, supervision, http_error)):
+        raise ValueError('network diagnostic records must be JSON objects')
+    network_errors = {'URLError', 'gaierror', 'OSError', 'ConnectionError',
+        'ConnectionRefusedError', 'ConnectionResetError', 'ConnectionAbortedError',
+        'BrokenPipeError', 'SSLError', 'SSLCertVerificationError', 'SSLEOFError',
+        'RemoteDisconnected'}
+    required = supported_source and (
+        http_error.get('error_type') in network_errors | {'TimeoutError', 'timeout'}
+        or supervision.get('error_type') in network_errors
+        or supervision.get('reason') == 'timeout')
+    values = [item.get('network_diagnostic') for item in (http_error, supervision, outcome)]
+    present = any('network_diagnostic' in item for item in (http_error, supervision, outcome))
+    if not required and not present:
+        return
+    if any(value is None or public_network_diagnostic(value) != value for value in values):
+        raise ValueError('network diagnostic fields missing or malformed')
+    if any(value != values[0] for value in values[1:]):
+        raise ValueError('network diagnostic differs across HTTP, supervision and outcome')
+
+
 def _audit_responses_warmstart(root,*,cfg,space,dataset,signatures,events,by_id,read,require,equal):
     """Replay reply-to-screening provenance, without evaluating a model."""
     from types import SimpleNamespace
@@ -176,6 +199,11 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                 equal(artifact,outcome['task']+'_request_'+'a'*(n+1),'Responses artifact task differs')
             request_path=root/'http'/(artifact+'.request.json');response=root/'http'/(artifact+'.response.json')
             supervision_path=root/'http'/(artifact+'.supervision.json')
+            diagnostic_error=root/'http'/(artifact+'.error.json')
+            _audit_network_diagnostics(outcome,
+                json.loads(supervision_path.read_text(encoding='utf8')) if supervision_path.exists() else {},
+                json.loads(diagnostic_error.read_text(encoding='utf8')) if diagnostic_error.exists() else {},
+                supported_source=(root/'source/src/llmbo_para/http_diagnostics.py').is_file())
             if transport_kind=='openai_responses' and (outcome['status']=='received' or outcome.get('reason') in ('invalid_catalog_response','invalid_lgbo_response')):
                 live_cost=any(e.get('type')=='electrothermal_cost' and e.get('event_id')==f'llm:{n}'
                     and e.get('kind')=='llm_request' for e in events)

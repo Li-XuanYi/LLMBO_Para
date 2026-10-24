@@ -272,6 +272,15 @@ class BoundedChatCompletionsTransport(ChatCompletionsTransport):
         def fail(kind, diagnostic=None):
             progress=self._archived_progress(self.store.path if self.store is not None else None,task)
             detail=_public_diagnostic(diagnostic)
+            if (kind in ('deadline_exceeded', 'worker_error') and request_started
+                    and 'network_diagnostic' not in detail and self.store is not None):
+                try:
+                    saved = json.loads((self.store.path/'http'/(task+'.error.json')).read_text(encoding='utf8'))
+                    machine = _public_diagnostic(saved).get('network_diagnostic')
+                    if machine is not None:
+                        detail['network_diagnostic'] = machine
+                except (OSError, ValueError, TypeError):
+                    pass
             if detail['http_status'] is None:detail['http_status']=progress.get('http_status')
             stage='decoding_content' if kind=='protocol_error' else progress.get('failure_stage',
                 'awaiting_headers' if request_started else 'worker_startup')

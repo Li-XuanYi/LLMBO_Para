@@ -159,3 +159,38 @@ def test_parent_and_controller_keep_network_fields_without_a_real_request(monkey
     assert outcome['network_diagnostic'] == expected
     assert outcome['reason'] == 'transport_error'
     assert json.loads(next((archive.path / 'http').glob('*.supervision.json')).read_text())['network_diagnostic'] == expected
+
+
+def test_hard_deadline_retains_already_archived_machine_error(monkeypatch, tmp_path):
+    from test_region_transport_repairs import payload, spec, ENV
+    from llmbo_para.electrothermal_requests import BoundedChatCompletionsTransport, LLMRequestFailure
+    from llmbo_para.runstore import RunStore
+    archive = RunStore(tmp_path, {'kind': 'offline-deadline-race'}, command='offline diagnostic')
+    monkeypatch.setenv(ENV, 'offline-only')
+    expected = {'category': 'connection_reset', 'cause_type': 'ConnectionResetError', 'os_errno': 10054}
+
+    def race(*args, **kwargs):
+        kwargs['on_solve_start']()
+        archive.write_json('http/' + payload()['artifact_task'] + '.error.json',
+                           {'error_type': 'URLError', 'network_diagnostic': expected})
+        raise TimeoutError('parent deadline after child recorded its error')
+
+    monkeypatch.setattr('llmbo_para.electrothermal_requests.run_with_deadline', race)
+    with pytest.raises(LLMRequestFailure) as exc:
+        BoundedChatCompletionsTransport(**spec(), run_store=archive).post(payload())
+    assert exc.value.kind == 'deadline_exceeded'
+    assert exc.value.diagnostic['network_diagnostic'] == expected
+
+
+def test_configuration_failure_does_not_inherit_an_unrelated_archived_cause(monkeypatch, tmp_path):
+    from test_region_transport_repairs import payload, spec, ENV
+    from llmbo_para.electrothermal_requests import BoundedChatCompletionsTransport, LLMRequestFailure
+    from llmbo_para.runstore import RunStore
+    archive = RunStore(tmp_path, {'kind': 'offline-stale-diagnostic'}, command='offline diagnostic')
+    archive.write_json('http/' + payload()['artifact_task'] + '.error.json',
+                       {'error_type': 'URLError', 'network_diagnostic': VALID})
+    monkeypatch.delenv(ENV, raising=False)
+    with pytest.raises(LLMRequestFailure) as exc:
+        BoundedChatCompletionsTransport(**spec(), run_store=archive).post(payload())
+    assert exc.value.kind == 'configuration_error'
+    assert 'network_diagnostic' not in exc.value.diagnostic
