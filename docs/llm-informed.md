@@ -283,3 +283,7 @@ or positive counts are retained without rejecting a complete valid JSON reply.
 Raw HTTP archives follow existing rules; no additional reasoning text is
 extracted or interpreted. Transport completion alone demonstrates no RMSE/HV gain.
 
+Actual validation: [2026-10-24 reasoning-control report](audits/responses-reasoning-control-validation-2026-10-24.md).
+The full software suite passed1441 tests; the minimal live request succeeded but
+the complete Region request hit its120s parent cutoff. The API-only diagnostic
+stopped after2 calls with0DFN/BO; complete transport readiness and gain remain unverified.
