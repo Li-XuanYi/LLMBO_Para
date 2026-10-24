@@ -87,3 +87,42 @@ def decode_archived_http_response(
         return decode_region_wire(decoded, payload), None
     except (KeyError, IndexError, TypeError, ValueError, AttributeError):
         return None, issue
+
+
+def audit_responses_stream(root, artifact, *, responses_stream, needs_complete, headers_received):
+    """Independently bind the terminal transcript to the derived HTTP object."""
+    from pathlib import Path
+    from .electrothermal_sse import decode_sse_events, MAX_BYTES, MAX_EVENTS
+    root = Path(root)
+    trace = root/'http'/(artifact+'.stream.jsonl')
+    derived = root/'http'/(artifact+'.response.json')
+    if responses_stream is not True:
+        if trace.exists():
+            raise ValueError('unconfigured Responses stream evidence')
+        return
+    if not trace.is_file():
+        if needs_complete or derived.exists() or headers_received:
+            raise ValueError('required Responses stream is missing')
+        return
+    if trace.stat().st_size > 3*MAX_BYTES:
+        raise ValueError('Responses stream archive too large')
+    text = trace.read_text(encoding='utf8')
+    # JSONL delimiters are actual LF, not Unicode line separators inside strings.
+    lines = text.split('\n')
+    if lines[-1] == '':
+        lines.pop()
+    if len(lines) > MAX_EVENTS:
+        raise ValueError('too many archived stream events')
+    try:
+        if text and not text.endswith('\n'):
+            raise ValueError('partial stream record')
+        terminal = decode_sse_events([json.loads(line) for line in lines])
+    except (ValueError, TypeError, KeyError, OverflowError):
+        if needs_complete or derived.exists():
+            raise ValueError('formal reply requires a complete Responses stream') from None
+        return
+    if not derived.is_file():
+        raise ValueError('complete stream has no derived HTTP response')
+    raw = json.loads(derived.read_text(encoding='utf8'))
+    if json.dumps(terminal, sort_keys=True, allow_nan=False) != json.dumps(raw, sort_keys=True, allow_nan=False):
+        raise ValueError('derived response differs from stream terminal')

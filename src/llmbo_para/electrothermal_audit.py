@@ -190,8 +190,8 @@ def audit_electrothermal_run(run_directory,*,deep=False):
         controlled=False
         for file in sorted((root/'llm').glob('*.outcome.json')):
             outcome=json.loads(file.read_text(encoding='utf8'));controls=request_controls(cfg,outcome['task'])
-            expected_effort={k:controls[k] for k in ('reasoning_effort',) if k in controls}
-            equal({k:outcome[k] for k in ('reasoning_effort',) if k in outcome},expected_effort,
+            expected_effort={k:controls[k] for k in ('reasoning_effort','responses_stream') if k in controls}
+            equal({k:outcome[k] for k in ('reasoning_effort','responses_stream') if k in outcome},expected_effort,
                   'request reasoning effort differs')
             if expected_effort:controlled=True
             if 'thinking' in controls:
@@ -205,7 +205,7 @@ def audit_electrothermal_run(run_directory,*,deep=False):
             supervision_path=root/'http'/(artifact+'.supervision.json')
             if supervision_path.exists():
                 supervised=json.loads(supervision_path.read_text(encoding='utf8'))
-                equal({k:supervised[k] for k in ('reasoning_effort',) if k in supervised},expected_effort,
+                equal({k:supervised[k] for k in ('reasoning_effort','responses_stream') if k in supervised},expected_effort,
                       'supervised reasoning effort differs')
             diagnostic_error=root/'http'/(artifact+'.error.json')
             _audit_network_diagnostics(outcome,
@@ -221,11 +221,15 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                     require((root/'llm'/file.name.replace('.outcome.json','.responses-formal.json')).is_file(),
                             'received Responses request lacks formal receipt')
             started=any(e.get('type')=='llm_http_started' and e.get('task')==artifact for e in events)
-            has_http=started or request_path.exists() or response.exists()
+            has_http=started or request_path.exists() or response.exists() or (root/'http'/(artifact+'.stream.jsonl')).exists()
             if has_http or outcome.get('hard_deadline_enforced') and outcome.get('http_request_started'):
                 request=read('http/'+artifact+'.request.json')['body']
                 supervision=read('http/'+artifact+'.supervision.json') if supervision_path.exists() else {}
                 if transport_kind=='openai_responses':
+                    from .electrothermal_json import audit_responses_stream
+                    audit_responses_stream(root,artifact,responses_stream=controls.get('responses_stream'),
+                        needs_complete=outcome['status']=='received' or outcome.get('reason') in ('invalid_catalog_response','invalid_lgbo_response'),
+                        headers_received=any(e.get('type')=='llm_http_headers_received' and e.get('task')==artifact for e in events))
                     from types import SimpleNamespace
                     from .electrothermal_responses import responses_request_body
                     from .electrothermal_region_wire import region_wire_payload
@@ -256,7 +260,7 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                     frozen_payload=json.loads(canonical_json(payload)) if payload.get('region_proposal')=='catalog_v1' or is_lgbo_method(payload.get('region_method')) else payload
                     expected_body=responses_request_body(region_wire_payload(frozen_payload),model=cfg['llm']['model'],
                         max_tokens=controls['max_tokens'],json_mode=cfg['llm']['json_mode'],
-                        reasoning_effort=controls.get('reasoning_effort'))
+                        reasoning_effort=controls.get('reasoning_effort'),responses_stream=controls.get('responses_stream'))
                     equal(request,expected_body,'Responses final HTTP request differs')
                     formal_path=root/'llm'/file.name.replace('.outcome.json','.responses-formal.json')
                     needs_formal=outcome['status']=='received' or outcome.get('reason') in ('invalid_catalog_response','invalid_lgbo_response')
@@ -508,7 +512,8 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                                     if transport_kind=='openai_responses':
                                         equal(request,responses_request_body(wire,model=cfg['llm']['model'],
                                             max_tokens=request_controls(cfg,payload['task'])['max_tokens'],json_mode=cfg['llm']['json_mode'],
-                                            reasoning_effort=request_controls(cfg,payload['task']).get('reasoning_effort')),
+                                            reasoning_effort=request_controls(cfg,payload['task']).get('reasoning_effort'),
+                                            responses_stream=request_controls(cfg,payload['task']).get('responses_stream')),
                                             'catalog Responses HTTP request differs')
                                     else:
                                         equal(json.loads(request['messages'][1]['content']),{k:v for k,v in wire.items() if k!='instructions'},'catalog HTTP request differs')
@@ -535,7 +540,8 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                                 if transport_kind=='openai_responses':
                                     equal(request,responses_request_body(wire,model=cfg['llm']['model'],
                                         max_tokens=request_controls(cfg,payload['task'])['max_tokens'],json_mode=cfg['llm']['json_mode'],
-                                        reasoning_effort=request_controls(cfg,payload['task']).get('reasoning_effort')),
+                                        reasoning_effort=request_controls(cfg,payload['task']).get('reasoning_effort'),
+                                        responses_stream=request_controls(cfg,payload['task']).get('responses_stream')),
                                         'compact Responses HTTP request differs')
                                 else:
                                     equal(json.loads(request['messages'][1]['content']),{k:v for k,v in wire.items() if k!='instructions'},'compact Region HTTP request differs')

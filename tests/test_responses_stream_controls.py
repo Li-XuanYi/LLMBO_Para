@@ -19,7 +19,8 @@ def stream_worker(mode, spec, sent, run_path, connection, *, entry=None):
         status = 200
         def __init__(self, body):
             wire = json.loads(body['input'])
-            formal = {k: wire[k] for k in ('schema_version','parameter_profile','fit_rates','signatures')}
+            formal = ({k: wire[k] for k in ('schema_version','parameter_profile','fit_rates','signatures')}
+                      if 'request_id' not in wire else {})
             if 'request_id' in wire:
                 formal = {'request_id':wire['request_id'], 'region':{'kind':'region',
                     'lb':[.3]*6,'ub':[.8]*6,'confidence':.65}}

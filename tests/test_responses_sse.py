@@ -20,7 +20,7 @@ def entries(raw=None):
     return [{'event':'response.created','data':{'type':'response.created','sequence_number':0,
                 'response':{'id':'resp-unit','status':'in_progress'}}},
             {'event':None,'data':{'type':'response.output_text.delta','sequence_number':4,
-                'delta':'not the final answer'}},
+                'delta':'尚未完成🙂\u2028'}},
             {'event':'response.completed','data':{'type':'response.completed','sequence_number':20,
                 'response':{'id':'resp-unit',**raw}}}]
 

@@ -287,3 +287,24 @@ Actual validation: [2026-10-24 reasoning-control report](audits/responses-reason
 The full software suite passed1441 tests; the minimal live request succeeded but
 the complete Region request hit its120s parent cutoff. The API-only diagnostic
 stopped after2 calls with0DFN/BO; complete transport readiness and gain remain unverified.
+
+### Explicit Responses SSE reception (2026-10-24)
+
+Schema2 Responses accepts optional global boolean `llm.responses_stream`.
+Omission preserves nonstreaming; explicit true receives bounded SSE. Chat,
+schema1, null and task overrides reject the field. Configuration alone controls
+cloned clients, actual wire, owned workers and archived controls. Existing cache
+and initialization signatures remain strict; historical plans are never re-signed.
+
+SSE comments and incremental text do not extend the absolute deadline or count
+as a completed Region. A terminal response must pass the existing completion,
+formal JSON and request-binding validators. The reader caps wire bytes at1MiB
+and semantic events at4096. Failed/incomplete terminals retain diagnostic usage
+but never become successful actions. Missing usage remains unknown.
+
+`http/<task>.stream.jsonl` is a redacted event transcript. Intermediate free-form
+text is omitted, preventing split credentials from leaking across delta events;
+terminal responses retain the original recursive redaction policy. Audits replay
+the transcript and compare its terminal with the derived `.response.json`.
+Partial streams remain diagnostic evidence. Software reception does not establish
+third-party transport readiness or RMSE/HV gain; staged validation is separate.

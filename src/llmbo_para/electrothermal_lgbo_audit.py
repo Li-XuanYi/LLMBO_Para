@@ -172,7 +172,7 @@ def audit_lgbo_round(root, *, event, context, gp, history, prepared, cost_events
                 from .electrothermal_responses import responses_request_body
                 _equal(body, responses_request_body(wire, model=cfg['llm']['model'],
                     max_tokens=controls['max_tokens'], json_mode=cfg['llm']['json_mode'],
-                    reasoning_effort=controls.get('reasoning_effort')),
+                    reasoning_effort=controls.get('reasoning_effort'),responses_stream=controls.get('responses_stream')),
                     'LGBO Responses request differs')
             else:
                 target = {'model': cfg['llm']['model'], 'max_tokens': controls['max_tokens'], 'stream': False}
