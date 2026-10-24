@@ -120,7 +120,7 @@ def test_none_failure_stops_without_retry(tmp_path, monkeypatch, label):
 
 
 @pytest.mark.parametrize('reason,status,started,elapsed,expected', [
-    ('deadline_exceeded',None,True,120.,5), ('timeout',None,True,120.,3),
+    ('deadline_exceeded',None,True,120.,5), ('deadline_exceeded',200,True,120.,5), ('timeout',None,True,120.,3),
     ('worker_error',None,True,120.,3), ('deadline_exceeded',None,False,120.,3),
     ('deadline_exceeded',None,True,30.,3), ('deadline_exceeded',503,True,120.,3),
     ('http_error',401,True,1.,3), ('http_error',403,True,1.,3),
@@ -173,18 +173,23 @@ def test_false_evidence_or_runtime_failure_closes_sequence(tmp_path, monkeypatch
 
 
 def release_fixture(m, root):
+    import importlib.metadata
+    environment = {'executable': sys.executable, 'python': sys.version,
+        'dependencies': {name: importlib.metadata.version(name) for name in
+                         ('pytest','numpy','scipy','pybamm','casadi','pybammsolvers','openpyxl')}}
     p = protocol_fixture(m, root)
     put(root/'approval.json', {'approved': True, 'approved_commit': m.APPROVED_COMMIT,
         'limits': {k:v for k,v in m.LIMITS.items() if k != 'cleanup_reserve_s'},
         'plan_sha256': m.sha(m.PLAN), 'spec_sha256': m.sha(m.SPEC)})
     (root/'run_tests.py').write_text('# offline release fixture')
     pins = m.required_pins(p, root)
-    manifest = {'head': m._head(), 'source_fingerprint': m.fingerprint(m.WT), 'pins': pins}
+    manifest = {'head': m._head(), 'source_fingerprint': m.fingerprint(m.WT), 'pins': pins,
+                'environment': environment}
     put(root/'runtime-before-final.json', manifest)
     observation = {'head': manifest['head'], 'source_fingerprint': manifest['source_fingerprint'],
         'pins_digest': m.digest(pins), 'runtime_manifest_sha256': m.sha(root/'runtime-before-final.json'),
         'protocol_sha256': m.sha(root/'diagnostic-protocol.json')}
-    before = {'head': manifest['head'], 'runtime_observation': observation}
+    before = {'head': manifest['head'], 'runtime_observation': observation, **environment}
     full = {'exit_code': 0, 'head_after': manifest['head'], 'command_args': ['tests'],
         'junit_counts': {'tests': 1, 'passed': 1, 'failures': 0, 'errors': 0, 'skipped': 0},
         'boundary': {'network_attempts': 0, 'battery_solve_attempts': 0},
@@ -257,6 +262,7 @@ def test_actual_owned_worker_charges_parent_before_offline_http(tmp_path, monkey
     budget = m.ProbeBudget.start(tmp_path/'budget.jsonl', protocol_sha='a'*64)
     spec = {**m.PHASES[0], 'source_root': str(m.WT), 'source': m.fingerprint(m.WT),
         'source_commit': m._head(), 'output': str(tmp_path/'child'), 'protocol_sha': 'a'*64,
+        'environment': release_fixture_environment(),
         'deadline': m.time.monotonic()+30., 'payload': {'task': 'warm_start_electrothermal',
             'artifact_task': 'offline_minimal', 'instructions': 'Return JSON {"ok":true}.'}}
     result = m.supervise(offline_diagnostic_worker, spec, budget, deadline=spec['deadline'],
@@ -273,3 +279,73 @@ def test_full_runtime_observer_captures_pretest_bytes_and_detects_drift(tmp_path
     assert observer.observation['runtime_manifest_sha256'] == m.sha(tmp_path/'runtime-before-final.json')
     (tmp_path/'run_tests.py').write_text('# modified after observed start')
     assert not observer.unchanged()
+
+
+def release_fixture_environment():
+    import importlib.metadata
+    return {'executable': sys.executable, 'python': sys.version,
+        'dependencies': {n: importlib.metadata.version(n) for n in
+                         ('pytest','numpy','scipy','pybamm','casadi','pybammsolvers','openpyxl')}}
+
+
+@pytest.mark.parametrize('field', ['executable', 'python', 'dependencies'])
+def test_release_rejects_testing_environment_drift(tmp_path, field):
+    m = feature(); p = release_fixture(m, tmp_path)
+    path = tmp_path/'tests/ge-re-final-full/manifest-before.json'
+    value = m.read(path)
+    value[field] = {'numpy': 'untested'} if field == 'dependencies' else 'untested-environment'
+    put(path, value)
+    with pytest.raises(ValueError): m._validate_release(p, tmp_path)
+
+
+def test_observer_pins_loaded_protection_helper(tmp_path, monkeypatch):
+    m = feature(); p = release_fixture(m, tmp_path)
+    observer = m.RuntimeObservation(p, tmp_path)
+    helper = (m.BASE/'sub2api-responses-20261021/protect_workspace.py').resolve()
+    original = m.sha
+    monkeypatch.setattr(m, 'sha', lambda path: 'a'*64 if Path(path).resolve() == helper else original(path))
+    assert not observer.unchanged()
+
+
+def test_actual_worker_rejects_environment_drift_before_http(tmp_path, monkeypatch):
+    m = feature(); monkeypatch.setenv('SUB2API_API_KEY', 'offline-placeholder')
+    budget = m.ProbeBudget.start(tmp_path/'b.jsonl', protocol_sha='a'*64)
+    spec = {**m.PHASES[0], 'source_root': str(m.WT), 'source': m.fingerprint(m.WT),
+        'source_commit': m._head(), 'output': str(tmp_path/'child'), 'protocol_sha': 'a'*64,
+        'environment': {'python': 'wrong'}, 'deadline': m.time.monotonic()+30.,
+        'payload': {'task': 'warm_start_electrothermal', 'artifact_task': 'offline_minimal', 'instructions': 'JSON'}}
+    with pytest.raises(RuntimeError):
+        m.supervise(offline_diagnostic_worker, spec, budget, deadline=spec['deadline'],
+            metadata=tmp_path/'owned.json', integrity_check=lambda: None)
+    assert budget.state()['API'] == 0 and not (tmp_path/'child').exists()
+
+
+def headers_stall_http_worker(spec, payload, run_path, connection):
+    from unittest.mock import patch
+    import time
+    from llmbo_para.electrothermal_responses import _responses_request_worker
+    class Reply:
+        status = 200
+        def __enter__(self): return self
+        def __exit__(self, *args): return False
+        def read(self, limit): time.sleep(20.)
+    class Provider:
+        def open(self, *args, **kwargs): return Reply()
+    with patch('llmbo_para.llm.build_opener', return_value=Provider()):
+        _responses_request_worker(spec, payload, run_path, connection)
+
+
+def test_actual_bounded_headers_then_parent_cutoff_preserves_200(tmp_path, monkeypatch):
+    from llmbo_para import electrothermal_responses as responses
+    from llmbo_para.electrothermal_requests import LLMRequestFailure
+    from llmbo_para.runstore import RunStore
+    monkeypatch.setenv('SUB2API_API_KEY', 'offline-placeholder')
+    monkeypatch.setattr(responses, '_responses_request_worker', headers_stall_http_worker)
+    store = RunStore(tmp_path/'run', {'kind': 'offline headers hard cutoff'}, command='offline cutoff fixture')
+    client = responses.BoundedResponsesTransport('https://provider.invalid/v1/responses', 'SUB2API_API_KEY',
+        model='offline', max_tokens=8192, json_mode=True, timeout_s=4., run_store=store)
+    with pytest.raises(LLMRequestFailure):
+        client.post({'task': 'warm_start_electrothermal', 'artifact_task': 'headers_stall', 'instructions': 'JSON'})
+    diagnostic = client.last_request_diagnostic
+    assert diagnostic['reason'] == 'deadline_exceeded' and diagnostic['http_request_started']
+    assert diagnostic['http_status'] == 200 and diagnostic['failure_stage'] == 'reading_body'

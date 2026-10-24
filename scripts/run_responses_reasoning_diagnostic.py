@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 from copy import deepcopy
+import importlib.metadata
 import json
 import math
 import os
@@ -39,6 +40,13 @@ def _head():
     return subprocess.check_output(['git', '-C', str(WT), 'rev-parse', 'HEAD'], text=True).strip()
 
 
+def runtime_environment():
+    """Actual interpreter and installed versions, not inferred from lock files."""
+    return {'executable': sys.executable, 'python': sys.version,
+        'dependencies': {n: importlib.metadata.version(n) for n in
+                         ('pytest','numpy','scipy','pybamm','casadi','pybammsolvers','openpyxl')}}
+
+
 def _validate_protocol(protocol, evidence):
     if (protocol.get('version') != 'responses_reasoning_probe_v1'
             or protocol.get('approved_plan_commit') != APPROVED_COMMIT
@@ -62,7 +70,8 @@ def required_pins(protocol, evidence):
         'run_region_transport_validation.py', 'run_lgbo_real_gain.py', 'lgbo_real_gain_worker.py')]
     paths += [evidence/'run_tests.py', evidence/'diagnostic-protocol.json', evidence/'approval.json', PLAN, SPEC,
               BASE/'lgbo-engineering-20261023/run_tests.py', BASE/'baseline.py',
-              BASE/'sub2api-responses-20261021/run_tests.py']
+              BASE/'sub2api-responses-20261021/run_tests.py',
+              BASE/'sub2api-responses-20261021/protect_workspace.py']
     paths += [Path(c[key]) for c in protocol['contexts']
               for key in ('frozen_payload', 'frozen_round', 'frozen_manifest')]
     paths += sorted((WT/'tests').rglob('*.py'))
@@ -77,17 +86,20 @@ class RuntimeObservation:
         manifest = read(path)
         self.pins = manifest['pins']
         if (self.pins != required_pins(protocol, self.evidence) or manifest['head'] != _head()
-                or manifest['source_fingerprint'] != fingerprint(WT)):
+                or manifest['source_fingerprint'] != fingerprint(WT)
+                or manifest.get('environment') != runtime_environment()):
             raise ValueError('pre-test runtime bytes differ')
         self.observation = {'runtime_manifest_sha256': sha(path), 'head': manifest['head'],
             'source_fingerprint': manifest['source_fingerprint'],
             'protocol_sha256': sha(self.evidence/'diagnostic-protocol.json'), 'pins_digest': digest(self.pins)}
+        self.environment = manifest['environment']
 
     def unchanged(self):
         try:
             return (self.pins == required_pins(self.protocol, self.evidence)
                     and self.observation['head'] == _head()
                     and self.observation['source_fingerprint'] == fingerprint(WT)
+                    and self.environment == runtime_environment()
                     and self.observation['runtime_manifest_sha256'] == sha(self.evidence/'runtime-before-final.json'))
         except (OSError, ValueError, KeyError): return False
 
@@ -106,7 +118,8 @@ def _validate_release(protocol, evidence):
             or release.get('protocol_sha256') != sha(evidence/'diagnostic-protocol.json')
             or release.get('runtime_manifest_sha256') != sha(manifest_path)
             or manifest.get('head') != release['head']
-            or manifest.get('source_fingerprint') != release['source_fingerprint']):
+            or manifest.get('source_fingerprint') != release['source_fingerprint']
+            or manifest.get('environment') != runtime_environment()):
         raise ValueError('tested source/runtime release differs')
     pins = manifest['pins']
     if any(pins.get(p) != value for p, value in required_pins(protocol, evidence).items()):
@@ -118,6 +131,8 @@ def _validate_release(protocol, evidence):
                 'protocol_sha256': release['protocol_sha256'], 'pins_digest': digest(pins)}
     full_path = evidence/'tests/ge-re-final-full/result.json'
     full, before = read(full_path), read(full_path.parent/'manifest-before.json')
+    if {k:before.get(k) for k in ('executable','python','dependencies')} != runtime_environment():
+        raise ValueError('tested interpreter or installed dependencies differ')
     counts = full['junit_counts']
     if (release.get('full_result_sha256') != sha(full_path) or full.get('exit_code') != 0
             or full.get('command_args', [None])[0] != 'tests' or counts['tests'] <= 0
@@ -199,6 +214,8 @@ def reasoning_diagnostic_worker(spec, connection):
     sys.dont_write_bytecode = True
     for k in ('OMP_NUM_THREADS','OPENBLAS_NUM_THREADS','MKL_NUM_THREADS','NUMEXPR_NUM_THREADS'): os.environ[k] = '1'
     os.environ['PYBAMM_DISABLE_TELEMETRY'] = 'true'
+    if spec.get('environment') != runtime_environment():
+        raise ValueError('actual worker interpreter or installed dependencies differ')
     if any(n == 'llmbo_para' or n.startswith('llmbo_para.') for n in sys.modules):
         raise RuntimeError('probe worker namespace already populated')
     root = Path(spec['source_root']).resolve(); sys.path.insert(0, str(root/'src'))
@@ -270,7 +287,7 @@ def reasoning_diagnostic_worker(spec, connection):
 def _omitted_cutoff(result, *, label):
     d = result.get('diagnostic') or {}
     return (label == 'p2' and d.get('reason') == 'deadline_exceeded'
-            and d.get('http_status') is None and d.get('http_request_started') is True
+            and d.get('http_status') in (None, 200) and d.get('http_request_started') is True
             and d.get('configured_timeout_s') == 120. and d.get('effective_timeout_s', 0.) >= 119.5
             and type(d.get('elapsed_s')) in (int,float) and math.isfinite(d['elapsed_s']) and d['elapsed_s'] >= 119.5)
 
@@ -289,6 +306,7 @@ def run_diagnostic(protocol, evidence_root, *, execute=False):
             for phase in PHASES:
                 budget.require(0); _validate_release(protocol, evidence)
                 spec = {**phase, 'source_root': str(WT), 'source': fingerprint(WT), 'source_commit': _head(),
+                    'environment': runtime_environment(),
                     'output': str(OUTPUT/phase['label']), 'protocol_sha': sha(evidence/'diagnostic-protocol.json'),
                     'deadline': min(time.monotonic()+phase['timeout_s']+10., budget.deadline-30.)}
                 if phase['kind'] == 'minimal':
