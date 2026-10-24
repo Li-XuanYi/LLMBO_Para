@@ -171,7 +171,7 @@ class ElectrothermalLLMController:
             store.write_json(f'llm/{ordinal:06d}.error.json',{'error_type':type(exc).__name__,'reason':reason});return None
         finally:
             if isinstance(transport,BoundedChatCompletionsTransport) and transport.last_request_diagnostic is not None:
-                for field in ('failure_stage','request_start_elapsed_s','protocol_issue','wire_format','thinking','completion','response_protocol'):
+                for field in ('failure_stage','request_start_elapsed_s','protocol_issue','wire_format','thinking','completion','response_protocol','network_diagnostic'):
                     if field in transport.last_request_diagnostic:outcome[field]=transport.last_request_diagnostic[field]
             store.write_json(f'llm/{ordinal:06d}.outcome.json',outcome)
 

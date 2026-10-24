@@ -99,8 +99,9 @@ class HttpJsonTransport:
                                          "response_model": result.get("model")})
             return result
         except Exception as exc:
+            from .http_diagnostics import transport_error_fields
             diagnostic = {"error_type": type(exc).__name__, "http_status": status,
-                          "elapsed_s": time.perf_counter()-started}
+                          "elapsed_s": time.perf_counter()-started, **transport_error_fields(exc)}
             if isinstance(exc, HTTPError):
                 diagnostic["http_status"] = exc.code
                 raw = exc.read(64 * 1024).decode("utf-8", errors="replace")

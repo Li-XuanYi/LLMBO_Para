@@ -162,6 +162,7 @@ class HTTPArchive:
 
 def _public_diagnostic(value):
     """Allowlist machine fields; never transfer raw exception/provider text."""
+    from .http_diagnostics import public_network_diagnostic
     value = value if isinstance(value, dict) else {}
     result = {}
     error_type = value.get("error_type")
@@ -173,6 +174,9 @@ def _public_diagnostic(value):
     if type(elapsed) in (int, float) and math.isfinite(elapsed) and elapsed >= 0:
         result["elapsed_s"] = float(elapsed)
     result["http_request_started"] = value.get("http_request_started") is True
+    network = public_network_diagnostic(value.get('network_diagnostic'))
+    if network is not None:
+        result['network_diagnostic'] = network
     if value.get('protocol_issue') in ('invalid_completion','unfinished_completion','empty_content','invalid_content_type',
             'invalid_json','non_object_content','invalid_binding'):
         result['protocol_issue']=value['protocol_issue']
