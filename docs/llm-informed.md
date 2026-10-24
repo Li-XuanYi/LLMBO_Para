@@ -266,3 +266,20 @@ LGBO每轮从当轮历史重建标量化、拟合GP并生成候选池后，使�
 现有WarmStart、LGBO v1/v2 Prompt、32锚点、均匀权重、协方差倾斜、原方差、真实标签/阈值、选点规则和归档schema保持。accepted仍只是selection_changed的兼容别名。源码指纹因重构改变，旧计划/缓存/回复不换签或放宽；八类重构前payload/wire golden仅在测试中冻结可信身份。
 
 本轮验收和实际日志/JUnit见`docs/audits/lgbo-engineering-cleanup-validation-2026-10-23.md`。工程等价、减少一次重复predict/EI或动作合法不等于真实RMSE/HV增益。候选Prompt仅在已确认设计文档中，不发布v3。本轮真实API、DFN、正式BO均0；下一步先比较相同payload下的Prompt，再独立考虑历史选择/区域质量。c与32/128锚点的冻结诊断另立协议，未经评价的替代点不给RMSE/HV。
+# Optional native Responses reasoning control (2026-10-24)
+
+Schema 2 `openai_responses` accepts an optional global `llm.reasoning_effort`
+(`none`, `low`, `high`, `max`), sent as `reasoning: {"effort": value}` for both
+WarmStart and Region. Omission preserves the previous request; explicit null,
+Chat/schema 1, task overrides, and mixing with Chat `thinking` are rejected.
+This control does not change the Prompt, observations, GP, EI, Region formula,
+or request deadlines. Config and algorithm signatures include it; old records
+are not re-signed and old cache compatibility checks remain strict.
+
+Independent audit checks exact presence and value in configuration, raw request,
+supervision and outcome. Requested `none` records client intent, not proof of a
+gateway implementation. Missing reasoning usage remains unknown; observed zero
+or positive counts are retained without rejecting a complete valid JSON reply.
+Raw HTTP archives follow existing rules; no additional reasoning text is
+extracted or interpreted. Transport completion alone demonstrates no RMSE/HV gain.
+

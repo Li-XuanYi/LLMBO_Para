@@ -190,6 +190,10 @@ def audit_electrothermal_run(run_directory,*,deep=False):
         controlled=False
         for file in sorted((root/'llm').glob('*.outcome.json')):
             outcome=json.loads(file.read_text(encoding='utf8'));controls=request_controls(cfg,outcome['task'])
+            expected_effort={k:controls[k] for k in ('reasoning_effort',) if k in controls}
+            equal({k:outcome[k] for k in ('reasoning_effort',) if k in outcome},expected_effort,
+                  'request reasoning effort differs')
+            if expected_effort:controlled=True
             if 'thinking' in controls:
                 equal(outcome.get('thinking'),controls['thinking'],'request thinking control differs');controlled=True
             payload=read('llm/'+file.name.replace('.outcome.json','.payload.json'));artifact=payload['artifact_task']
@@ -199,6 +203,10 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                 equal(artifact,outcome['task']+'_request_'+'a'*(n+1),'Responses artifact task differs')
             request_path=root/'http'/(artifact+'.request.json');response=root/'http'/(artifact+'.response.json')
             supervision_path=root/'http'/(artifact+'.supervision.json')
+            if supervision_path.exists():
+                supervised=json.loads(supervision_path.read_text(encoding='utf8'))
+                equal({k:supervised[k] for k in ('reasoning_effort',) if k in supervised},expected_effort,
+                      'supervised reasoning effort differs')
             diagnostic_error=root/'http'/(artifact+'.error.json')
             _audit_network_diagnostics(outcome,
                 json.loads(supervision_path.read_text(encoding='utf8')) if supervision_path.exists() else {},
@@ -247,7 +255,8 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                         equal(payload,expected,'independently rebuilt Responses WarmStart request differs')
                     frozen_payload=json.loads(canonical_json(payload)) if payload.get('region_proposal')=='catalog_v1' or is_lgbo_method(payload.get('region_method')) else payload
                     expected_body=responses_request_body(region_wire_payload(frozen_payload),model=cfg['llm']['model'],
-                        max_tokens=controls['max_tokens'],json_mode=cfg['llm']['json_mode'])
+                        max_tokens=controls['max_tokens'],json_mode=cfg['llm']['json_mode'],
+                        reasoning_effort=controls.get('reasoning_effort'))
                     equal(request,expected_body,'Responses final HTTP request differs')
                     formal_path=root/'llm'/file.name.replace('.outcome.json','.responses-formal.json')
                     needs_formal=outcome['status']=='received' or outcome.get('reason') in ('invalid_catalog_response','invalid_lgbo_response')
@@ -498,7 +507,8 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                                     wire=region_wire_payload(expected);request=read('http/'+artifact+'.request.json')['body']
                                     if transport_kind=='openai_responses':
                                         equal(request,responses_request_body(wire,model=cfg['llm']['model'],
-                                            max_tokens=request_controls(cfg,payload['task'])['max_tokens'],json_mode=cfg['llm']['json_mode']),
+                                            max_tokens=request_controls(cfg,payload['task'])['max_tokens'],json_mode=cfg['llm']['json_mode'],
+                                            reasoning_effort=request_controls(cfg,payload['task']).get('reasoning_effort')),
                                             'catalog Responses HTTP request differs')
                                     else:
                                         equal(json.loads(request['messages'][1]['content']),{k:v for k,v in wire.items() if k!='instructions'},'catalog HTTP request differs')
@@ -524,7 +534,8 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                                 request=read('http/'+artifact+'.request.json')['body']
                                 if transport_kind=='openai_responses':
                                     equal(request,responses_request_body(wire,model=cfg['llm']['model'],
-                                        max_tokens=request_controls(cfg,payload['task'])['max_tokens'],json_mode=cfg['llm']['json_mode']),
+                                        max_tokens=request_controls(cfg,payload['task'])['max_tokens'],json_mode=cfg['llm']['json_mode'],
+                                        reasoning_effort=request_controls(cfg,payload['task']).get('reasoning_effort')),
                                         'compact Responses HTTP request differs')
                                 else:
                                     equal(json.loads(request['messages'][1]['content']),{k:v for k,v in wire.items() if k!='instructions'},'compact Region HTTP request differs')
