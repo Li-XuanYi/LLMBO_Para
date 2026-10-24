@@ -52,6 +52,11 @@ def request_controls(config, task):
                      "max_tokens": _tokens(llm.get("max_tokens"), "llm.max_tokens")}
     if 'thinking' in llm:
         global_limits['thinking'] = _thinking(llm['thinking'])
+    if 'reasoning_effort' in llm:
+        if llm.get('transport') != 'openai_responses' or 'thinking' in llm:
+            raise ValueError('reasoning_effort requires Responses without Chat thinking')
+        from .electrothermal_responses import _reasoning_effort
+        global_limits['reasoning_effort'] = _reasoning_effort(llm['reasoning_effort'])
     options = llm.get("task_options", {})
     if not isinstance(options, dict) or any(name not in TASKS for name in options):
         raise ValueError("llm.task_options supports only the two electrothermal tasks")
@@ -267,6 +272,8 @@ class BoundedChatCompletionsTransport(ChatCompletionsTransport):
         if self.thinking is not None: base['thinking'] = self.thinking
         if getattr(self, 'response_protocol', None) == 'openai_responses':
             base['response_protocol'] = 'openai_responses'
+            if getattr(self, 'reasoning_effort', None) is not None:
+                base['reasoning_effort'] = self.reasoning_effort
         request_started=False;request_start_elapsed=None
 
         def fail(kind, diagnostic=None):
@@ -325,6 +332,8 @@ class BoundedChatCompletionsTransport(ChatCompletionsTransport):
         spec = {"endpoint": self.endpoint, "api_key_env": self.api_key_env, "model": self.model,
                 "max_tokens": self.max_tokens, "json_mode": self.json_mode,
                 "timeout_s": max(.001, hard_deadline - time.monotonic()), "thinking": self.thinking}
+        if 'reasoning_effort' in base:
+            spec['reasoning_effort'] = base['reasoning_effort']
         run_path = str(self.store.path) if self.store is not None else None
         try:
             result = run_with_deadline(self._request_worker(), (spec, payload, run_path),

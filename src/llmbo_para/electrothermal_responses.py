@@ -10,6 +10,13 @@ from .runstore import reject_inline_secrets
 
 JSON_INSTRUCTIONS = '\nReturn exactly one JSON object matching the supplied response contract.'
 RESPONSE_STATUSES = ('completed', 'failed', 'in_progress', 'cancelled', 'queued', 'incomplete')
+REASONING_EFFORTS = ('none', 'low', 'high', 'max')
+
+
+def _reasoning_effort(value):
+    if type(value) is not str or value not in REASONING_EFFORTS:
+        raise ValueError('reasoning_effort must be none, low, high or max')
+    return value
 
 
 def _settings(model, max_tokens, json_mode):
@@ -21,7 +28,8 @@ def _settings(model, max_tokens, json_mode):
         raise ValueError('Responses json_mode must be boolean')
 
 
-def responses_request_body(payload: dict, *, model: str, max_tokens: int, json_mode: bool) -> dict:
+def responses_request_body(payload: dict, *, model: str, max_tokens: int, json_mode: bool,
+                           reasoning_effort: str | None = None) -> dict:
     _settings(model, max_tokens, json_mode)
     reject_inline_secrets(payload)
     if not isinstance(payload, dict) or not isinstance(payload.get('instructions'), str) or not payload['instructions'].strip():
@@ -32,6 +40,8 @@ def responses_request_body(payload: dict, *, model: str, max_tokens: int, json_m
             'max_output_tokens': max_tokens, 'stream': False, 'store': False}
     if json_mode:
         body['text'] = {'format': {'type': 'json_object'}}
+    if reasoning_effort is not None:
+        body['reasoning'] = {'effort': _reasoning_effort(reasoning_effort)}
     return body
 
 
@@ -107,7 +117,7 @@ class ResponsesTransport(HttpJsonTransport):
     response_protocol = 'openai_responses'
 
     def __init__(self, endpoint, api_key_env, *, model, max_tokens, json_mode,
-                 timeout_s=60., run_store=None, thinking=None):
+                 timeout_s=60., run_store=None, thinking=None, reasoning_effort=None):
         _settings(model, max_tokens, json_mode)
         if thinking is not None:
             raise ValueError('Responses thinking mapping has not been confirmed')
@@ -118,9 +128,11 @@ class ResponsesTransport(HttpJsonTransport):
             raise ValueError('Responses transport requires the full /responses HTTPS endpoint')
         self.model, self.max_tokens, self.json_mode = model, max_tokens, json_mode
         self.thinking = None
+        self.reasoning_effort = _reasoning_effort(reasoning_effort) if reasoning_effort is not None else None
 
     def post(self, payload):
-        body = responses_request_body(payload, model=self.model, max_tokens=self.max_tokens, json_mode=self.json_mode)
+        body = responses_request_body(payload, model=self.model, max_tokens=self.max_tokens,
+                                      json_mode=self.json_mode, reasoning_effort=self.reasoning_effort)
         task = payload.get('artifact_task', payload.get('task', 'request'))
         raw = self._post_json(body, task=task)
         formal, issue = decode_responses_json(raw)
@@ -170,10 +182,11 @@ class BoundedResponsesTransport(BoundedChatCompletionsTransport, ResponsesTransp
     """Keep the proven deadline implementation; change initialization and worker."""
 
     def __init__(self, endpoint, api_key_env, *, model, max_tokens, json_mode,
-                 timeout_s=60., run_store=None, thinking=None):
+                 timeout_s=60., run_store=None, thinking=None, reasoning_effort=None):
         # Deliberately use Responses validation rather than Chat's endpoint check.
         ResponsesTransport.__init__(self, endpoint, api_key_env, model=model, max_tokens=max_tokens,
-            json_mode=json_mode, timeout_s=timeout_s, run_store=run_store, thinking=thinking)
+            json_mode=json_mode, timeout_s=timeout_s, run_store=run_store, thinking=thinking,
+            reasoning_effort=reasoning_effort)
         self.last_request_diagnostic = None
 
     def _request_worker(self):
