@@ -88,15 +88,18 @@ def transport_error_fields(exc: BaseException) -> dict:
         return {}  # The HTTP status already identifies this failure class.
     seen = set()
     current = exc
+    url_error_seen = False
     for _ in range(4):
         if id(current) in seen:
             return _unknown()
         seen.add(id(current))
+        url_error_seen = url_error_seen or isinstance(current, URLError)
         cause = current.reason if isinstance(current, URLError) else current.__cause__
         if isinstance(cause, BaseException):
             current = cause
             continue
         if isinstance(current, URLError):
             return _unknown()
-        return _classify(current)
+        fields = _classify(current)
+        return fields or (_unknown() if url_error_seen else {})
     return _unknown()

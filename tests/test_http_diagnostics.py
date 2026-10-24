@@ -71,6 +71,13 @@ def test_explicit_exception_cause_is_unwrapped_without_message():
     assert feature().transport_error_fields(ValueError('not a network failure')) == {}
 
 
+@pytest.mark.parametrize('error', [RuntimeError('private'), ValueError('private')])
+def test_unknown_typed_url_reason_retains_unknown_without_private_text(error):
+    assert feature().transport_error_fields(URLError(error)) == {
+        'network_diagnostic': {'category': 'unknown', 'cause_type': 'other'}}
+    assert feature().transport_error_fields(error) == {}
+
+
 @pytest.mark.parametrize('value', [[], True, 2**40])
 def test_invalid_os_attributes_do_not_escape_or_break_classification(value):
     exc = OSError(9876, 'private')
@@ -105,7 +112,8 @@ def test_public_copy_and_existing_allowlist_keep_only_machine_fields():
 
 
 @pytest.mark.parametrize('protocol', ['chat', 'responses'])
-def test_real_worker_preserves_machine_cause_without_free_text(monkeypatch, tmp_path, protocol):
+@pytest.mark.parametrize('unknown', [False, True])
+def test_real_worker_preserves_machine_cause_without_free_text(monkeypatch, tmp_path, protocol, unknown):
     from test_region_transport_repairs import payload, Connection
     from llmbo_para.electrothermal_requests import _chat_request_worker
     from llmbo_para.electrothermal_responses import _responses_request_worker
@@ -115,7 +123,7 @@ def test_real_worker_preserves_machine_cause_without_free_text(monkeypatch, tmp_
 
     class Provider:
         def open(self, *args, **kwargs):
-            raise URLError(ConnectionRefusedError(10061, canary))
+            raise URLError(RuntimeError(canary) if unknown else ConnectionRefusedError(10061, canary))
 
     monkeypatch.setattr('llmbo_para.llm.build_opener', lambda *args: Provider())
     run = tmp_path / 'archive'
@@ -127,12 +135,17 @@ def test_real_worker_preserves_machine_cause_without_free_text(monkeypatch, tmp_
     worker(spec, payload(), str(run), connection)
     actual = connection.messages[-1][1]
     assert not actual['ok']
-    expected = {'category': 'connection_refused', 'cause_type': 'ConnectionRefusedError', 'os_errno': 10061}
+    expected = ({'category': 'unknown', 'cause_type': 'other'} if unknown else
+                {'category': 'connection_refused', 'cause_type': 'ConnectionRefusedError', 'os_errno': 10061})
     assert actual['diagnostic']['network_diagnostic'] == expected
     for p in (run / 'http').glob('*.error.json'):
         assert json.loads(p.read_text())['network_diagnostic'] == expected
     assert all(canary not in p.read_text(encoding='utf8') for p in run.rglob('*') if p.is_file())
     assert canary not in json.dumps(connection.messages)
+    from llmbo_para.electrothermal_audit import _audit_network_diagnostics
+    diagnostic = actual['diagnostic']
+    _audit_network_diagnostics({'network_diagnostic': expected}, diagnostic,
+                              {'network_diagnostic': expected}, supported_source=True)
 
 
 def test_parent_and_controller_keep_network_fields_without_a_real_request(monkeypatch, tmp_path):

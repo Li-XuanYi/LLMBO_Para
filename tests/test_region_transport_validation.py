@@ -197,7 +197,8 @@ def test_fake_release_cannot_reach_execution_or_load_a_key(tmp_path, monkeypatch
     assert not calls and not (tmp_path / 'budget-journal.jsonl').exists()
 
 
-@pytest.mark.parametrize('damage', [None, 'protocol', 'plan', 'runtime_manifest', 'result', 'source'])
+@pytest.mark.parametrize('damage', [None, 'protocol', 'plan', 'runtime_manifest', 'result', 'source',
+                                   'untested_runtime', 'stale_runtime', 'runtime_drift'])
 def test_release_binds_plan_inputs_runtime_and_actual_tested_source(tmp_path, damage):
     module = feature()
     from datetime import datetime, timezone
@@ -209,20 +210,29 @@ def test_release_binds_plan_inputs_runtime_and_actual_tested_source(tmp_path, da
     names = ['run_region_transport_validation.py', 'run_lgbo_real_gain.py', 'lgbo_real_gain_worker.py']
     runtime = {n: module.sha(module.WT / 'scripts' / n) for n in names}
     runtime_path = tmp_path / 'runtime.json'
-    runtime_path.write_text(json.dumps({'files': runtime}))
+    head = 'software-fixture-head'
+    runtime_path.write_text(json.dumps({'files': runtime, 'head': head}))
+    observation = {'runtime_manifest_sha256': module.sha(runtime_path), 'runtime_files': runtime,
+                   'head': head, 'protocol_sha256': module.sha(protocol_path)}
     full = tmp_path / 'result.json'
-    full.write_text(json.dumps({'exit_code': 0,
+    full_data = {'exit_code': 0, 'head_after': head, 'runtime_observation': observation,
+        'runtime_unchanged_during_run': True,
         'junit_counts': {'passed': 1205, 'failures': 0, 'errors': 0, 'skipped': 0},
         'boundary': {'network_attempts': 0, 'battery_solve_attempts': 0},
         'source_unchanged_during_run': True, 'protected_unchanged_during_run': True,
         'source_after': {p.relative_to(module.WT).as_posix(): module.sha(p)
                          for p in sorted((module.WT/'src').rglob('*'))
-                         if p.is_file() and '__pycache__' not in p.parts}}))
+                         if p.is_file() and '__pycache__' not in p.parts}}
+    if damage == 'untested_runtime': full_data.pop('runtime_observation')
+    elif damage == 'stale_runtime':
+        full_data['runtime_observation'] = {**observation, 'runtime_manifest_sha256': 'f'*64}
+    elif damage == 'runtime_drift': full_data['runtime_unchanged_during_run'] = False
+    full.write_text(json.dumps(full_data))
     approval = {'approved_commit': 'b204050bced0328fd743eb50fe3c7f35b1657aca',
         'plan_sha256': module.sha(plan), 'proposed_protocol_sha256': module.sha(protocol_path),
         'limits': {'DFN': 256, 'API': 66, 'wall_clock_s': 10800, 'diagnostic_API': 6, 'diagnostic_wall_clock_s': 900},
         'controlled_frozen_replay': 1, 'automatic_retries': 0}
-    release = {'protocol_sha256': module.sha(protocol_path), 'source_fingerprint': module.fingerprint(module.WT),
+    release = {'head': head, 'protocol_sha256': module.sha(protocol_path), 'source_fingerprint': module.fingerprint(module.WT),
         'runtime_files': runtime, 'runtime_manifest': str(runtime_path),
         'runtime_manifest_sha256': module.sha(runtime_path),
         'full_result': str(full), 'full_result_sha256': module.sha(full)}
@@ -235,6 +245,38 @@ def test_release_binds_plan_inputs_runtime_and_actual_tested_source(tmp_path, da
         module._validate_release(protocol, tmp_path, approval, release)
     else:
         with pytest.raises(ValueError): module._validate_release(protocol, tmp_path, approval, release)
+
+
+@pytest.mark.parametrize('damage', [None, 'script', 'test', 'added_test', 'protocol', 'manifest', 'head'])
+def test_guarded_full_observation_captures_before_testing_and_detects_drift(tmp_path, damage):
+    from importlib.util import spec_from_file_location, module_from_spec
+    spec = spec_from_file_location('transport_plan_test_guard', feature().EVIDENCE/'run_tests.py')
+    guard = module_from_spec(spec)
+    spec.loader.exec_module(guard)
+    wt = tmp_path/'worktree'
+    (wt/'scripts').mkdir(parents=True)
+    (wt/'tests').mkdir()
+    test_file = wt/'tests/test_example.py'
+    test_file.write_text('assert True')
+    names = ('run_region_transport_validation.py', 'run_lgbo_real_gain.py', 'lgbo_real_gain_worker.py')
+    for name in names: (wt/'scripts'/name).write_text('fixture runtime '+name)
+    runtime = {n: guard.RuntimeObservation.sha(wt/'scripts'/n) for n in names}
+    manifest = tmp_path/'runtime.json'
+    manifest.write_text(json.dumps({'files': runtime, 'head': 'fixture',
+                                   'frozen_entry': str(wt/'scripts'/names[0])}))
+    protocol = tmp_path/'protocol.json'
+    protocol.write_text('{}')
+    head = ['fixture']
+    observed = guard.RuntimeObservation(manifest, protocol, wt, head_reader=lambda: head[0])
+    initial = deepcopy(observed.observation)
+    if damage == 'script': (wt/'scripts'/names[0]).write_text('changed')
+    elif damage == 'test': test_file.write_text('changed')
+    elif damage == 'added_test': (wt/'tests/test_new.py').write_text('assert True')
+    elif damage == 'protocol': protocol.write_text('{"changed":true}')
+    elif damage == 'manifest': manifest.write_text('{}')
+    elif damage == 'head': head[0] = 'changed'
+    assert observed.observation == initial  # Never recapture a later runtime as the tested one.
+    assert observed.unchanged() is (damage is None)
 
 
 def offline_api_worker(spec, payload, run_path, connection):

@@ -511,6 +511,13 @@ def _validate_release(protocol, evidence_root, approval, release):
         if sha(Path(__file__).parent / name) != expected or sha(WT / 'scripts' / name) != expected:
             raise ValueError('tested runtime differs')
     full = read(release['full_result'])
+    expected_observation = {'runtime_manifest_sha256': release['runtime_manifest_sha256'],
+        'runtime_files': runtime, 'head': release['head'], 'protocol_sha256': protocol_sha}
+    if (full.get('runtime_observation') != expected_observation
+            or full.get('runtime_unchanged_during_run') is not True
+            or full.get('head_after') != release['head']
+            or read(release['runtime_manifest']).get('head') != release['head']):
+        raise ValueError('full regression did not observe this frozen runtime')
     counts = full.get('junit_counts') or {}
     if (sha(release['full_result']) != release['full_result_sha256'] or full.get('exit_code') != 0
             or counts.get('passed', 0) < 1205 or any(counts.get(k) != 0 for k in ('failures', 'errors', 'skipped'))
