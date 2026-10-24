@@ -348,7 +348,7 @@ def orphaning_worker(spec, connection):
     os._exit(7)
 
 
-def pid_alive(pid):
+def pid_alive(pid, wait_ms=0):
     import ctypes
     k=ctypes.WinDLL('kernel32',use_last_error=True)
     k.OpenProcess.argtypes=[ctypes.c_ulong,ctypes.c_int,ctypes.c_ulong];k.OpenProcess.restype=ctypes.c_void_p
@@ -356,7 +356,7 @@ def pid_alive(pid):
     if not h:return False
     try:
         k.WaitForSingleObject.argtypes=[ctypes.c_void_p,ctypes.c_ulong]
-        return k.WaitForSingleObject(h,0)==0x102
+        return k.WaitForSingleObject(h,wait_ms)==0x102
     finally:
         k.CloseHandle.argtypes=[ctypes.c_void_p];k.CloseHandle(h)
 
@@ -369,7 +369,9 @@ def test_abrupt_parent_exit_cannot_leave_sleeping_grandchild(tmp_path):
     assert (tmp_path/'pid').exists()
     child_pid=int((tmp_path/'pid').read_text())
     try:
-        assert not pid_alive(child_pid), 'owned orphan survived parent death'
+        # Job accounting can reach zero before the original process object is
+        # signaled. Wait for that OS postcondition, with a strict finite limit.
+        assert not pid_alive(child_pid,2000), 'owned orphan survived parent death'
         assert json.loads((tmp_path/'m.json').read_text())['owned_tree_stopped'] is True
     finally:
         if pid_alive(child_pid):
