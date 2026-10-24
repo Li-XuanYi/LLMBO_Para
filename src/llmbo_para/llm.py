@@ -46,6 +46,12 @@ class HttpJsonTransport:
     def post(self, payload: Mapping) -> Mapping:
         return self._post_json(payload, task=payload.get("task", "request"))
 
+    def _read_response(self, response, *, task, redact):
+        body = response.read(1024 * 1024 + 1)
+        if len(body) > 1024 * 1024:
+            raise ValueError("structured LLM response exceeds the 1 MiB limit")
+        return json.loads(body)
+
     def _post_json(self, payload: Mapping, *, task: str) -> Mapping:
         reject_inline_secrets(payload)
         if not isinstance(task, str) or not re.fullmatch(r"[a-z_]+", task):
@@ -85,10 +91,7 @@ class HttpJsonTransport:
                 if self.store:
                     self.store.append_event({'type':'llm_http_headers_received','task':task,
                         'http_status':status,'elapsed_s':time.perf_counter()-started})
-                body = response.read(1024 * 1024 + 1)
-                if len(body) > 1024 * 1024:
-                    raise ValueError("structured LLM response exceeds the 1 MiB limit")
-                result = json.loads(body)
+                result = self._read_response(response, task=task, redact=redact)
             if not isinstance(result, dict):
                 raise ValueError("LLM endpoint did not return a JSON object")
             result = redact(result)

@@ -79,6 +79,7 @@ class ElectrothermalLLMController:
             'http_request_started':False,'hard_deadline_enforced':False}
         if 'thinking' in controls: outcome['thinking'] = controls['thinking']
         if 'reasoning_effort' in controls: outcome['reasoning_effort'] = controls['reasoning_effort']
+        if 'responses_stream' in controls: outcome['responses_stream'] = controls['responses_stream']
         self.last_request_outcome=outcome
         def skipped(reason):
             outcome.update(status='skipped',reason=reason)
@@ -172,7 +173,7 @@ class ElectrothermalLLMController:
             store.write_json(f'llm/{ordinal:06d}.error.json',{'error_type':type(exc).__name__,'reason':reason});return None
         finally:
             if isinstance(transport,BoundedChatCompletionsTransport) and transport.last_request_diagnostic is not None:
-                for field in ('failure_stage','request_start_elapsed_s','protocol_issue','wire_format','thinking','reasoning_effort','completion','response_protocol','network_diagnostic'):
+                for field in ('failure_stage','request_start_elapsed_s','protocol_issue','wire_format','thinking','reasoning_effort','responses_stream','completion','response_protocol','network_diagnostic'):
                     if field in transport.last_request_diagnostic:outcome[field]=transport.last_request_diagnostic[field]
             store.write_json(f'llm/{ordinal:06d}.outcome.json',outcome)
 

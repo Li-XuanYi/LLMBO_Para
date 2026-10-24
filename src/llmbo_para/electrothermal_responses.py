@@ -29,15 +29,17 @@ def _settings(model, max_tokens, json_mode):
 
 
 def responses_request_body(payload: dict, *, model: str, max_tokens: int, json_mode: bool,
-                           reasoning_effort: str | None = None) -> dict:
+                           reasoning_effort: str | None = None, responses_stream: bool | None = None) -> dict:
     _settings(model, max_tokens, json_mode)
+    if responses_stream is not None and type(responses_stream) is not bool:
+        raise ValueError('responses_stream must be boolean or omitted')
     reject_inline_secrets(payload)
     if not isinstance(payload, dict) or not isinstance(payload.get('instructions'), str) or not payload['instructions'].strip():
         raise ValueError('Responses requires versioned instructions')
     body = {'model': model, 'instructions': payload['instructions'] + (JSON_INSTRUCTIONS if json_mode else ''),
             'input': json.dumps({k: v for k, v in payload.items() if k != 'instructions'},
                                ensure_ascii=False, allow_nan=False, separators=(',', ':')),
-            'max_output_tokens': max_tokens, 'stream': False, 'store': False}
+            'max_output_tokens': max_tokens, 'stream': responses_stream is True, 'store': False}
     if json_mode:
         body['text'] = {'format': {'type': 'json_object'}}
     if reasoning_effort is not None:
@@ -117,7 +119,7 @@ class ResponsesTransport(HttpJsonTransport):
     response_protocol = 'openai_responses'
 
     def __init__(self, endpoint, api_key_env, *, model, max_tokens, json_mode,
-                 timeout_s=60., run_store=None, thinking=None, reasoning_effort=None):
+                 timeout_s=60., run_store=None, thinking=None, reasoning_effort=None, responses_stream=None):
         _settings(model, max_tokens, json_mode)
         if thinking is not None:
             raise ValueError('Responses thinking mapping has not been confirmed')
@@ -129,10 +131,20 @@ class ResponsesTransport(HttpJsonTransport):
         self.model, self.max_tokens, self.json_mode = model, max_tokens, json_mode
         self.thinking = None
         self.reasoning_effort = _reasoning_effort(reasoning_effort) if reasoning_effort is not None else None
+        if responses_stream is not None and type(responses_stream) is not bool:
+            raise ValueError('responses_stream must be boolean or omitted')
+        self.responses_stream = responses_stream
+
+    def _read_response(self, response, *, task, redact):
+        if self.responses_stream is not True:
+            return super()._read_response(response, task=task, redact=redact)
+        from .electrothermal_sse import read_responses_sse
+        return read_responses_sse(response, archive=self.store, task=task, redact=redact)
 
     def post(self, payload):
         body = responses_request_body(payload, model=self.model, max_tokens=self.max_tokens,
-                                      json_mode=self.json_mode, reasoning_effort=self.reasoning_effort)
+                                      json_mode=self.json_mode, reasoning_effort=self.reasoning_effort,
+                                      responses_stream=self.responses_stream)
         task = payload.get('artifact_task', payload.get('task', 'request'))
         raw = self._post_json(body, task=task)
         formal, issue = decode_responses_json(raw)
@@ -182,11 +194,11 @@ class BoundedResponsesTransport(BoundedChatCompletionsTransport, ResponsesTransp
     """Keep the proven deadline implementation; change initialization and worker."""
 
     def __init__(self, endpoint, api_key_env, *, model, max_tokens, json_mode,
-                 timeout_s=60., run_store=None, thinking=None, reasoning_effort=None):
+                 timeout_s=60., run_store=None, thinking=None, reasoning_effort=None, responses_stream=None):
         # Deliberately use Responses validation rather than Chat's endpoint check.
         ResponsesTransport.__init__(self, endpoint, api_key_env, model=model, max_tokens=max_tokens,
             json_mode=json_mode, timeout_s=timeout_s, run_store=run_store, thinking=thinking,
-            reasoning_effort=reasoning_effort)
+            reasoning_effort=reasoning_effort, responses_stream=responses_stream)
         self.last_request_diagnostic = None
 
     def _request_worker(self):

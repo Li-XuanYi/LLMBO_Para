@@ -57,6 +57,10 @@ def request_controls(config, task):
             raise ValueError('reasoning_effort requires Responses without Chat thinking')
         from .electrothermal_responses import _reasoning_effort
         global_limits['reasoning_effort'] = _reasoning_effort(llm['reasoning_effort'])
+    if 'responses_stream' in llm:
+        if llm.get('transport') != 'openai_responses' or type(llm['responses_stream']) is not bool:
+            raise ValueError('responses_stream requires an explicit Responses boolean')
+        global_limits['responses_stream'] = llm['responses_stream']
     options = llm.get("task_options", {})
     if not isinstance(options, dict) or any(name not in TASKS for name in options):
         raise ValueError("llm.task_options supports only the two electrothermal tasks")
@@ -133,6 +137,19 @@ class HTTPArchive:
         self.max_tokens = max_tokens
         self.completion = None
         self.transport = transport
+
+    def start_stream(self, task):
+        if self.enabled:
+            target = self.path/'http'/(task+'.stream.jsonl')
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with target.open('x', encoding='utf8'):
+                pass
+
+    def append_stream(self, task, entry):
+        if self.enabled:
+            with (self.path/'http'/(task+'.stream.jsonl')).open('a', encoding='utf8') as stream:
+                stream.write(json.dumps(entry, ensure_ascii=False, allow_nan=False, separators=(',', ':'))+'\n')
+                stream.flush()
 
     def write_json(self, relative_path, value):
         if relative_path.endswith('.response.json'):
@@ -274,6 +291,8 @@ class BoundedChatCompletionsTransport(ChatCompletionsTransport):
             base['response_protocol'] = 'openai_responses'
             if getattr(self, 'reasoning_effort', None) is not None:
                 base['reasoning_effort'] = self.reasoning_effort
+            if getattr(self, 'responses_stream', None) is not None:
+                base['responses_stream'] = self.responses_stream
         request_started=False;request_start_elapsed=None
 
         def fail(kind, diagnostic=None):
@@ -334,6 +353,8 @@ class BoundedChatCompletionsTransport(ChatCompletionsTransport):
                 "timeout_s": max(.001, hard_deadline - time.monotonic()), "thinking": self.thinking}
         if 'reasoning_effort' in base:
             spec['reasoning_effort'] = base['reasoning_effort']
+        if 'responses_stream' in base:
+            spec['responses_stream'] = base['responses_stream']
         run_path = str(self.store.path) if self.store is not None else None
         try:
             result = run_with_deadline(self._request_worker(), (spec, payload, run_path),
