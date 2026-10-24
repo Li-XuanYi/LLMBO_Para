@@ -153,3 +153,77 @@ def test_actual_transport_uses_stream_decoder_and_original_formal_validator(monk
     assert any(name.endswith('.response.json') for name in archive.files)
     assert 'sse-private-unit-value' not in json.dumps(archive.files)
     assert 'sse-private-' not in json.dumps(archive.files), 'stream delta fragments must not reconstruct a credential'
+
+
+@pytest.mark.parametrize('field', ['refusal', 'annotation', 'future_text'])
+def test_intermediate_free_text_cannot_archive_split_credentials(field):
+    items = entries()
+    for sequence, fragment in ((5, 'private-fragment-'), (6, 'second-half')):
+        items.insert(-1, {'event': 'response.content_part.done', 'data': {
+            'type': 'response.content_part.done', 'sequence_number': sequence,
+            'part': {'type': 'refusal', field: fragment}}})
+    raw, archive = read([encode(items)])
+    serialized = json.dumps(archive.entries)
+    assert 'private-fragment-' not in serialized and 'second-half' not in serialized
+    assert codec().decode_sse_events(archive.entries) == raw
+
+
+@pytest.mark.parametrize('kind', ['standard', 'electrothermal'])
+def test_direct_streaming_transport_supports_normal_run_stores(monkeypatch, tmp_path, kind):
+    from llmbo_para.runstore import RunStore
+    if kind == 'standard':
+        archive = RunStore(tmp_path, {}, command='offline-stream-test')
+    else:
+        from llmbo_para.electrothermal_store import ElectrothermalRunStore
+        from llmbo_para.electrothermal_provenance import build_electrothermal_signatures
+        from llmbo_para.electrothermal_synthetic import make_synthetic_dataset
+        from electrothermal_fixtures import et_config, R3
+        cfg = et_config(); dataset = make_synthetic_dataset(R3)
+        archive = ElectrothermalRunStore(tmp_path, cfg, dataset=dataset,
+            signatures=build_electrothermal_signatures(cfg, dataset), command='offline-stream-test')
+    class HTTP(ByteResponse):
+        def __enter__(self): return self
+        def __exit__(self, *args): return False
+    class Provider:
+        def open(self, request, **kwargs):
+            return HTTP([encode(entries(response({'answer': 42})))])
+    monkeypatch.setattr('llmbo_para.llm.build_opener', lambda *a: Provider())
+    monkeypatch.setenv('SSE_UNIT_TOKEN', 'offline-stream-placeholder')
+    client = feature().ResponsesTransport('https://provider.invalid/v1/responses', 'SSE_UNIT_TOKEN',
+        model='deepseek-v4-pro', max_tokens=8192, json_mode=True,
+        responses_stream=True, run_store=archive)
+    assert client.post(payload()) == {'answer': 42}
+    task = payload()['task']
+    events = [json.loads(line) for line in (archive.path/'http'/(task+'.stream.jsonl')).read_text().split('\n') if line]
+    derived = json.loads((archive.path/'http'/(task+'.response.json')).read_text())
+    assert codec().decode_sse_events(events) == derived
+    assert any(json.loads(line)['type'] == 'llm_http_stream_progress'
+               for line in archive.events_path.read_text().splitlines())
+
+
+@pytest.mark.parametrize('field', ['type', 'event'])
+def test_projection_rejects_unhashable_protocol_fields_with_value_error(field):
+    items = entries()
+    if field == 'type': items[0]['data']['type'] = ['invalid-type']
+    else: items[0]['event'] = ['invalid-event']
+    # Use a JSON event envelope for the latter: SSE event headers are strings.
+    entry = codec()._archive_entry(items[0], lambda value: value)
+    with pytest.raises(ValueError): codec().decode_sse_events([entry, entries()[-1]])
+
+
+def test_projection_cannot_turn_an_invalid_event_header_into_valid_evidence():
+    items = entries()
+    items[0]['event'] = 'unsupported-header'
+    projected = [codec()._archive_entry(item, lambda value: value) for item in items]
+    with pytest.raises(ValueError): codec().decode_sse_events(projected)
+
+
+def test_intermediate_response_status_does_not_preserve_arbitrary_text():
+    items = entries()
+    items[0]['data']['response']['status'] = 'private-fragment-'
+    items.insert(1, {'event': None, 'data': {'type': 'response.in_progress', 'sequence_number': 1,
+        'response': {'id': 'resp-unit', 'status': 'second-half'}}})
+    raw, archive = read([encode(items)])
+    serialized = json.dumps(archive.entries)
+    assert 'private-fragment-' not in serialized and 'second-half' not in serialized
+    assert codec().decode_sse_events(archive.entries) == raw

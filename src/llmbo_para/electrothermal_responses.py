@@ -114,7 +114,7 @@ def responses_completion_summary(value: dict, token_limit: int) -> dict:
 
 
 class ResponsesTransport(HttpJsonTransport):
-    """One nonstreaming, stateless Responses POST with the existing HTTP guard."""
+    """One stateless Responses POST with the existing HTTP guard."""
 
     response_protocol = 'openai_responses'
 
@@ -139,7 +139,18 @@ class ResponsesTransport(HttpJsonTransport):
         if self.responses_stream is not True:
             return super()._read_response(response, task=task, redact=redact)
         from .electrothermal_sse import read_responses_sse
-        return read_responses_sse(response, archive=self.store, task=task, redact=redact)
+        archive = self.store
+        if archive is not None and not all(callable(getattr(archive, name, None))
+                                           for name in ('start_stream', 'append_stream')):
+            from .electrothermal_requests import HTTPArchive
+            # Reuse JSONL storage while preserving the normal/scoped store's
+            # event routing. The owned HTTPArchive already supplies both hooks.
+            store = archive
+            class StreamArchive(HTTPArchive):
+                def append_event(self, event):
+                    store.append_event(event)
+            archive = StreamArchive(store.path)
+        return read_responses_sse(response, archive=archive, task=task, redact=redact)
 
     def post(self, payload):
         body = responses_request_body(payload, model=self.model, max_tokens=self.max_tokens,

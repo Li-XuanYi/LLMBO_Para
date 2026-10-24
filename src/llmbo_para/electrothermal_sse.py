@@ -82,18 +82,25 @@ def decode_sse_events(events):
 
 def _archive_entry(entry, redact):
     value = redact(deepcopy(entry))
-    # Intermediate text can split a credential over multiple delta events.
-    # The terminal retains the full response under the original redaction rules.
+    # Project intermediate events onto replay metadata: an open-ended denylist
+    # misses refusal, annotations and future free-text fields that can split a
+    # credential across events. Only the terminal retains the redacted response.
     data = value.get('data')
-    if type(data) is dict and data.get('type') not in TERMINALS:
-        def omit_text(node):
-            if type(node) is dict:
-                return {key: '[STREAM_TEXT_OMITTED]' if key in ('delta', 'text', 'content', 'summary')
-                        else omit_text(child) for key, child in node.items()}
-            if type(node) is list:
-                return [omit_text(child) for child in node]
-            return node
-        value['data'] = omit_text(data)
+    if type(data) is dict and not (type(data.get('type')) is str and data['type'] in TERMINALS):
+        kind, event = data.get('type'), value.get('event')
+        metadata = {'type': kind if type(kind) is str and kind in EVENT_TYPES else None,
+                    'sequence_number': data.get('sequence_number')
+                        if type(data.get('sequence_number')) is int else None}
+        response = data.get('response')
+        if type(response) is dict:
+            metadata['response'] = {'id': response['id']} if type(response.get('id')) is str else {}
+        item = data.get('item')
+        if type(item) is dict:
+            metadata['item'] = {'type': item.get('type')
+                                if item.get('type') in ('message', 'reasoning') else None}
+        value = {'event': event if event in (None, '') or type(event) is str and event in EVENT_TYPES
+                         else '[INVALID_SSE_EVENT]',
+                 'data': metadata}
     return value
 
 
