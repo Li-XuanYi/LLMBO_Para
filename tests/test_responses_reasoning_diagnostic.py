@@ -349,3 +349,57 @@ def test_actual_bounded_headers_then_parent_cutoff_preserves_200(tmp_path, monke
     diagnostic = client.last_request_diagnostic
     assert diagnostic['reason'] == 'deadline_exceeded' and diagnostic['http_request_started']
     assert diagnostic['http_status'] == 200 and diagnostic['failure_stage'] == 'reading_body'
+
+
+def test_observer_wrapper_does_not_preload_spawn_modules(tmp_path):
+    m = feature(); p = release_fixture(m, tmp_path)
+    spec = util.spec_from_file_location('own_reasoning_guard', m.EVIDENCE/'run_tests.py')
+    wrapper = util.module_from_spec(spec); spec.loader.exec_module(wrapper)
+    assert hasattr(wrapper, 'make_observer'), 'observer import isolation missing'
+    names = ('run_responses_reasoning_diagnostic','run_region_transport_validation','run_lgbo_real_gain')
+    saved = {n:sys.modules.pop(n, None) for n in names}
+    try:
+        observed = wrapper.make_observer(p, tmp_path)
+        assert not any(n in sys.modules for n in names)
+        from test_lgbo_real_gain import load
+        live = load()
+        transport = import_module('run_region_transport_validation')
+        import pickle
+        assert pickle.loads(pickle.dumps(transport.supervise.__globals__['_owned_bootstrap'])) is live._owned_bootstrap
+        assert observed.unchanged()
+    finally:
+        for n in names:
+            sys.modules.pop(n, None)
+            if saved[n] is not None: sys.modules[n] = saved[n]
+
+
+@pytest.mark.parametrize('attempt', ['r2','r3'])
+def test_versioned_full_release_preserves_failed_original(tmp_path, attempt):
+    m = feature(); p = release_fixture(m, tmp_path)
+    release = m.read(tmp_path/'software-release.json')
+    old_manifest = tmp_path/'runtime-before-final.json'
+    manifest_path = tmp_path/f'runtime-before-final-{attempt}.json'
+    manifest_path.write_bytes(old_manifest.read_bytes())
+    old_result = tmp_path/'tests/ge-re-final-full/result.json'
+    destination = tmp_path/f'tests/ge-re-final-full-{attempt}/result.json'
+    before = m.read(old_result.parent/'manifest-before.json')
+    full = m.read(old_result)
+    for value in (before, full):
+        value['runtime_observation']['runtime_manifest_sha256'] = m.sha(manifest_path)
+    put(destination.parent/'manifest-before.json', before); put(destination, full)
+    old_full = m.read(old_result); old_full['exit_code'] = 1; put(old_result, old_full)
+    release.update(full_attempt=attempt, full_result_sha256=m.sha(destination),
+                   runtime_manifest_sha256=m.sha(manifest_path))
+    put(tmp_path/'software-release.json', release)
+    m._validate_release(p, tmp_path)
+    assert m.read(old_result)['exit_code'] == 1
+    observer = m.RuntimeObservation(p, tmp_path, attempt=attempt)
+    assert observer.unchanged()
+
+
+@pytest.mark.parametrize('attempt', ['../r2','r1','r9',None,True])
+def test_full_attempt_cannot_select_arbitrary_evidence(tmp_path, attempt):
+    m = feature(); p = release_fixture(m, tmp_path)
+    value = m.read(tmp_path/'software-release.json'); value['full_attempt'] = attempt
+    put(tmp_path/'software-release.json', value)
+    with pytest.raises(ValueError): m._validate_release(p, tmp_path)

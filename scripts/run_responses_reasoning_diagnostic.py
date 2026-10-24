@@ -78,11 +78,19 @@ def required_pins(protocol, evidence):
     return {str(p.resolve()): sha(p) for p in paths}
 
 
+def _full_paths(evidence, attempt=''):
+    if type(attempt) is not str or attempt not in ('', 'r2', 'r3'):
+        raise ValueError('unapproved full regression attempt selector')
+    suffix = '-'+attempt if attempt else ''
+    return evidence/('runtime-before-final'+suffix+'.json'), evidence/('tests/ge-re-final-full'+suffix+'/result.json')
+
+
 class RuntimeObservation:
     """Observe the runtime before pytest, including the wrapper doing the observing."""
-    def __init__(self, protocol, evidence):
+    def __init__(self, protocol, evidence, *, attempt=''):
         self.protocol, self.evidence = protocol, Path(evidence)
-        path = self.evidence/'runtime-before-final.json'
+        path, _ = _full_paths(self.evidence, attempt)
+        self.manifest_path = path
         manifest = read(path)
         self.pins = manifest['pins']
         if (self.pins != required_pins(protocol, self.evidence) or manifest['head'] != _head()
@@ -100,7 +108,7 @@ class RuntimeObservation:
                     and self.observation['head'] == _head()
                     and self.observation['source_fingerprint'] == fingerprint(WT)
                     and self.environment == runtime_environment()
-                    and self.observation['runtime_manifest_sha256'] == sha(self.evidence/'runtime-before-final.json'))
+                    and self.observation['runtime_manifest_sha256'] == sha(self.manifest_path))
         except (OSError, ValueError, KeyError): return False
 
 
@@ -112,7 +120,7 @@ def _validate_release(protocol, evidence):
             or approval.get('limits') != caps or approval.get('plan_sha256') != sha(PLAN)
             or approval.get('spec_sha256') != sha(SPEC)):
         raise ValueError('software and five-call diagnostic approval required')
-    manifest_path = evidence/'runtime-before-final.json'
+    manifest_path, full_path = _full_paths(evidence, release.get('full_attempt', ''))
     manifest = read(manifest_path)
     if (release.get('head') != _head() or release.get('source_fingerprint') != fingerprint(WT)
             or release.get('protocol_sha256') != sha(evidence/'diagnostic-protocol.json')
@@ -129,7 +137,6 @@ def _validate_release(protocol, evidence):
     expected = {'runtime_manifest_sha256': sha(manifest_path), 'head': release['head'],
                 'source_fingerprint': release['source_fingerprint'],
                 'protocol_sha256': release['protocol_sha256'], 'pins_digest': digest(pins)}
-    full_path = evidence/'tests/ge-re-final-full/result.json'
     full, before = read(full_path), read(full_path.parent/'manifest-before.json')
     if {k:before.get(k) for k in ('executable','python','dependencies')} != runtime_environment():
         raise ValueError('tested interpreter or installed dependencies differ')
