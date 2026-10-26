@@ -96,6 +96,48 @@ def test_small_and_zero_confidence_are_valid_actions(tmp_path):
         assert decode_region_wire(region_action(payload, confidence=c), payload)['region']['confidence'] == c
 
 
+@pytest.mark.parametrize('version', ['lgbo_v1', 'lgbo_v2'])
+@pytest.mark.parametrize('kind', ['region', 'none'])
+def test_fixed_json_object_metadata_preserves_bound_action(tmp_path, version, kind):
+    from llmbo_para.electrothermal_region_wire import decode_region_wire
+    from test_lgbo_weighted_context import v2_request
+    fixture = prepared_request if version == 'lgbo_v1' else v2_request
+    _, _, _, payload = fixture(tmp_path)
+    reply = {**region_action(payload, kind=kind), 'type': 'json_object'}
+    before_reply, before_payload = deepcopy(reply), deepcopy(payload)
+    result = decode_region_wire(reply, payload)
+    assert result['region'] == before_reply['region']
+    assert result['context_id'] == payload['context_id']
+    assert result['region_method'] == version
+    assert 'type' not in result
+    assert reply == before_reply and payload == before_payload
+
+
+@pytest.mark.parametrize('value', [None, True, 1, {}, [], 'object', 'JSON_OBJECT', 'json_object '])
+def test_metadata_exception_never_accepts_other_type_values(tmp_path, value):
+    from llmbo_para.electrothermal_region_wire import decode_region_wire
+    _, _, _, payload = prepared_request(tmp_path)
+    reply = {**region_action(payload), 'type': value}
+    with pytest.raises(ValueError):
+        decode_region_wire(reply, payload)
+
+
+@pytest.mark.parametrize('damage', ['stale', 'extra', 'nan', 'boolean', 'bounds', 'dimension', 'reason'])
+def test_fixed_metadata_cannot_hide_binding_or_region_damage(tmp_path, damage):
+    from llmbo_para.electrothermal_region_wire import decode_region_wire
+    _, _, _, payload = prepared_request(tmp_path)
+    reply = {**region_action(payload), 'type': 'json_object'}
+    if damage == 'stale': reply['request_id'] = 'stale'
+    elif damage == 'extra': reply['unrequested'] = 'anything'
+    elif damage == 'nan': reply['region']['confidence'] = float('nan')
+    elif damage == 'boolean': reply['region']['lb'][0] = True
+    elif damage == 'bounds': reply['region']['ub'][0] = 1.1
+    elif damage == 'dimension': reply['region']['lb'].pop()
+    else: reply['region']['reason'] = 'unrequested'
+    with pytest.raises(ValueError):
+        decode_region_wire(reply, payload)
+
+
 def test_warmstart_keeps_its_existing_contract_and_wire(tmp_path):
     from llmbo_para.electrothermal_llm import build_electrothermal_payload
     from llmbo_para.electrothermal_region_wire import region_wire_payload

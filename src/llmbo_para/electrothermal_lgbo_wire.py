@@ -44,7 +44,13 @@ def lgbo_wire_payload(payload):
 
 
 def decode_lgbo_action(response, payload):
-    if (type(response) is not dict or set(response) != {'request_id', 'region'}
+    # Some JSON-mode providers echo their fixed output-format marker. It is
+    # inert metadata, not an action or identity; allow only this exact value.
+    # Do not project arbitrary fields away or mutate the archived raw reply.
+    if (type(response) is not dict
+            or set(response) not in ({'request_id', 'region'}, {'request_id', 'region', 'type'})
+            or ('type' in response and (type(response['type']) is not str
+                                       or response['type'] != 'json_object'))
             or type(response['request_id']) is not str
             or response['request_id'] != lgbo_request_id(payload)):
         raise ValueError('stale or invalid LGBO request binding')
