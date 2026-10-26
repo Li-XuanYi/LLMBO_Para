@@ -1,0 +1,213 @@
+"""Offline contract checks for the preregistered 50-round comparison."""
+from copy import deepcopy
+import importlib.util
+import json
+from pathlib import Path
+import sys
+import tempfile
+import time
+
+import pytest
+
+
+ROOT = Path(__file__).resolve().parents[1]
+SCRIPT = ROOT / "scripts/run_et_three_arm_validation.py"
+PROPOSAL = Path(
+    "D:/Users/aa133/Desktop/LLMBO_Para/bo-repair-work/"
+    "20261017_et_implementation/three-arm-50round-proposal-20261026/"
+    "protocol-proposal.json"
+)
+
+
+def load():
+    assert SCRIPT.is_file(), "three-arm runner is missing"
+    if str(SCRIPT.parent) not in sys.path:
+        sys.path.insert(0, str(SCRIPT.parent))
+    spec = importlib.util.spec_from_file_location("run_et_three_arm_validation", SCRIPT)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_five_new_seeds_three_arms_and_exact_cost_ceiling():
+    runner = load()
+    protocol = runner.load_protocol(PROPOSAL)
+    assert protocol["seed_selection"]["seeds"] == [376330, 633262, 789058, 609653, 362724]
+    assert len(set(protocol["seed_selection"]["seeds"])) == 5
+    assert len(runner.cases(protocol)) == 15
+    assert protocol["initial_count"] == 8
+    assert protocol["BO_rounds_per_arm"] == 50
+    assert protocol["total_candidate_budget_per_arm"] == 58
+    assert protocol["limits"] == {"DFN": 1740, "API": 271, "wall_clock_s": 28800}
+    assert protocol["cost_breakdown"] == {
+        "main_DFN": 1500, "BO_initial_DFN": 80, "warmstart_pool_DFN": 160,
+        "Region_API": 250, "WarmStart_API": 15, "diagnostic_API": 6,
+    }
+    assert all(tuple(case["rates"]) == ("0.5C", "1C") for case in runner.cases(protocol))
+
+
+@pytest.mark.parametrize("field,value", [
+    ("BO_rounds_per_arm", 20), ("total_candidate_budget_per_arm", 50),
+    ("fit_rates", ["0.5C", "1C", "3C"]), ("limits", {"DFN": 2000, "API": 271, "wall_clock_s": 28800}),
+])
+def test_protocol_mutation_rejected(field, value):
+    runner = load()
+    changed = deepcopy(runner.read(PROPOSAL))
+    changed[field] = value
+    with pytest.raises(ValueError):
+        runner.validate_protocol(changed)
+
+
+def test_numeric_seed_coordinates_are_reconstructed_before_freeze():
+    runner = load()
+    changed = deepcopy(runner.read(PROPOSAL))
+    changed["seed_plans"][0]["BO_initialization"]["parameters"][0][0] += 0.001
+    with pytest.raises(ValueError):
+        runner.validate_protocol(changed)
+
+
+def test_dry_run_creates_no_live_output_or_credential_read(tmp_path, monkeypatch):
+    runner = load()
+    monkeypatch.setattr(runner, "read_credential", lambda: pytest.fail("dry run read credential"))
+    report = runner.dry_run(PROPOSAL, output=tmp_path / "not-created")
+    assert report["API"] == report["DFN"] == 0
+    assert report["planned_cases"] == 15
+    assert report["new_rounds"] == 750
+    assert not (tmp_path / "not-created").exists()
+
+
+def test_live_entry_without_software_release_stops_before_credential_or_budget(tmp_path, monkeypatch):
+    runner = load()
+    monkeypatch.setattr(runner, "EVIDENCE", tmp_path)
+    monkeypatch.setattr(runner, "OUTPUT", tmp_path / "unused-run")
+    monkeypatch.setattr(runner, "read_credential", lambda: pytest.fail("release gate read key"))
+    with pytest.raises(ValueError):
+        runner.execute()
+    assert not (tmp_path / "budget-journal.jsonl").exists()
+    assert not (tmp_path / "unused-run").exists()
+
+
+def test_budget_phase_caps_reject_duplicate_and_overcap(tmp_path):
+    runner = load()
+    budget = runner.new_budget(tmp_path / "ledger.jsonl", protocol_sha="a" * 64)
+    budget.begin("diagnostic")
+    budget.charge("API", "gate-1")
+    with pytest.raises(RuntimeError):
+        budget.charge("API", "gate-1")
+    with pytest.raises(RuntimeError):
+        budget.charge("DFN", "gate-solve")
+    budget.finish(True)
+    budget.begin("initialization")
+    with pytest.raises(RuntimeError):
+        budget.require(241)
+    assert budget.counts() == {"DFN": 0, "API": 1}
+    text = (tmp_path / "ledger.jsonl").read_text(encoding="utf-8")
+    (tmp_path / "ledger.jsonl").write_text(text.replace('"gate-1"', '"tampered"'), encoding="utf-8")
+    with pytest.raises(ValueError):
+        runner.ThreeArmBudget.load(tmp_path / "ledger.jsonl")
+
+
+def test_spawned_mock_three_arm_closure_shares_only_warmstart_plan():
+    """Real stores/BO/audits, algebraic simulator and mock LLM; zero external calls."""
+    runner = load()
+    import et_three_arm_validation_worker as worker
+
+    protocol = runner.load_protocol(PROPOSAL)
+    plan = protocol["seed_plans"][0]
+    root = Path(tempfile.mkdtemp(prefix="g50-mock-", dir=runner.MAIN / "runs"))
+    budget = runner.new_budget(root / "budget.jsonl", protocol_sha="a" * 64)
+    budget.begin("diagnostic")
+    budget.finish(True)
+    budget.begin("initialization")
+    source = runner.SOURCE
+    base = runner.read(runner.PROPOSAL / f"seed-{plan['seed']}.disabled-config.json")
+
+    def spawn(kind, arm, label, *, initial=None):
+        spec = {"kind": kind, "arm": arm, "label": label,
+                "source_root": str(source), "source": runner.CORE_FINGERPRINT,
+                "output": str(root / label), "deadline": budget.deadline,
+                "base_config": base, "seed": plan["seed"],
+                "software_fixture": True, "solve_cap": 0}
+        if kind == "numeric_initialization":
+            spec["coordinates"] = plan["BO_initialization"]["parameters"]
+        if initial is not None:
+            spec["initial"] = initial
+        result = runner.helper.supervise(worker.run_worker, spec, budget,
+            deadline=min(budget.deadline, time.monotonic() + 180),
+            metadata=root / (label + "-owned.json"))
+        assert runner.read(root / (label + "-owned.json"))["owned_tree_stopped"]
+        return result
+
+    bo_init = spawn("numeric_initialization", "bo", "numeric-init")
+    warm_init = spawn("warmstart_initialization", "warmstart_only", "warm-init")
+    assert bo_init["audit_passed"] and warm_init["audit_passed"]
+    assert bo_init["selected_count"] == warm_init["selected_count"] == 8
+    assert warm_init["complete_pool_count"] == 16
+    assert bo_init["plan_file_sha256"] != warm_init["plan_file_sha256"]
+    budget.finish(True)
+    budget.begin("main")
+    results = {}
+    for arm in runner.ARMS:
+        init = bo_init if arm == "bo" else warm_init
+        initial = {"path": init["plan_path"], "sha256": init["plan_file_sha256"],
+                   "origin_run_id": init["run_directory"], "costs": init["costs"]}
+        results[arm] = spawn("arm", arm, arm, initial=initial)
+    budget.finish(True)
+    assert all(row["BO_rounds"] == 50 and row["audit_passed"] for row in results.values())
+    assert results["warmstart_only"]["initial_file_sha"] == results["full_llmbo_mo"]["initial_file_sha"]
+    assert results["warmstart_only"]["first_numerical_context_sha"] == results["full_llmbo_mo"]["first_numerical_context_sha"]
+    assert results["bo"]["initial_file_sha"] != results["warmstart_only"]["initial_file_sha"]
+    assert results["bo"]["summary"]["API_calls"] == results["warmstart_only"]["summary"]["API_calls"] == 0
+    assert budget.counts() == {"DFN": 0, "API": 0}
+    assert all(len(row["rounds"]) == 50 for row in results.values())
+    from analyze_et_three_arm_validation import analyze_case
+    for arm, case in results.items():
+        init = bo_init if arm == "bo" else warm_init
+        summary, curve, front = analyze_case(case, init)
+        assert summary["arm"] == arm and len(curve) == 50 and front
+
+
+def test_mock_transport_gate_preserves_frozen_gp_and_charges_before_request(monkeypatch):
+    runner = load()
+    import et_three_arm_validation_worker as worker
+
+    monkeypatch.setenv("LLMBO_OPENCODE_API_KEY", "offline-fixture-only")
+    root = Path(tempfile.mkdtemp(prefix="g50-gate-", dir=runner.MAIN / "runs"))
+    budget = runner.new_budget(root / "budget.jsonl", protocol_sha="a" * 64)
+    budget.begin("diagnostic")
+    historical = runner._historical_contexts()[0]
+    rows = []
+    for kind, extra in (("gate_minimal", {}), ("gate_historical", historical)):
+        spec = {"kind": kind, "label": kind, "source_root": str(runner.SOURCE),
+                "source": runner.CORE_FINGERPRINT, "output": str(root / kind),
+                "deadline": budget.deadline, "timeout_s": 30., "solve_cap": 0,
+                "protocol_sha": "a" * 64, "software_fixture": True, **extra}
+        row = runner.helper.supervise(worker.run_worker, spec, budget,
+            deadline=time.monotonic() + 50,
+            metadata=root / (kind + "-owned.json"))
+        assert runner.read(root / (kind + "-owned.json"))["owned_tree_stopped"]
+        rows.append(row)
+    assert all(row["passed"] and row["complete"] and row["wire_verified"] for row in rows)
+    assert rows[1]["effect"]["state_preserved"]
+    assert rows[1]["effect"]["tilt_applied"]
+    assert budget.counts() == {"DFN": 0, "API": 2}  # Logical fixture charges; real API 0.
+
+
+def test_paired_region_context_and_three_arm_weights_are_checked():
+    runner = load()
+    weights = [[0.8, 0.2], [0.2, 0.8]]
+    base = {"initial_file_sha": "a" * 64,
+            "first_numerical_context_sha": "c" * 64,
+            "rounds": [{"weight": value} for value in weights]}
+    cases = {arm: deepcopy(base) for arm in runner.ARMS}
+    cases["bo"]["initial_file_sha"] = "b" * 64
+    runner.check_case_consistency(cases)
+    changed = deepcopy(cases)
+    changed["full_llmbo_mo"]["first_numerical_context_sha"] = "d" * 64
+    with pytest.raises(ValueError):
+        runner.check_case_consistency(changed)
+    changed = deepcopy(cases)
+    changed["bo"]["rounds"][1]["weight"] = [0.5, 0.5]
+    with pytest.raises(ValueError):
+        runner.check_case_consistency(changed)
