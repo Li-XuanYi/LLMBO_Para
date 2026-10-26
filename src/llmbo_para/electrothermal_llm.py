@@ -196,6 +196,11 @@ class ElectrothermalLLMController:
                 outcome['http_request_started']=bool(exc.diagnostic.get('http_request_started'))
                 outcome['http_status']=exc.diagnostic.get('http_status')
                 outcome['effective_timeout_s']=exc.diagnostic.get('effective_timeout_s',outcome['effective_timeout_s'])
+                if exc.diagnostic.get('failure_stage')=='awaiting_headers':
+                    outcome['failure_stage']='awaiting_headers'
+                from .http_diagnostics import public_network_diagnostic
+                network=public_network_diagnostic(exc.diagnostic.get('network_diagnostic'))
+                if network is not None:outcome['network_diagnostic']=network
             store.write_json(f'llm/{ordinal:06d}.error.json',{'error_type':type(exc).__name__,'reason':reason});return None
         finally:
             if isinstance(transport,BoundedChatCompletionsTransport) and transport.last_request_diagnostic is not None:
@@ -205,12 +210,22 @@ class ElectrothermalLLMController:
 
     def generate_warmstart(self,prepared,*,store,budgets):
         options=prepared.config['optimization'];settings=options['warmstart'];records=[];cache={};returned=0;evaluations=0;started=time.perf_counter();reason='request_budget'
+        recover_eof=prepared.config['llm'].get('warmstart_preheader_tls_eof_continue',False) is True
         while len([r for r in records if r.complete_pair_valid])<settings['pool_size'] and self.task_requests.get('warm_start_electrothermal',0)<settings['max_requests']:
             if time.perf_counter()-started>=budgets['wall_clock_s']:reason='wall_clock_budget';break
             if returned>=settings['max_candidates'] or evaluations>=settings['max_evaluations']:reason='candidate_or_evaluation_budget';break
             payload=build_electrothermal_payload('warm_start_electrothermal',prepared=prepared,history=records)
             response=self.request(payload,prepared=prepared,store=store,budgets=budgets,request_cap=settings['max_requests'])
-            if response is None:reason='disabled_failed_or_exhausted_request';break
+            if response is None:
+                reason='disabled_failed_or_exhausted_request'
+                if recover_eof and is_recoverable_warmstart_preheader_eof(self.last_request_outcome) and len([r for r in records if r.complete_pair_valid])<options['initial_count']:
+                    ordinal=self.requests-1
+                    archived=json.loads((store.path/f'llm/{ordinal:06d}.payload.json').read_text(encoding='utf8'))
+                    artifact=archived['artifact_task']
+                    if not (store.path/f'http/{artifact}.response.json').exists() and not (store.path/f'llm/{ordinal:06d}.warmstart-binding.json').exists():
+                        reason='recoverable_preheader_tls_eof'
+                        continue
+                break
             try:
                 if prepared.config['llm'].get('warmstart_wire_format','full_v1')=='candidate_only_v1':
                     from .electrothermal_warmstart_wire import decode_candidate_only_reply
@@ -218,7 +233,9 @@ class ElectrothermalLLMController:
                                                           expected_request=response.request)
                 else:proposals=validate_warmstart_response(response,prepared=prepared)
             except ValueError:
-                store.ledger.record({'event_id':f'screen:reply:{self.requests}','kind':'screening_rejected','reason':'invalid_reply'});continue
+                store.ledger.record({'event_id':f'screen:reply:{self.requests}','kind':'screening_rejected','reason':'invalid_reply'})
+                if recover_eof:reason='invalid_reply';break
+                continue
             remaining=settings['max_candidates']-returned;returned+=len(proposals)
             for index,proposal in enumerate(proposals[:remaining]):
                 if evaluations>=settings['max_evaluations'] or len([r for r in records if r.complete_pair_valid])>=settings['pool_size']:break

@@ -228,6 +228,176 @@ def test_only_exact_preheader_tls_eof_is_recoverable():
         assert not classify(variant)
 
 
+def _recovery_config(tmp_path):
+    from llmbo_para.electrothermal_workflow import prepare_electrothermal_experiment
+
+    cfg, _ = _prepared(tmp_path)
+    cfg["optimization"].update(mode="warmstart_only", initial_count=8,
+                                total_candidate_budget=8)
+    cfg["optimization"]["warmstart"].update(count=8, pool_size=16,
+        max_requests=3, max_candidates=48, max_evaluations=16)
+    cfg["llm"]["warmstart_preheader_tls_eof_continue"] = True
+    report, prepared = prepare_electrothermal_experiment(cfg, base_dir=tmp_path)
+    assert report["ready"]
+    return cfg, prepared
+
+
+def _eight_candidates(prepared):
+    return {"candidates": [
+        {"parameters": dict(zip((s.name for s in prepared.space.specs),
+                                 prepared.space.denormalize([x] * 6)))}
+        for x in (0.12, 0.22, 0.32, 0.42, 0.52, 0.62, 0.72, 0.82)]}
+
+
+def _preheader_failure(stage="awaiting_headers"):
+    from llmbo_para.electrothermal_requests import LLMRequestFailure
+
+    diagnostic = {"http_request_started": True, "http_status": None,
+                  "effective_timeout_s": 30.0, "failure_stage": stage,
+                  "network_diagnostic": {"category": "tls_eof",
+                                         "cause_type": "SSLEOFError", "os_errno": 8}}
+    return LLMRequestFailure("transport_error", diagnostic)
+
+
+def test_opt_in_preheader_eof_uses_new_bound_request_and_deep_audit(tmp_path):
+    from pathlib import Path
+    from llmbo_para.electrothermal_audit import audit_electrothermal_run
+    from llmbo_para.electrothermal_llm import ElectrothermalLLMController
+    from llmbo_para.electrothermal_workflow import (
+        prepare_electrothermal_experiment, run_electrothermal_experiment)
+
+    cfg, prepared = _recovery_config(tmp_path)
+    cfg["optimization"]["warmstart"]["pool_size"] = 8
+    _, prepared = prepare_electrothermal_experiment(cfg, base_dir=tmp_path)
+    output = tmp_path / "runs"
+
+    class OneFailureThenEight:
+        calls = 0
+
+        def post(self, payload):
+            self.calls += 1
+            if self.calls == 1:
+                root = next(path.parent for path in output.rglob("manifest.json"))
+                http = root / "http"
+                http.mkdir(exist_ok=True)
+                diagnostic = _preheader_failure().diagnostic["network_diagnostic"]
+                for suffix in ("error", "supervision"):
+                    (http / (payload["artifact_task"] + "." + suffix + ".json")).write_text(
+                        json.dumps({"network_diagnostic": diagnostic,
+                                    "error_type": "URLError"}), encoding="utf8")
+                raise _preheader_failure()
+            return _eight_candidates(prepared)
+
+    transport = OneFailureThenEight()
+    result = run_electrothermal_experiment(cfg, output, base_dir=tmp_path,
+        llm_controller=ElectrothermalLLMController(transport=transport, is_mock=True))
+    root = Path(result["run_directory"])
+    assert transport.calls == 2
+    assert result["costs"]["mock_llm_requests"] == 2
+    assert not (root / "llm/000000.warmstart-binding.json").exists()
+    assert (root / "llm/000001.warmstart-binding.json").exists()
+    selection = json.loads((root / "warmstart-selection.json").read_text(encoding="utf8"))
+    assert len(selection["selected_ids"]) == 8
+    assert audit_electrothermal_run(root, deep=True)["passed"]
+    for suffix in ("outcome",):
+        file = root / ("llm/000000." + suffix + ".json")
+        value = json.loads(file.read_text(encoding="utf8"))
+        value["network_diagnostic"]["category"] = "timeout"
+        file.write_text(json.dumps(value), encoding="utf8")
+    for suffix in ("error", "supervision"):
+        file = root / ("http/warm_start_electrothermal_request_a." + suffix + ".json")
+        value = json.loads(file.read_text(encoding="utf8"))
+        value["network_diagnostic"]["category"] = "timeout"
+        file.write_text(json.dumps(value), encoding="utf8")
+    assert not audit_electrothermal_run(root, deep=True)["passed"]
+
+
+@pytest.mark.parametrize("stage,expected_calls", [("awaiting_headers", 3),
+                                                   ("reading_response", 1)])
+def test_recovery_request_cap_and_nonmatching_failure_stop(tmp_path, stage, expected_calls):
+    from llmbo_para.electrothermal_evaluation import ElectrothermalEvaluator
+    from llmbo_para.electrothermal_llm import ElectrothermalLLMController
+    from llmbo_para.electrothermal_store import ElectrothermalRunStore
+    from llmbo_para.electrothermal_synthetic import SyntheticElectrothermalSimulator
+
+    cfg, prepared = _recovery_config(tmp_path)
+    store = ElectrothermalRunStore(tmp_path, cfg, dataset=prepared.dataset,
+        signatures=prepared.signatures, command="bounded EOF test")
+
+    class AlwaysFails:
+        calls = 0
+
+        def post(self, payload):
+            self.calls += 1
+            raise _preheader_failure(stage)
+
+    transport = AlwaysFails()
+    controller = ElectrothermalLLMController(transport=transport, is_mock=True,
+        evaluator=ElectrothermalEvaluator(prepared.space,
+            SyntheticElectrothermalSimulator(), fit_rates=prepared.dataset.fit_rates))
+    with pytest.raises(ValueError, match="insufficient_initialization"):
+        controller.generate_warmstart(prepared, store=store, budgets=cfg["budgets"])
+    assert transport.calls == expected_calls
+    assert store.ledger.summary()["mock_llm_requests"] == expected_calls
+    assert not list((store.path / "llm").glob("*.warmstart-binding.json"))
+
+
+def test_preheader_eof_with_sufficient_pool_does_not_use_third_request(tmp_path):
+    from llmbo_para.electrothermal_evaluation import ElectrothermalEvaluator
+    from llmbo_para.electrothermal_llm import ElectrothermalLLMController
+    from llmbo_para.electrothermal_store import ElectrothermalRunStore
+    from llmbo_para.electrothermal_synthetic import SyntheticElectrothermalSimulator
+
+    cfg, prepared = _recovery_config(tmp_path)
+    store = ElectrothermalRunStore(tmp_path, cfg, dataset=prepared.dataset,
+        signatures=prepared.signatures, command="sufficient pool test")
+
+    class EnoughThenEOF:
+        calls = 0
+
+        def post(self, payload):
+            self.calls += 1
+            if self.calls == 1:
+                return _eight_candidates(prepared)
+            raise _preheader_failure()
+
+    transport = EnoughThenEOF()
+    controller = ElectrothermalLLMController(transport=transport, is_mock=True,
+        evaluator=ElectrothermalEvaluator(prepared.space,
+            SyntheticElectrothermalSimulator(), fit_rates=prepared.dataset.fit_rates))
+    plan = controller.generate_warmstart(prepared, store=store, budgets=cfg["budgets"])
+    assert len(plan.records) == 8
+    assert transport.calls == 2
+    assert store.ledger.summary()["mock_llm_requests"] == 2
+
+
+def test_opt_in_malformed_reply_does_not_request_again(tmp_path):
+    from llmbo_para.electrothermal_evaluation import ElectrothermalEvaluator
+    from llmbo_para.electrothermal_llm import ElectrothermalLLMController
+    from llmbo_para.electrothermal_store import ElectrothermalRunStore
+    from llmbo_para.electrothermal_synthetic import SyntheticElectrothermalSimulator
+
+    cfg, prepared = _recovery_config(tmp_path)
+    store = ElectrothermalRunStore(tmp_path, cfg, dataset=prepared.dataset,
+        signatures=prepared.signatures, command="malformed reply test")
+
+    class InvalidThenValid:
+        calls = 0
+
+        def post(self, payload):
+            self.calls += 1
+            return {"candidates": []} if self.calls == 1 else _eight_candidates(prepared)
+
+    transport = InvalidThenValid()
+    controller = ElectrothermalLLMController(transport=transport, is_mock=True,
+        evaluator=ElectrothermalEvaluator(prepared.space,
+            SyntheticElectrothermalSimulator(), fit_rates=prepared.dataset.fit_rates))
+    with pytest.raises(ValueError, match="insufficient_initialization"):
+        controller.generate_warmstart(prepared, store=store, budgets=cfg["budgets"])
+    assert transport.calls == 1
+    assert store.ledger.summary()["screening_rejections"] == 1
+
+
 def test_candidate_only_chat_request_reconstruction_detects_mutation(tmp_path):
     from llmbo_para.electrothermal_payloads import build_warmstart_payload
     from llmbo_para.electrothermal_warmstart_wire import audit_candidate_chat_request

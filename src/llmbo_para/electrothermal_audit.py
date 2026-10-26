@@ -47,6 +47,7 @@ def _audit_responses_warmstart(root,*,cfg,space,dataset,signatures,events,by_id,
     selection=read('warmstart-selection.json');settings=cfg['optimization']['warmstart']
     prepared=SimpleNamespace(space=space,dataset=dataset,signatures=signatures,config=cfg)
     candidate_only=cfg['llm'].get('warmstart_wire_format','full_v1')=='candidate_only_v1'
+    recover_eof=cfg['llm'].get('warmstart_preheader_tls_eof_continue',False) is True
     requests=[(i,e) for i,e in enumerate(events) if e.get('type')=='electrothermal_cost'
         and e.get('kind') in ('llm_request','mock_llm_request')]
     warm=[(i,e) for i,e in requests if e.get('phase')=='warm_start_electrothermal']
@@ -61,7 +62,23 @@ def _audit_responses_warmstart(root,*,cfg,space,dataset,signatures,events,by_id,
             elif e.get('type')=='electrothermal_cost' and (e.get('event_id','').startswith('screen:')
                     or e.get('event_id','').startswith('cache:')):actual.append(('cost',e))
         if outcome['status']!='received':
-            require(not actual,'failed Responses WarmStart reply produced screening results');continue
+            require(not actual,'failed Responses WarmStart reply produced screening results')
+            if candidate_only:
+                require(not (root/f'llm/{n:06d}.warmstart-binding.json').exists(),
+                        'failed WarmStart request has a binding receipt')
+                if position<len(warm)-1:
+                    from .electrothermal_llm import is_recoverable_warmstart_preheader_eof
+                    require(recover_eof and is_recoverable_warmstart_preheader_eof(outcome)
+                            and sum(r.complete_pair_valid for r in processed)<settings['count'],
+                            'WarmStart continued after an ineligible failure')
+                    payload=read(f'llm/{n:06d}.payload.json')
+                    artifact=payload['artifact_task']
+                    require(not (root/'http'/(artifact+'.response.json')).exists(),
+                            'WarmStart continued after receiving an HTTP response')
+                    if cost['kind']=='llm_request':
+                        require((root/'http'/(artifact+'.request.json')).is_file(),
+                                'recovered WarmStart has no sent HTTP request')
+            continue
         if candidate_only:
             from .electrothermal_requests import request_controls
             from .electrothermal_warmstart_wire import (BoundWarmStartReply,
@@ -116,7 +133,10 @@ def _audit_responses_warmstart(root,*,cfg,space,dataset,signatures,events,by_id,
         except ValueError:
             expected={'event_id':f'screen:reply:{n+1}','kind':'screening_rejected','reason':'invalid_reply'}
             equal([{k:v for k,v in e.items() if k not in ('type','timestamp_utc')} for _,e in actual],
-                  [expected],'invalid WarmStart envelope screening differs');continue
+                  [expected],'invalid WarmStart envelope screening differs')
+            if candidate_only and recover_eof:
+                require(position==len(warm)-1,'WarmStart continued after malformed reply')
+            continue
         remaining=settings['max_candidates']-returned;returned+=len(proposals);cursor=0
         for index,proposal in enumerate(proposals[:max(0,remaining)]):
             if len(processed)>=settings['max_evaluations'] or sum(r.complete_pair_valid for r in processed)>=settings['pool_size']:break
