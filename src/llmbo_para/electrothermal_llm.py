@@ -107,8 +107,12 @@ class ElectrothermalLLMController:
         payload={**payload,'artifact_task':payload['task']+'_request_'+'a'*(ordinal+1)}
         catalog_proposal=task=='region_preference_electrothermal' and payload.get('region_proposal')=='catalog_v1'
         lgbo_proposal=task=='region_preference_electrothermal' and is_lgbo_method(payload.get('region_method'))
-        frozen_request=canonical_json(payload) if catalog_proposal or lgbo_proposal else None
+        candidate_only=task=='warm_start_electrothermal' and prepared.config['llm'].get('warmstart_wire_format','full_v1')=='candidate_only_v1'
+        frozen_request=canonical_json(payload) if catalog_proposal or lgbo_proposal or candidate_only else None
         sent_payload=json.loads(frozen_request) if frozen_request is not None else payload
+        if candidate_only:
+            from .electrothermal_warmstart_wire import freeze_warmstart_request
+            warm_request=freeze_warmstart_request(sent_payload,run_id=store.run_id,ordinal=ordinal)
         store.ledger.record({'event_id':f'llm:{ordinal}','kind':'mock_llm_request' if self.is_mock else 'llm_request','phase':payload['task']})
         store.write_json(f'llm/{ordinal:06d}.payload.json',payload)
         try:
@@ -121,6 +125,12 @@ class ElectrothermalLLMController:
                 from .electrothermal_json import archival_json
                 store.write_json(f'llm/{ordinal:06d}.responses-formal.json',
                     {'version':'responses_formal_v1','response_json':archival_json(response)})
+            if candidate_only:
+                from .electrothermal_warmstart_wire import bind_warmstart_response
+                if canonical_json(sent_payload)!=frozen_request:
+                    raise ValueError('transport mutated frozen WarmStart request')
+                return bind_warmstart_response(warm_request,response,store=store,
+                                               transport_status='mock' if self.is_mock else 'completed')
             if lgbo_proposal:
                 from .electrothermal_lgbo_wire import decode_lgbo_action
                 from .electrothermal_lgbo import validate_lgbo_region
@@ -185,7 +195,12 @@ class ElectrothermalLLMController:
             payload=build_electrothermal_payload('warm_start_electrothermal',prepared=prepared,history=records)
             response=self.request(payload,prepared=prepared,store=store,budgets=budgets,request_cap=settings['max_requests'])
             if response is None:reason='disabled_failed_or_exhausted_request';break
-            try:proposals=validate_warmstart_response(response,prepared=prepared)
+            try:
+                if prepared.config['llm'].get('warmstart_wire_format','full_v1')=='candidate_only_v1':
+                    from .electrothermal_warmstart_wire import decode_candidate_only_reply
+                    proposals=decode_candidate_only_reply(response,prepared=prepared,
+                                                          expected_request=response.request)
+                else:proposals=validate_warmstart_response(response,prepared=prepared)
             except ValueError:
                 store.ledger.record({'event_id':f'screen:reply:{self.requests}','kind':'screening_rejected','reason':'invalid_reply'});continue
             remaining=settings['max_candidates']-returned;returned+=len(proposals)

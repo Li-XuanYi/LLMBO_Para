@@ -281,7 +281,15 @@ def _offline_chat_request_worker(spec, payload, run_path, connection):
     class Provider:
         def open(self, request, **kwargs):
             wire = json.loads(json.loads(request.data)["messages"][1]["content"])
-            formal = ({"request_id": wire["request_id"],
+            if wire.get("warmstart_wire_format") == "candidate_only_v1":
+                formal = {"candidates": [{"parameters": {
+                    spec["name"]: (spec["lower"] *
+                        (spec["upper"] / spec["lower"]) ** (0.12 + 0.1 * i)
+                        if spec["transform"] == "log10" else
+                        spec["lower"] + (spec["upper"] - spec["lower"]) * (0.12 + 0.1 * i))
+                    for spec in wire["parameters"]}} for i in range(8)]}
+            else:
+                formal = ({"request_id": wire["request_id"],
                        "region": {"kind": "region", "lb": [0.3] * 6,
                                   "ub": [0.8] * 6, "confidence": 0.65}}
                       if "request_id" in wire else {"ok": True})
@@ -304,11 +312,25 @@ def gate(spec, connection, budget):
     from run_region_transport_validation import validate_region_effect
 
     kind = spec["kind"]
-    payload = (spec["payload"] if kind == "gate_historical" else {
-        "task": "warm_start_electrothermal", "artifact_task": "api_transport_minimal",
-        "instructions": "This is only a transport probe. Return exactly the JSON object {\"ok\":true}.",
-        "response_contract": {"type": "object", "properties": {"ok": {"const": True}},
-                              "required": ["ok"], "additionalProperties": False}})
+    prepared = None
+    if kind == "gate_candidate":
+        from llmbo_para.electrothermal_workflow import prepare_electrothermal_experiment
+        from llmbo_para.electrothermal_payloads import build_warmstart_payload
+        config = deepcopy(spec["base_config"])
+        if config["llm"].get("warmstart_wire_format") != "candidate_only_v1":
+            raise ValueError("candidate gate needs candidate-only config")
+        report, prepared = prepare_electrothermal_experiment(config,
+            base_dir=Path(spec["source_root"]))
+        if prepared is None:
+            raise ValueError("candidate gate preparation failed: " + "; ".join(report["errors"]))
+        payload = build_warmstart_payload(prepared=prepared, history=[])
+        payload["artifact_task"] = "warm_start_electrothermal_request_a"
+    else:
+        payload = (spec["payload"] if kind == "gate_historical" else {
+            "task": "warm_start_electrothermal", "artifact_task": "api_transport_minimal",
+            "instructions": "This is only a transport probe. Return exactly the JSON object {\"ok\":true}.",
+            "response_contract": {"type": "object", "properties": {"ok": {"const": True}},
+                                  "required": ["ok"], "additionalProperties": False}})
     check_payload(payload)
     store = RunStore(spec["output"], {"kind": kind, "not_new_BO_data": True,
         "source": spec["source"], "protocol_sha256": spec["protocol_sha"]},
@@ -347,6 +369,28 @@ def gate(spec, connection, budget):
         if kind == "gate_minimal":
             if formal != {"ok": True}:
                 raise ValueError("minimal transport contract differs")
+        elif kind == "gate_candidate":
+            from llmbo_para.electrothermal_warmstart_wire import (
+                freeze_warmstart_request, bind_warmstart_response,
+                decode_candidate_only_reply)
+            request = freeze_warmstart_request(payload, run_id=store.run_id, ordinal=0)
+            bound = bind_warmstart_response(request, formal, store=store,
+                                             transport_status="completed")
+            proposals = decode_candidate_only_reply(bound, prepared=prepared,
+                                                    expected_request=request)
+            names = {p.name for p in prepared.space.specs}
+            unique = set()
+            for proposal in proposals:
+                if (type(proposal) is not dict or set(proposal) != {"parameters"}
+                        or type(proposal["parameters"]) is not dict
+                        or set(proposal["parameters"]) != names):
+                    raise ValueError("candidate gate contains an invalid named proposal")
+                point = prepared.space.validate(
+                    [proposal["parameters"][p.name] for p in prepared.space.specs])
+                unique.add(tuple(point))
+            if len(unique) < 8:
+                raise ValueError("candidate gate returned fewer than eight unique points")
+            result["candidate_count"] = len(unique)
         else:
             result["effect"] = validate_region_effect(
                 payload, formal, Path(spec["round_path"]))
@@ -383,7 +427,7 @@ def run_worker(spec, connection):
         from lgbo_real_gain_worker import RPCBudget, _attach_api_charges
         budget = RPCBudget(connection, deadline=spec["deadline"],
                            maximum=spec["solve_cap"], prefix=spec["label"])
-        if spec["kind"] in ("gate_minimal", "gate_historical"):
+        if spec["kind"] in ("gate_minimal", "gate_historical", "gate_candidate"):
             gate(spec, connection, budget)
             return
         from llmbo_para.electrothermal_workflow import (

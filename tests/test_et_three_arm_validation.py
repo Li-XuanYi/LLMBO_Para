@@ -194,6 +194,42 @@ def test_mock_transport_gate_preserves_frozen_gp_and_charges_before_request(monk
     assert budget.counts() == {"DFN": 0, "API": 2}  # Logical fixture charges; real API 0.
 
 
+def test_candidate_only_gate_checks_fresh_reply_before_any_dfn(monkeypatch):
+    runner = load()
+    import et_three_arm_validation_worker as worker
+
+    monkeypatch.setenv("LLMBO_OPENCODE_API_KEY", "offline-fixture-only")
+    root = Path(tempfile.mkdtemp(prefix="g50-candidate-gate-", dir=runner.MAIN / "runs"))
+    budget = runner.new_budget(root / "budget.jsonl", protocol_sha="b" * 64)
+    budget.begin("diagnostic")
+    base = runner.read(runner.PROPOSAL / "seed-376330.disabled-config.json")
+    base["llm"]["warmstart_wire_format"] = "candidate_only_v1"
+    source_sha = runner.helper.fingerprint(runner.WT)
+    spec = {"kind": "gate_candidate", "label": "gate-candidate",
+            "base_config": base, "source_root": str(runner.WT),
+            "source": source_sha, "output": str(root / "gate-candidate"),
+            "deadline": budget.deadline, "timeout_s": 30., "solve_cap": 0,
+            "protocol_sha": "b" * 64, "software_fixture": True}
+    row = runner.helper.supervise(worker.run_worker, spec, budget,
+        deadline=time.monotonic() + 50,
+        metadata=root / "gate-candidate-owned.json")
+    assert row["passed"] and row["wire_verified"] and row["candidate_count"] >= 8
+    assert budget.counts() == {"DFN": 0, "API": 1}
+
+
+def test_bound_study_uses_new_paths_and_explicit_gate():
+    legacy = load()
+    old_paths = (legacy.PROPOSAL, legacy.EVIDENCE, legacy.OUTPUT)
+    import run_et_three_arm_bound_validation as bound
+
+    assert bound.runner.CANDIDATE_GATE is True
+    assert (bound.runner.PROPOSAL, bound.runner.EVIDENCE, bound.runner.OUTPUT) != old_paths
+    assert bound.runner.PLAN_COMMIT == "3c27fe4db152d1be7859d037ee9420a9a770119d"
+    report = bound.runner.dry_run(bound.runner.PROPOSAL / "protocol-proposal.json")
+    assert report["API"] == report["DFN"] == 0
+    assert report["output_not_created"] is True
+
+
 def test_paired_region_context_and_three_arm_weights_are_checked():
     runner = load()
     weights = [[0.8, 0.2], [0.2, 0.8]]

@@ -87,9 +87,12 @@ def build_warmstart_payload(*, prepared, history) -> dict:
     """Build candidate semantics; host evaluation/Pareto/diversity selection stays separate."""
     valid, front = _observations(history)
     selected = {record.evaluation_id: record for record in [*front[:8], *history[-8:]]}
+    wire = prepared.config['llm'].get('warmstart_wire_format', 'full_v1')
+    prompt_name = ('warm_start_candidates_electrothermal' if wire == 'candidate_only_v1'
+                   else 'warm_start_electrothermal')
     payload = _base_payload('warm_start_electrothermal', prepared, _history_rows(selected.values()),
-                            front, 'warm_start_electrothermal')
-    properties = _identity_properties(prepared)
+                            front, prompt_name)
+    properties = {} if wire == 'candidate_only_v1' else _identity_properties(prepared)
     names = [spec.name for spec in prepared.space.specs]
     parameters = {'type': 'object', 'additionalProperties': False, 'required': names,
         'properties': {spec.name: {'type': 'number', 'minimum': spec.lower, 'maximum': spec.upper}
@@ -99,6 +102,8 @@ def build_warmstart_payload(*, prepared, history) -> dict:
         'items': {'type': 'object', 'additionalProperties': False, 'required': ['parameters'],
                  'properties': {'parameters': parameters}}}
     payload['requested_candidate_count'] = max(0, prepared.config['optimization']['warmstart']['pool_size'] - len(valid))
+    if wire == 'candidate_only_v1':
+        payload['warmstart_wire_format'] = wire
     return deepcopy(_finish(payload, prepared, properties))
 
 

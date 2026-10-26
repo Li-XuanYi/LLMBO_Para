@@ -29,6 +29,8 @@ OLD = BASE / "region-type-repair-20261026"
 SOURCE = OLD / "s"
 OUTPUT = MAIN / "runs/g26x"
 CORE_FINGERPRINT = "b101a433b054dca8931c6c59c31bfce0fe2cf752d8cf0636dc88766e3459c231"
+PLAN_COMMIT = "cb6ac2c6b96618d57d53c0ac8f6032d94595e241"
+CANDIDATE_GATE = False
 SEEDS = (376330, 633262, 789058, 609653, 362724)
 ARMS = ("bo", "warmstart_only", "full_llmbo_mo")
 RATES = ("0.5C", "1C")
@@ -380,7 +382,7 @@ def execute():
     full = release.get("full_counts", {})
     boundary = release.get("boundary", {})
     if (approval.get("approved") is not True or approval.get("protocol_sha256") != protocol_sha
-            or approval.get("limits") != CAPS or approval.get("plan_commit") != "cb6ac2c6b96618d57d53c0ac8f6032d94595e241"
+            or approval.get("limits") != CAPS or approval.get("plan_commit") != PLAN_COMMIT
             or release.get("targeted_exit_code") != 0
             or release.get("full_exit_code") != 0
             or targeted.get("tests", 0) < 16 or full.get("tests", 0) < 1600
@@ -416,6 +418,16 @@ def execute():
             if not (diagnostic.get("passed") and diagnostic.get("complete")
                     and diagnostic.get("wire_verified")):
                 raise RuntimeError("minimal API gate failed")
+            if CANDIDATE_GATE:
+                diagnostic = _phase({"kind": "gate_candidate", "seed": SEEDS[0],
+                    "label": "gate-candidate", "solve_cap": 0, "timeout_s": 120.},
+                    budget, protocol, worker=worker_module.run_worker,
+                    deadline=min(budget.deadline - 15., time.monotonic() + 135.))
+                result["gate"].append(diagnostic)
+                if not (diagnostic.get("passed") and diagnostic.get("complete")
+                        and diagnostic.get("wire_verified")
+                        and diagnostic.get("candidate_count", 0) >= 8):
+                    raise RuntimeError("candidate-only WarmStart API gate failed")
             contexts = _historical_contexts()
             for index, item in enumerate(contexts):
                 diagnostic = _phase({"kind": "gate_historical", "label": f"gate-context-{index}",

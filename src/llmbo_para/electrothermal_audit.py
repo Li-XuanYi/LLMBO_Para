@@ -45,7 +45,8 @@ def _audit_responses_warmstart(root,*,cfg,space,dataset,signatures,events,by_id,
     saved_path=root/'warmstart-selection.json'
     if not saved_path.exists():return
     selection=read('warmstart-selection.json');settings=cfg['optimization']['warmstart']
-    prepared=SimpleNamespace(space=space,dataset=dataset,signatures=signatures)
+    prepared=SimpleNamespace(space=space,dataset=dataset,signatures=signatures,config=cfg)
+    candidate_only=cfg['llm'].get('warmstart_wire_format','full_v1')=='candidate_only_v1'
     requests=[(i,e) for i,e in enumerate(events) if e.get('type')=='electrothermal_cost'
         and e.get('kind') in ('llm_request','mock_llm_request')]
     warm=[(i,e) for i,e in requests if e.get('phase')=='warm_start_electrothermal']
@@ -61,11 +62,36 @@ def _audit_responses_warmstart(root,*,cfg,space,dataset,signatures,events,by_id,
                     or e.get('event_id','').startswith('cache:')):actual.append(('cost',e))
         if outcome['status']!='received':
             require(not actual,'failed Responses WarmStart reply produced screening results');continue
-        receipt=read(f'llm/{n:06d}.responses-formal.json')
-        require(set(receipt)=={'version','response_json'} and receipt['version']=='responses_formal_v1',
-                'Responses WarmStart formal receipt is invalid')
-        reply=json.loads(receipt['response_json'])
-        try:proposals=validate_warmstart_response(reply,prepared=prepared)
+        if candidate_only:
+            from .electrothermal_warmstart_wire import (BoundWarmStartReply,
+                freeze_warmstart_request,decode_candidate_only_reply)
+            payload=read(f'llm/{n:06d}.payload.json')
+            request=freeze_warmstart_request(payload,run_id=root.name,ordinal=n)
+            receipt=read(f'llm/{n:06d}.warmstart-binding.json')
+            reply=read(f'llm/{n:06d}.warmstart-response.json')
+            expected_status='mock' if cost['kind']=='mock_llm_request' else 'completed'
+            require(receipt.get('transport_status')==expected_status,
+                    'WarmStart transport receipt status differs from cost event')
+            envelope=root/'http'/(request.artifact_task+'.response.json')
+            if expected_status=='completed':
+                require(envelope.is_file() and receipt.get('http_envelope_sha256')==sha256_file(envelope),
+                        'WarmStart HTTP envelope digest differs')
+                raw=json.loads(envelope.read_text(encoding='utf8'))
+                content=raw['choices'][0]['message']['content']
+                equal(json.loads(content) if type(content) is str else content,reply,
+                      'WarmStart decoded reply differs from raw HTTP envelope')
+            else:
+                require(not envelope.exists() and receipt.get('http_envelope_sha256') is None,
+                        'mock WarmStart has unexpected HTTP envelope')
+            bound=BoundWarmStartReply(reply,receipt,request)
+        else:
+            receipt=read(f'llm/{n:06d}.responses-formal.json')
+            require(set(receipt)=={'version','response_json'} and receipt['version']=='responses_formal_v1',
+                    'Responses WarmStart formal receipt is invalid')
+            reply=json.loads(receipt['response_json'])
+        try:
+            proposals=(decode_candidate_only_reply(bound,prepared=prepared,expected_request=request)
+                       if candidate_only else validate_warmstart_response(reply,prepared=prepared))
         except ValueError:
             expected={'event_id':f'screen:reply:{n+1}','kind':'screening_rejected','reason':'invalid_reply'}
             equal([{k:v for k,v in e.items() if k not in ('type','timestamp_utc')} for _,e in actual],
@@ -295,10 +321,10 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                     equal(outcome.get('completion'),expected,'completion evidence differs from raw response')
                     equal(supervision.get('completion'),expected,'supervised completion evidence differs');controlled=True
         if controlled:checks.append('LLM_sent_controls_and_raw_completion_evidence')
-        if transport_kind=='openai_responses':
+        if transport_kind=='openai_responses' or cfg['llm'].get('warmstart_wire_format','full_v1')=='candidate_only_v1':
             _audit_responses_warmstart(root,cfg=cfg,space=space,dataset=dataset,signatures=signatures,
                 events=events,by_id=by_id,read=read,require=require,equal=equal)
-            checks.append('Responses_reply_to_WarmStart_screening_provenance')
+            checks.append('reply_to_WarmStart_screening_provenance')
         round_files=sorted((root/'mo-rounds').glob('*.json'))
         if manifest['command']=='electrothermal multiobjective BO' or 'BO_rounds' in summary or round_files:
             require((root/'initialization.json').is_file(),'required MO initialization archive is missing')

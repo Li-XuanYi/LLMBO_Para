@@ -142,7 +142,9 @@ def electrothermal_configuration_errors(config):
     budget=section('budgets');strict(budget,('max_solver_calls','max_llm_requests','wall_clock_s'),'budgets')
     for key in ('max_solver_calls','max_llm_requests'):numeric(budget.get(key),'budgets.'+key,positive=False,integer=True)
     numeric(budget.get('wall_clock_s'),'budgets.wall_clock_s')
-    llm=section('llm');strict(llm,('enabled','endpoint','api_key_env','model','max_tokens','timeout_s','json_mode','task_options','region_wire_format','thinking','transport','reasoning_effort','responses_stream'),'llm')
+    llm=section('llm');strict(llm,('enabled','endpoint','api_key_env','model','max_tokens','timeout_s','json_mode','task_options','region_wire_format','warmstart_wire_format','thinking','transport','reasoning_effort','responses_stream'),'llm')
+    if llm.get('warmstart_wire_format','full_v1') not in ('full_v1','candidate_only_v1'):
+        errors.append('invalid WarmStart wire format')
     if is_lgbo_method(opt.get('region_method')) and 'region_wire_format' in llm:
         errors.append('LGBO method fixes its own direct-action wire')
     transport=llm.get('transport','openai_chat_completions')
