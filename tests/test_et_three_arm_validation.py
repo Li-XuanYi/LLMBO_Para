@@ -230,6 +230,35 @@ def test_bound_study_uses_new_paths_and_explicit_gate():
     assert report["output_not_created"] is True
 
 
+def test_bound_study_worker_mock_warmstart_initialization(tmp_path):
+    runner = load()
+    import et_three_arm_validation_worker as worker
+
+    proposal = (runner.BASE / "three-arm-50round-bound-proposal-20261026" /
+                "seed-376330.disabled-config.json")
+    base = runner.read(proposal)
+    assert base["llm"]["warmstart_wire_format"] == "candidate_only_v1"
+    source = runner.WT
+    budget = runner.new_budget(tmp_path / "budget.jsonl", protocol_sha="c" * 64)
+    budget.begin("diagnostic")
+    budget.finish(True)
+    budget.begin("initialization")
+    spec = {"kind": "warmstart_initialization", "arm": "warmstart_only",
+            "label": "bound-warmstart-mock", "source_root": str(source),
+            "source": runner.helper.fingerprint(source),
+            "output": str(tmp_path / "bound-warmstart-mock"),
+            "deadline": budget.deadline, "base_config": base,
+            "seed": 376330, "software_fixture": True, "solve_cap": 0}
+    row = runner.helper.supervise(worker.run_worker, spec, budget,
+        deadline=time.monotonic() + 180,
+        metadata=tmp_path / "bound-warmstart-owned.json")
+    assert row["audit_passed"] and row["selected_count"] == 8
+    assert row["complete_pool_count"] == 16
+    run_root = Path(row["run_directory"])
+    assert (run_root / "llm/000000.warmstart-binding.json").is_file()
+    assert budget.counts() == {"DFN": 0, "API": 0}
+
+
 def test_paired_region_context_and_three_arm_weights_are_checked():
     runner = load()
     weights = [[0.8, 0.2], [0.2, 0.8]]

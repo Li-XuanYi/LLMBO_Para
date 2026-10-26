@@ -135,6 +135,8 @@ def initialize_warmstart(spec, prepared, store, budget, backend):
                         continue
                     points.append({"parameters": dict(zip(
                         (item.name for item in prepared.space.specs), point))})
+                if payload.get("warmstart_wire_format") == "candidate_only_v1":
+                    return {"candidates": points}
                 return {key: payload[key] for key in
                         ("schema_version", "parameter_profile", "fit_rates", "signatures")} | {
                             "candidates": points}
