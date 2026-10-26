@@ -135,6 +135,131 @@ def test_completed_reply_must_match_archived_http_envelope(tmp_path):
                                        expected_request=request) == response["candidates"]
 
 
+def test_nonfinite_candidate_is_screened_without_discarding_valid_points(tmp_path):
+    from llmbo_para.electrothermal_llm import ElectrothermalLLMController
+    from llmbo_para.electrothermal_evaluation import ElectrothermalEvaluator
+    from llmbo_para.electrothermal_store import ElectrothermalRunStore
+    from llmbo_para.electrothermal_synthetic import SyntheticElectrothermalSimulator
+    from llmbo_para.electrothermal_workflow import prepare_electrothermal_experiment
+
+    cfg, _ = _prepared(tmp_path)
+    cfg["optimization"]["warmstart"].update(pool_size=2, max_requests=1,
+                                                 max_evaluations=2)
+    _, prepared = prepare_electrothermal_experiment(cfg, base_dir=tmp_path)
+    store = ElectrothermalRunStore(tmp_path, cfg, dataset=prepared.dataset,
+                                   signatures=prepared.signatures, command="nonfinite test")
+
+    class PartlyInvalid:
+        def post(self, payload):
+            first = dict(_candidate(prepared)["parameters"])
+            second = dict(first, D_s_n_ref=float("inf"))
+            third = dict(zip((s.name for s in prepared.space.specs),
+                             prepared.space.denormalize([0.75] * 6)))
+            return {"candidates": [{"parameters": p} for p in (first, second, third)]}
+
+    controller = ElectrothermalLLMController(
+        transport=PartlyInvalid(), is_mock=True,
+        evaluator=ElectrothermalEvaluator(prepared.space,
+                                          SyntheticElectrothermalSimulator(),
+                                          fit_rates=prepared.dataset.fit_rates))
+    plan = controller.generate_warmstart(prepared, store=store,
+                                         budgets=cfg["budgets"])
+    assert len(plan.records) == 2
+    assert store.ledger.summary()["screening_rejections"] == 1
+
+
+def test_candidate_only_responses_transport_is_rejected(tmp_path):
+    from llmbo_para.electrothermal_workflow import prepare_electrothermal_experiment
+
+    cfg, _ = _prepared(tmp_path)
+    cfg["llm"]["transport"] = "openai_responses"
+    report, prepared = prepare_electrothermal_experiment(cfg, base_dir=tmp_path)
+    assert prepared is None and not report["ready"]
+
+
+def test_candidate_only_chat_request_reconstruction_detects_mutation(tmp_path):
+    from llmbo_para.electrothermal_payloads import build_warmstart_payload
+    from llmbo_para.electrothermal_warmstart_wire import audit_candidate_chat_request
+
+    cfg, prepared = _prepared(tmp_path)
+    cfg["llm"]["model"] = "fixture-model"
+    payload = build_warmstart_payload(prepared=prepared, history=[])
+    payload["artifact_task"] = "warm_start_electrothermal_request_a"
+    from llmbo_para.runstore import canonical_json
+    frozen = json.loads(canonical_json(payload))
+    body = {"model": "fixture-model", "messages": [
+        {"role": "system", "content": frozen["instructions"] +
+         "\nReturn exactly one JSON object matching the supplied response contract."},
+        {"role": "user", "content": json.dumps({k: v for k, v in frozen.items()
+                                                if k != "instructions"}, ensure_ascii=False)}],
+        "max_tokens": 2048, "stream": False,
+        "response_format": {"type": "json_object"}}
+    audit_candidate_chat_request(payload, body, model="fixture-model",
+                                 max_tokens=2048, json_mode=True, thinking=None)
+    changed = json.loads(json.dumps(body))
+    changed["messages"][1]["content"] = changed["messages"][1]["content"].replace(
+        "electrothermal_4e2t", "legacy_six")
+    with pytest.raises(ValueError, match="request"):
+        audit_candidate_chat_request(payload, changed, model="fixture-model",
+                                     max_tokens=2048, json_mode=True, thinking=None)
+
+
+def test_deep_audit_detects_archived_chat_request_mutation(tmp_path):
+    from llmbo_para.electrothermal_audit import audit_electrothermal_run
+    from llmbo_para.electrothermal_llm import ElectrothermalLLMController
+    from llmbo_para.electrothermal_workflow import (
+        prepare_electrothermal_experiment, run_electrothermal_experiment)
+    from llmbo_para.runstore import canonical_json
+
+    cfg, _ = _prepared(tmp_path)
+    cfg["optimization"]["mode"] = "warmstart_only"
+    cfg["llm"].update(enabled=True, endpoint="https://fixture.invalid/v1/chat/completions",
+                      api_key_env="FIXTURE_KEY", model="fixture-model")
+    cfg["budgets"]["max_llm_requests"] = 1
+    _, prepared = prepare_electrothermal_experiment(cfg, base_dir=tmp_path)
+    output = tmp_path / "runs"
+
+    class OfflineArchivedChat:
+        def post(self, payload):
+            root = next(path.parent for path in output.rglob("manifest.json"))
+            frozen = json.loads(canonical_json(payload))
+            body = {"model": cfg["llm"]["model"], "messages": [
+                {"role": "system", "content": frozen["instructions"] +
+                 "\nReturn exactly one JSON object matching the supplied response contract."},
+                {"role": "user", "content": json.dumps(
+                    {k: v for k, v in frozen.items() if k != "instructions"},
+                    ensure_ascii=False)}],
+                "max_tokens": cfg["llm"]["max_tokens"], "stream": False,
+                "response_format": {"type": "json_object"}}
+            reply = {"candidates": [
+                {"parameters": dict(zip((s.name for s in prepared.space.specs),
+                                         prepared.space.denormalize([x] * 6)))}
+                for x in (0.2, 0.4, 0.6, 0.8)]}
+            http = root / "http"
+            http.mkdir()
+            (http / (payload["artifact_task"] + ".request.json")).write_text(
+                json.dumps({"endpoint": cfg["llm"]["endpoint"],
+                            "headers": {}, "body": body}), encoding="utf8")
+            (http / (payload["artifact_task"] + ".response.json")).write_text(
+                json.dumps({"choices": [{"message": {"content": json.dumps(reply)}}]}),
+                encoding="utf8")
+            return reply
+
+    result = run_electrothermal_experiment(
+        cfg, output, base_dir=tmp_path,
+        llm_controller=ElectrothermalLLMController(
+            transport=OfflineArchivedChat(), is_mock=False))
+    from pathlib import Path
+    root = Path(result["run_directory"])
+    assert audit_electrothermal_run(root, deep=True)["passed"]
+    request = next((root / "http").glob("*.request.json"))
+    saved = json.loads(request.read_text(encoding="utf8"))
+    saved["body"]["messages"][1]["content"] = saved["body"]["messages"][1]["content"].replace(
+        "electrothermal_4e2t", "legacy_six")
+    request.write_text(json.dumps(saved), encoding="utf8")
+    assert not audit_electrothermal_run(root, deep=True)["passed"]
+
+
 def test_legacy_full_reply_still_requires_exact_signatures(tmp_path):
     from llmbo_para.electrothermal_llm import validate_warmstart_response
     from llmbo_para.electrothermal_workflow import prepare_electrothermal_experiment

@@ -2,11 +2,44 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+import hashlib
 import json
 from pathlib import Path
 import re
 
 from .runstore import canonical_json, digest_value, sha256_file
+
+
+def candidate_reply_text(value: dict) -> str:
+    """Keep nonfinite members diagnostic until per-candidate screening."""
+    return json.dumps(value, sort_keys=True, ensure_ascii=False,
+                      separators=(',', ':'), allow_nan=True)
+
+
+def candidate_reply_sha256(value: dict) -> str:
+    return hashlib.sha256(candidate_reply_text(value).encode('utf8')).hexdigest()
+
+
+def audit_candidate_chat_request(payload: dict, body: dict, *, model: str,
+                                 max_tokens: int, json_mode: bool,
+                                 thinking: str | None) -> None:
+    """Independently rebuild the exact Chat body from the frozen local payload."""
+    frozen = json.loads(canonical_json(payload))
+    instructions = frozen['instructions']
+    if json_mode:
+        instructions += '\nReturn exactly one JSON object matching the supplied response contract.'
+    expected = {'model': model, 'messages': [
+        {'role': 'system', 'content': instructions},
+        {'role': 'user', 'content': json.dumps(
+            {k: v for k, v in frozen.items() if k != 'instructions'},
+            ensure_ascii=False, allow_nan=False)}],
+        'max_tokens': max_tokens, 'stream': False}
+    if json_mode:
+        expected['response_format'] = {'type': 'json_object'}
+    if thinking is not None:
+        expected['thinking'] = {'type': thinking}
+    if type(body) is not dict or body != expected:
+        raise ValueError('candidate-only WarmStart HTTP request differs from frozen payload')
 
 
 @dataclass(frozen=True)
@@ -59,7 +92,7 @@ def bind_warmstart_response(request: WarmStartRequest, decoded_reply: dict, *, s
             from_http = json.loads(content) if type(content) is str else content
         except (KeyError, IndexError, TypeError, ValueError) as exc:
             raise ValueError('invalid WarmStart HTTP envelope') from exc
-        if digest_value(from_http) != digest_value(decoded_reply):
+        if candidate_reply_sha256(from_http) != candidate_reply_sha256(decoded_reply):
             raise ValueError('WarmStart reply differs from HTTP envelope')
         envelope_sha = sha256_file(envelope_path)
     receipt = {'version': 'warmstart_candidate_binding_v1', 'run_id': request.run_id,
@@ -67,10 +100,12 @@ def bind_warmstart_response(request: WarmStartRequest, decoded_reply: dict, *, s
                'artifact_task': request.artifact_task,
                'payload_sha256': request.payload_sha256,
                'identity_sha256': request.identity_sha256,
-               'response_sha256': digest_value(decoded_reply),
+               'response_sha256': candidate_reply_sha256(decoded_reply),
                'http_envelope_sha256': envelope_sha,
                'transport_status': transport_status}
-    store.write_json(f'llm/{request.ordinal:06d}.warmstart-response.json', decoded_reply)
+    store.write_json(f'llm/{request.ordinal:06d}.warmstart-response.json',
+                     {'version': 'candidate_reply_archival_v1',
+                      'response_json': candidate_reply_text(decoded_reply)})
     store.write_json(f'llm/{request.ordinal:06d}.warmstart-binding.json', receipt)
     return BoundWarmStartReply(decoded_reply, receipt, request)
 
@@ -100,6 +135,6 @@ def decode_candidate_only_reply(reply: BoundWarmStartReply, *, prepared,
             or type(reply.response['candidates']) is not list
             or not reply.response['candidates']
             or len(reply.response['candidates']) > prepared.config['optimization']['warmstart']['max_candidates']
-            or receipt['response_sha256'] != digest_value(reply.response)):
+            or receipt['response_sha256'] != candidate_reply_sha256(reply.response)):
         raise ValueError('stale or invalid request-bound WarmStart candidate reply')
     return reply.response['candidates']

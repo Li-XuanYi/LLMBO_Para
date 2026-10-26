@@ -149,6 +149,8 @@ def electrothermal_configuration_errors(config):
         errors.append('LGBO method fixes its own direct-action wire')
     transport=llm.get('transport','openai_chat_completions')
     if transport not in ('openai_chat_completions','openai_responses'):errors.append('invalid electrothermal LLM transport')
+    if llm.get('warmstart_wire_format')=='candidate_only_v1' and transport!='openai_chat_completions':
+        errors.append('candidate-only WarmStart requires chat completions transport')
     options=llm.get('task_options',{})
     if transport=='openai_responses' and ('thinking' in llm or isinstance(options,dict) and any(isinstance(v,dict) and 'thinking' in v for v in options.values())):
         errors.append('Responses thinking mapping has not been confirmed')

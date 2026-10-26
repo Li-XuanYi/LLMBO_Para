@@ -63,23 +63,44 @@ def _audit_responses_warmstart(root,*,cfg,space,dataset,signatures,events,by_id,
         if outcome['status']!='received':
             require(not actual,'failed Responses WarmStart reply produced screening results');continue
         if candidate_only:
+            from .electrothermal_requests import request_controls
             from .electrothermal_warmstart_wire import (BoundWarmStartReply,
-                freeze_warmstart_request,decode_candidate_only_reply)
+                freeze_warmstart_request,decode_candidate_only_reply,
+                candidate_reply_text,candidate_reply_sha256,audit_candidate_chat_request)
             payload=read(f'llm/{n:06d}.payload.json')
             request=freeze_warmstart_request(payload,run_id=root.name,ordinal=n)
             receipt=read(f'llm/{n:06d}.warmstart-binding.json')
-            reply=read(f'llm/{n:06d}.warmstart-response.json')
+            archived=read(f'llm/{n:06d}.warmstart-response.json')
+            require(set(archived)=={'version','response_json'} and
+                    archived['version']=='candidate_reply_archival_v1' and
+                    type(archived['response_json']) is str,
+                    'WarmStart candidate reply archive is malformed')
+            reply=json.loads(archived['response_json'])
+            require(candidate_reply_text(reply)==archived['response_json'],
+                    'WarmStart candidate reply archive differs from canonical diagnostic JSON')
             expected_status='mock' if cost['kind']=='mock_llm_request' else 'completed'
             require(receipt.get('transport_status')==expected_status,
                     'WarmStart transport receipt status differs from cost event')
             envelope=root/'http'/(request.artifact_task+'.response.json')
             if expected_status=='completed':
+                request_path=root/'http'/(request.artifact_task+'.request.json')
+                require(request_path.is_file(),'WarmStart HTTP request archive missing')
+                sent=read('http/'+request.artifact_task+'.request.json')
+                equal(sent.get('endpoint'),cfg['llm']['endpoint'],
+                      'WarmStart HTTP endpoint differs')
+                require(not any(str(k).lower()=='authorization' for k in sent.get('headers',{})),
+                        'WarmStart request archive contains authorization header')
+                controls=request_controls(cfg,'warm_start_electrothermal')
+                audit_candidate_chat_request(payload,sent.get('body'),
+                    model=cfg['llm']['model'],max_tokens=controls['max_tokens'],
+                    json_mode=cfg['llm']['json_mode'],thinking=controls.get('thinking'))
                 require(envelope.is_file() and receipt.get('http_envelope_sha256')==sha256_file(envelope),
                         'WarmStart HTTP envelope digest differs')
                 raw=json.loads(envelope.read_text(encoding='utf8'))
                 content=raw['choices'][0]['message']['content']
-                equal(json.loads(content) if type(content) is str else content,reply,
-                      'WarmStart decoded reply differs from raw HTTP envelope')
+                require(candidate_reply_sha256(json.loads(content) if type(content) is str else content)
+                        == candidate_reply_sha256(reply),
+                        'WarmStart decoded reply differs from raw HTTP envelope')
             else:
                 require(not envelope.exists() and receipt.get('http_envelope_sha256') is None,
                         'mock WarmStart has unexpected HTTP envelope')
