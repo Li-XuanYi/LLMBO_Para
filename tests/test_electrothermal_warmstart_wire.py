@@ -177,6 +177,57 @@ def test_candidate_only_responses_transport_is_rejected(tmp_path):
     assert prepared is None and not report["ready"]
 
 
+def test_preheader_eof_policy_is_opt_in_and_changes_only_algorithm_identity(tmp_path):
+    from llmbo_para.electrothermal_workflow import prepare_electrothermal_experiment
+
+    old, original = _prepared(tmp_path)
+    assert "warmstart_preheader_tls_eof_continue" not in old["llm"]
+    enabled = json.loads(json.dumps(old))
+    enabled["llm"]["warmstart_preheader_tls_eof_continue"] = True
+    report, prepared = prepare_electrothermal_experiment(enabled, base_dir=tmp_path)
+    assert report["ready"] and prepared is not None
+    assert prepared.signatures.config != original.signatures.config
+    assert prepared.signatures.algorithm != original.signatures.algorithm
+    for field in ("data", "model_evaluation", "evaluation_protocol",
+                  "comparison_protocol", "initialization_compatibility"):
+        assert getattr(prepared.signatures, field) == getattr(original.signatures, field)
+    for value in ("true", 1, None):
+        invalid = json.loads(json.dumps(enabled))
+        invalid["llm"]["warmstart_preheader_tls_eof_continue"] = value
+        assert not prepare_electrothermal_experiment(invalid, base_dir=tmp_path)[0]["ready"]
+    for incompatible in ("full_v1", "openai_responses"):
+        invalid = json.loads(json.dumps(enabled))
+        if incompatible == "full_v1":
+            invalid["llm"]["warmstart_wire_format"] = incompatible
+        else:
+            invalid["llm"]["transport"] = incompatible
+        assert not prepare_electrothermal_experiment(invalid, base_dir=tmp_path)[0]["ready"]
+
+
+def test_only_exact_preheader_tls_eof_is_recoverable():
+    from llmbo_para import electrothermal_llm
+
+    classify = getattr(electrothermal_llm,
+                       "is_recoverable_warmstart_preheader_eof", lambda _: False)
+    outcome = {"status": "failed", "reason": "transport_error",
+               "http_request_started": True, "failure_stage": "awaiting_headers",
+               "http_status": None,
+               "network_diagnostic": {"category": "tls_eof",
+                                      "cause_type": "SSLEOFError", "os_errno": 8}}
+    assert classify(outcome)
+    for field, wrong in (("status", "received"), ("reason", "protocol_error"),
+                         ("http_request_started", False),
+                         ("failure_stage", "reading_response"),
+                         ("http_status", 200)):
+        variant = dict(outcome, **{field: wrong})
+        assert not classify(variant)
+    for field, wrong in (("category", "timeout"), ("cause_type", "OSError"),
+                         ("os_errno", 9)):
+        variant = dict(outcome, network_diagnostic={**outcome["network_diagnostic"],
+                                                    field: wrong})
+        assert not classify(variant)
+
+
 def test_candidate_only_chat_request_reconstruction_detects_mutation(tmp_path):
     from llmbo_para.electrothermal_payloads import build_warmstart_payload
     from llmbo_para.electrothermal_warmstart_wire import audit_candidate_chat_request

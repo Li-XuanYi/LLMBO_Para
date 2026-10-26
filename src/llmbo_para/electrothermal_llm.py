@@ -11,6 +11,22 @@ from .runstore import digest_value,canonical_json
 from .electrothermal_lgbo import is_lgbo_method
 
 
+def is_recoverable_warmstart_preheader_eof(outcome: dict) -> bool:
+    """Identify the one transport failure allowed by the opt-in policy."""
+    if type(outcome) is not dict:
+        return False
+    diagnostic=outcome.get('network_diagnostic')
+    return (outcome.get('status')=='failed'
+            and outcome.get('reason')=='transport_error'
+            and outcome.get('http_request_started') is True
+            and outcome.get('failure_stage')=='awaiting_headers'
+            and 'http_status' in outcome and outcome['http_status'] is None
+            and type(diagnostic) is dict
+            and diagnostic.get('category')=='tls_eof'
+            and diagnostic.get('cause_type')=='SSLEOFError'
+            and diagnostic.get('os_errno')==8)
+
+
 def warmstart_selection_details(records,*,space,count,objective_scales,rho_aug=.05):
     if type(count) is not int or count<2:raise ValueError('at least two seeds required')
     ids={};unique={};duplicates={}

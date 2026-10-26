@@ -142,7 +142,7 @@ def electrothermal_configuration_errors(config):
     budget=section('budgets');strict(budget,('max_solver_calls','max_llm_requests','wall_clock_s'),'budgets')
     for key in ('max_solver_calls','max_llm_requests'):numeric(budget.get(key),'budgets.'+key,positive=False,integer=True)
     numeric(budget.get('wall_clock_s'),'budgets.wall_clock_s')
-    llm=section('llm');strict(llm,('enabled','endpoint','api_key_env','model','max_tokens','timeout_s','json_mode','task_options','region_wire_format','warmstart_wire_format','thinking','transport','reasoning_effort','responses_stream'),'llm')
+    llm=section('llm');strict(llm,('enabled','endpoint','api_key_env','model','max_tokens','timeout_s','json_mode','task_options','region_wire_format','warmstart_wire_format','warmstart_preheader_tls_eof_continue','thinking','transport','reasoning_effort','responses_stream'),'llm')
     if llm.get('warmstart_wire_format','full_v1') not in ('full_v1','candidate_only_v1'):
         errors.append('invalid WarmStart wire format')
     if is_lgbo_method(opt.get('region_method')) and 'region_wire_format' in llm:
@@ -151,6 +151,12 @@ def electrothermal_configuration_errors(config):
     if transport not in ('openai_chat_completions','openai_responses'):errors.append('invalid electrothermal LLM transport')
     if llm.get('warmstart_wire_format')=='candidate_only_v1' and transport!='openai_chat_completions':
         errors.append('candidate-only WarmStart requires chat completions transport')
+    recovery=llm.get('warmstart_preheader_tls_eof_continue',False)
+    if type(recovery) is not bool:
+        errors.append('WarmStart pre-header EOF continuation must be boolean')
+    elif recovery and (llm.get('warmstart_wire_format')!='candidate_only_v1'
+                       or transport!='openai_chat_completions'):
+        errors.append('WarmStart pre-header EOF continuation requires candidate-only Chat transport')
     options=llm.get('task_options',{})
     if transport=='openai_responses' and ('thinking' in llm or isinstance(options,dict) and any(isinstance(v,dict) and 'thinking' in v for v in options.values())):
         errors.append('Responses thinking mapping has not been confirmed')
