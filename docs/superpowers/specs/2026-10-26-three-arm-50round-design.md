@@ -1,0 +1,35 @@
+# Five-seed, three-arm, 50-round electrothermal comparison
+
+Status: design for review; no live run authorized by this document. The experiment extends the completed 20-round paired synthetic DFN comparison. It does not change the DFN, thermal model, surrogate, acquisition, Prompt, Region equation, objective scales, or fitting data.
+
+## Research question and attribution
+
+For each of five new seeds, run three modes with eight initial observations and **50 new BO candidate attempts** each:
+
+| Arm | Eight initial observations | LLM during BO |
+| --- | --- | --- |
+| BO | Eight frozen seed-indexed Sobol points, truly evaluated | None |
+| BO + WarmStart | Eight selected from that seed's newly generated, truly evaluated LLM pool | None |
+| BO + WarmStart + Region | The exact same signed eight-point WarmStart plan as the preceding arm | Region on each of 50 BO rounds, subject to contract and budget |
+
+This yields 15 runs and at most 750 BO rounds. All three arms use the same per-seed weight schedule and numerical settings. The WarmStart pair isolates the Region effect at a shared initial state. BO versus WarmStart changes initialization and its screening cost; its result must not be labeled a Region-only effect. Seed order, initial coordinates, arm order and budget are frozen before performance is observed. New seeds are `376330, 633262, 789058, 609653, 362724`, drawn once with `numpy.default_rng(20261026)` without screening and excluding the earlier three seeds. BO initial coordinates are the first eight `Sobol6(seed)` points mapped through the existing six-parameter space. The WarmStart pool is generated separately for each seed; an old fixed eight-point plan is not reused.
+
+## Physical, data and objective contract
+
+Use the existing 0.5C and 1C, 60 s real DFN–lumped-thermal synthetic observations, one physical parameter vector per two-rate candidate. Do not use old 3C, measured identification, or generate replacement observations. PyBaMM 25.10.2, electrothermal_4e2t parameter semantics, fixed materials, mesh, time grids, solver and coupled voltage/temperature evaluation are identical across arms. Each selected rate's voltage and temperature curves come from one coupled solve. Archive rate-level validity, RMSE and curve identity. Only complete real two-objective pairs enter GP fitting or Pareto; keep partial/failed evaluations as diagnostics, without zeros or fabricated objectives.
+
+For every round, use the existing frozen comparison scale `s=(0.1 V,1 K)`, augmented Tchebycheff coefficient `rho=0.05`, and fixed HV reference `(10,10)` in the common `(F_U/s_U,F_T/s_T)` space. Current weight, ideal point, scalarization labels, standardization, incumbent, local center and GP posterior use only prior valid history. Freeze that context for selection and Region feedback. Recompute all of it under the next weight even if the preceding attempt lacked a valid objective pair. Keep ARD Matérn GP with four fitting sweeps, Gaussian EI, global pool 512, local pool 8, current `lgbo_v2` Prompt/action contract and Region strength `eta=1`. Do not use the proposed later scale, tilt damping, or Prompt changes in this enlargement.
+
+WarmStart follows the existing Pareto-first Max–Min rule using both normalized objectives and normalized six-dimensional parameter distance, with its documented deterministic ties. Per seed, seek 16 complete, distinct, truly evaluated candidates with at most three planned generation requests, 48 returned proposals and 16 actual candidate evaluations. If planned budget ends with 8–16 complete distinct candidates, select eight, archive and report the actual pool size. Under eight, stop the study for insufficient initialization; do not pad with BO samples or silently retry transport. The same signed selected plan, including screening provenance and cost, is imported into both WarmStart arms. Discarded screened candidates remain in a separate audit pool and cost ledger; they do not silently enter the advertised optimizer history or final optimizer Pareto front.
+
+## Cost, conduct and stopping
+
+The proposed **new independent** cap is 1,740 DFN solves, 271 API requests and 28,800 seconds (eight hours) from live launch. All operations are single-threaded, each rate is attempted once, and transport is not automatically retried. Breakdown: `5×3×50×2=1500` BO solves, `5×8×2=80` numerical initialization solves, `5×16×2=160` WarmStart screening solves; `5×50=250` Region, `5×3=15` WarmStart and up to six gate/diagnostic API requests. A failed attempt is still charged; no unused allowance is treated as evidence of success. Old closed experiments and budgets remain separate.
+
+Before any DFN work, run a bounded API gate using a minimal request and complete, bound historical Region contexts. Require three successful complete contexts with verified request identity, legal Region action, unchanged real GP state, matched frozen EI computation, and at least one nonzero, mathematically bounded tilt. On gate failure, stop with zero new DFN solves. Authentication/model errors stop. During formal execution, three consecutive failed Region requests stop; an individual failure follows the existing plain-EI fallback and remains visible in the ledger. Worker or audit failure, deadline, over-cap, insufficient initial observations, or source/signature mismatch stops further work and closes owned subprocesses. No credential bytes enter source, config, CLI arguments, logs, snapshots or archives; the dedicated OpenCode environment credential is read in memory.
+
+## Analysis and claim limits
+
+Archive all 15 case trajectories, actual API/solve costs, selected and screening Pareto sets separately, complete RMSE curves, fixed-space HV, Region receipt/nonzero-tilt/changed-selection counts, and each seed's paired differences. Report final and round-by-round `F_U` (V and mV), `F_T` (K), HV and Pareto parameter sets; independently recompute RMSE from archived curves and HV from valid pairs. Compare at the same 50 BO rounds **and** at cumulative charged solver cost, including screening. Report per-seed values and the five-seed mean/spread without suppressing negative seeds or claiming independent physical replicates. A run ending early is marked incomplete, not filled to 50 rounds. Software, real DFN synthetic and measured-data claims remain distinct: this experiment can support only the synthetic comparison, not identifiable real parameters or measured fit.
+
+Source basis: the current clean worktree at `59f7f51e5e190ef2e04050773a95cda2cf3e6da9`, core source fingerprint `b101a433b054dca8931c6c59c31bfce0fe2cf752d8cf0636dc88766e3459c231`. Frozen proposal and five disabled configs are under `bo-repair-work/20261017_et_implementation/three-arm-50round-proposal-20261026`; the proposal's own manifest and new runner hashes must be sealed before launch. These preflight configs carry `max_solver_calls=0`, `max_llm_requests=0`, `llm.enabled=false`; their successful parsing is not a live experiment or full software regression.
