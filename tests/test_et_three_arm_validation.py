@@ -227,7 +227,62 @@ def test_bound_study_uses_new_paths_and_explicit_gate():
     assert bound.runner.PLAN_COMMIT == "3c27fe4db152d1be7859d037ee9420a9a770119d"
     report = bound.runner.dry_run(bound.runner.PROPOSAL / "protocol-proposal.json")
     assert report["API"] == report["DFN"] == 0
+    assert report["output_not_created"] is (not bound.runner.OUTPUT.exists())
+
+
+def test_eof_recovery_study_has_isolated_entry_and_zero_call_dry_run():
+    load()
+    script = ROOT / "scripts/run_et_three_arm_eof_validation.py"
+    assert script.is_file()
+    import run_et_three_arm_eof_validation as eof
+
+    assert eof.runner.CANDIDATE_GATE is True
+    assert eof.runner.OUTPUT.name == "g27a"
+    report = eof.runner.dry_run()
+    assert report["planned_cases"] == 15 and report["new_rounds"] == 750
+    assert report["API"] == report["DFN"] == 0
     assert report["output_not_created"] is True
+
+
+def test_eof_recovery_study_rejects_missing_or_mixed_policy(tmp_path, monkeypatch):
+    load()
+    import run_et_three_arm_eof_validation as eof
+
+    original = eof.runner.read(eof.runner.PROPOSAL / "protocol-proposal.json")
+    changed = deepcopy(original)
+    changed.pop("warmstart_preheader_tls_eof_continue")
+    missing = tmp_path / "missing-policy.json"
+    missing.write_text(json.dumps(changed), encoding="utf8")
+    with pytest.raises(ValueError, match="recovery policy"):
+        eof.load_eof_protocol(missing)
+
+    for seed in eof.runner.SEEDS:
+        config = eof.runner.read(eof.runner.PROPOSAL /
+                                 f"seed-{seed}.disabled-config.json")
+        (tmp_path / f"seed-{seed}.disabled-config.json").write_text(
+            json.dumps(config), encoding="utf8")
+    mixed = tmp_path / f"seed-{eof.runner.SEEDS[2]}.disabled-config.json"
+    config = json.loads(mixed.read_text(encoding="utf8"))
+    config["llm"]["warmstart_preheader_tls_eof_continue"] = False
+    mixed.write_text(json.dumps(config), encoding="utf8")
+    (tmp_path / "protocol-proposal.json").write_text(json.dumps(original), encoding="utf8")
+    monkeypatch.setattr(eof.runner, "PROPOSAL", tmp_path)
+    with pytest.raises(ValueError, match="every seed"):
+        eof.load_eof_protocol(tmp_path / "protocol-proposal.json")
+
+
+def test_eof_recovery_study_refuses_live_without_release(tmp_path, monkeypatch):
+    load()
+    import run_et_three_arm_eof_validation as eof
+
+    monkeypatch.setattr(eof.runner, "EVIDENCE", tmp_path)
+    monkeypatch.setattr(eof.runner, "OUTPUT", tmp_path / "unused")
+    monkeypatch.setattr(eof.runner, "read_credential",
+                        lambda: pytest.fail("credential read before release"))
+    with pytest.raises(ValueError, match="software release"):
+        eof.runner.execute()
+    assert not (tmp_path / "budget-journal.jsonl").exists()
+    assert not (tmp_path / "unused").exists()
 
 
 def test_bound_study_worker_mock_warmstart_initialization(tmp_path):
