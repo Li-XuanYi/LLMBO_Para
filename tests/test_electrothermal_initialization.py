@@ -59,3 +59,26 @@ def test_v2_mock_warmstart_archives_rule_and_v1_v2_plans_cannot_mix(tmp_path):
     future['optimization']['initial_plan']={'path':str(old_plan),'sha256':sha256_file(old_plan)}
     report,prepared=prepare_electrothermal_experiment(future,base_dir=tmp_path)
     assert prepared is None and any('initialization signatures incompatible' in error for error in report['errors'])
+
+
+def test_v2_initial_plan_import_replays_the_archived_selection_rule(tmp_path):
+    from llmbo_para.electrothermal_llm import ElectrothermalLLMController
+    from llmbo_para.electrothermal_workflow import run_electrothermal_experiment,prepare_electrothermal_experiment
+    from llmbo_para.electrothermal_audit import audit_electrothermal_run
+    from llmbo_para.runstore import sha256_file
+    from test_electrothermal_llm import Proposed
+
+    cfg=et_config();cfg['optimization']['mode']='warmstart_only'
+    cfg['optimization']['total_candidate_budget']=2
+    cfg['optimization']['warmstart']['selection_rule']='pareto_core_spacefill_v2'
+    _,prepared=prepare_electrothermal_experiment(cfg,base_dir=tmp_path)
+    mock=Proposed(prepared.space,[[.2]*6,[.8]*6,[.21]*6,[.7]*6])
+    first=run_electrothermal_experiment(cfg,tmp_path,base_dir=tmp_path,
+        llm_controller=ElectrothermalLLMController(transport=mock,is_mock=True))
+    plan=Path(first['run_directory'])/'initial-plan.json'
+    cfg['optimization']['mode']='full_llmbo_mo'
+    cfg['optimization']['initial_plan']={'path':str(plan),'sha256':sha256_file(plan)}
+    second=run_electrothermal_experiment(cfg,tmp_path,base_dir=tmp_path)
+    assert first['initial_plan_sha256']==second['initial_plan_sha256']
+    assert second['costs']['software_calls']==0 and second['API_calls']==0
+    assert audit_electrothermal_run(Path(second['run_directory']),deep=True)['passed']

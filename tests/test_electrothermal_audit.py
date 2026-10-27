@@ -4,6 +4,77 @@ import pytest
 from electrothermal_fixtures import et_config,R3,R4
 
 
+def _mock_warmstart_run(tmp_path,rule):
+    from llmbo_para.electrothermal_workflow import run_electrothermal_experiment,prepare_electrothermal_experiment
+    from llmbo_para.electrothermal_llm import ElectrothermalLLMController
+    from test_electrothermal_llm import Proposed
+
+    cfg=et_config();cfg['optimization']['mode']='warmstart_only'
+    cfg['optimization']['total_candidate_budget']=2
+    cfg['optimization']['warmstart']['selection_rule']=rule
+    report,prepared=prepare_electrothermal_experiment(cfg,base_dir=tmp_path)
+    assert report['ready']
+    transport=Proposed(prepared.space,[[.2]*6,[.8]*6,[.21]*6,[.7]*6])
+    result=run_electrothermal_experiment(cfg,tmp_path,base_dir=tmp_path,
+        llm_controller=ElectrothermalLLMController(transport=transport,is_mock=True))
+    assert transport.calls==1 and result['API_calls']==0 and result['costs']['solver_calls']==0
+    return Path(result['run_directory']),result
+
+
+def test_v1_v2_mock_runs_replay_same_complete_pool_at_equal_cost(tmp_path):
+    from llmbo_para.electrothermal_audit import audit_electrothermal_run
+
+    roots=[];results=[];pools=[]
+    for rule in ('pareto_maximin_v1','pareto_core_spacefill_v2'):
+        root,result=_mock_warmstart_run(tmp_path,rule)
+        roots.append(root);results.append(result)
+        assert audit_electrothermal_run(root,deep=True)['passed']
+        plan=json.loads((root/'initial-plan.json').read_text(encoding='utf8'))
+        pool=plan['history_evidence']['screening_records']
+        assert len(pool)==4 and all(row['complete_pair_valid'] and len(row['objectives'])==2 for row in pool)
+        pools.append(sorted((tuple(row['parameters']),tuple(row['objectives'])) for row in pool))
+    assert pools[0]==pools[1]
+    assert results[0]['costs']['software_calls']==results[1]['costs']['software_calls']==12
+    assert results[0]['costs']['mock_llm_requests']==results[1]['costs']['mock_llm_requests']==1
+
+
+@pytest.mark.parametrize('damage',['rule','selected_id','selected_order','quality','coordinate','scale','source_objective'])
+def test_v2_warmstart_deep_audit_rejects_selection_or_objective_tampering(tmp_path,damage):
+    from llmbo_para.electrothermal_audit import audit_electrothermal_run
+
+    root,_=_mock_warmstart_run(tmp_path,'pareto_core_spacefill_v2')
+    if damage=='source_objective':
+        path=next((root/'electrothermal-evaluations').glob('*.json'))
+        saved=json.loads(path.read_text(encoding='utf8'))
+        saved['objectives'][1]+=1.
+    else:
+        path=root/'warmstart-selection.json'
+        saved=json.loads(path.read_text(encoding='utf8'))
+        if damage=='rule':saved['rule']='pareto_maximin_v1'
+        elif damage=='selected_id':saved['selected_ids'][0]=next(i for i in saved['pool_ids'] if i not in saved['selected_ids'])
+        elif damage=='selected_order':saved['selected_ids'].reverse()
+        elif damage=='quality':saved['quality'][saved['pool_ids'][0]]+=1.
+        elif damage=='coordinate':saved['normalized_parameters'][saved['pool_ids'][0]][0]+=.1
+        elif damage=='scale':saved['objective_scales'][0]*=2.
+    path.write_text(json.dumps(saved),encoding='utf8')
+    audit=audit_electrothermal_run(root,deep=True)
+    assert not audit['passed'],(damage,audit)
+
+
+def test_partial_temperature_record_never_enters_either_warmstart_rule():
+    from llmbo_para.electrothermal_llm import warmstart_selection_details
+    from test_electrothermal_llm import _selector_records
+
+    space,records=_selector_records([
+        ('A',.2,(.1,1.)),('B',.8,(.2,.5)),('T-failed',.6,None),
+    ])
+    for rule in ('pareto_maximin_v1','pareto_core_spacefill_v2'):
+        details=warmstart_selection_details(records,space=space,count=2,
+            objective_scales=[.1,1.],rule=rule)
+        assert details['selected_ids']==['A','B']
+        assert 'T-failed' not in details['pool_ids']
+
+
 @pytest.mark.parametrize('damage',['none','temperature','mapping','rates','weight','scale','labels','cost'])
 def test_tampering_temperature_mapping_rates_weight_or_scales_fails(tmp_path,damage):
     from llmbo_para.electrothermal_workflow import run_electrothermal_experiment

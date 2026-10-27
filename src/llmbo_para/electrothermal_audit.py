@@ -412,13 +412,20 @@ def audit_electrothermal_run(run_directory,*,deep=False):
                 equal(plan.plan_sha256,initial['plan_sha256'],'shared initialization plan digest differs')
                 equal(selected,[r.evaluation_id for r in plan.records],'selected plan IDs differ')
                 evidence=plan.history_evidence
+                if evidence is not None:
+                    from .electrothermal_config import effective_warmstart_selection_rule
+                    equal(evidence['selection'].get('rule'),effective_warmstart_selection_rule(cfg),
+                          'imported initialization selection rule differs from configuration')
                 equal(summary['initialization_cost_attribution'],{'origin_run_id':evidence['origin_run_id'] if evidence else None,
                     'historical_costs':evidence['costs'] if evidence else None,'included_in_current_costs':bool(evidence and evidence['origin_run_id']==manifest['run_id']),
                     'plan_sha256':plan.plan_sha256,'status':'verified_history' if evidence else 'not_applicable_or_not_supplied'},'initialization historical cost attribution differs')
             if (root/'warmstart-selection.json').exists():
                 from .electrothermal_llm import warmstart_selection_details
+                from .electrothermal_config import effective_warmstart_selection_rule
                 saved=read('warmstart-selection.json');pool=[by_id[i] for i in saved['pool_ids']]
-                details=warmstart_selection_details(pool,space=space,count=cfg['optimization']['initial_count'],objective_scales=cfg['optimization']['objective_scales'],rho_aug=cfg['optimization']['rho_aug'])
+                rule=effective_warmstart_selection_rule(cfg)
+                equal(saved.get('rule'),rule,'WarmStart selection rule differs from configuration')
+                details=warmstart_selection_details(pool,space=space,count=cfg['optimization']['initial_count'],objective_scales=cfg['optimization']['objective_scales'],rho_aug=cfg['optimization']['rho_aug'],rule=rule)
                 for key,value in details.items():equal(saved[key],value,'WarmStart selection differs: '+key)
             from .scalarization import WeightScheduler,build_scalarization_context
             from .surrogate import Matern52GP
