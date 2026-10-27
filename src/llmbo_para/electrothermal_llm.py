@@ -27,8 +27,10 @@ def is_recoverable_warmstart_preheader_eof(outcome: dict) -> bool:
             and diagnostic.get('os_errno')==8)
 
 
-def warmstart_selection_details(records,*,space,count,objective_scales,rho_aug=.05):
+def warmstart_selection_details(records,*,space,count,objective_scales,rho_aug=.05,rule='pareto_maximin_v1'):
     if type(count) is not int or count<2:raise ValueError('at least two seeds required')
+    if type(rule) is not str or rule not in ('pareto_maximin_v1','pareto_core_spacefill_v2'):
+        raise ValueError('unknown WarmStart selection rule')
     ids={};unique={};duplicates={}
     for record in records:
         if record.evaluation_id in ids and digest_value(ids[record.evaluation_id].to_dict())!=digest_value(record.to_dict()):raise ValueError('conflicting evaluation ID')
@@ -55,12 +57,25 @@ def warmstart_selection_details(records,*,space,count,objective_scales,rho_aug=.
             chosen=min(layer,key=key);i=chosen.evaluation_id
             steps.append({'selected_id':i,'rank':rank,'distance':distances[i],'ordering_key':key(chosen)});selected.append(i);layer.remove(chosen)
         remaining=[r for r in remaining if r.evaluation_id not in {f.evaluation_id for f in front}];rank+=1
-    return {'rule':'pareto_maximin_v1','selected_ids':selected,'ranks':ranks,'quality':q,'normalized_parameters':x,
-            'duplicates':duplicates,'steps':steps,'objective_scales':list(objective_scales),'rho_aug':rho_aug,'pool_ids':[r.evaluation_id for r in pool]}
+    details={'rule':'pareto_maximin_v1','selected_ids':selected,'ranks':ranks,'quality':q,'normalized_parameters':x,
+             'duplicates':duplicates,'steps':steps,'objective_scales':list(objective_scales),'rho_aug':rho_aug,'pool_ids':[r.evaluation_id for r in pool]}
+    if rule=='pareto_maximin_v1':return details
+
+    core=[i for i in selected if ranks[i]==0]
+    chosen=core[:];v2_steps=steps[:len(core)]
+    candidates=[r for r in pool if r.evaluation_id not in set(core)]
+    while candidates and len(chosen)<count:
+        distances={r.evaluation_id:min(float(np.linalg.norm(np.asarray(x[r.evaluation_id])-x[s])/np.sqrt(6))
+                                       for s in chosen) for r in candidates}
+        key=lambda r:(-distances[r.evaluation_id],q[r.evaluation_id],ranks[r.evaluation_id],x[r.evaluation_id],r.evaluation_id)
+        winner=min(candidates,key=key);i=winner.evaluation_id
+        v2_steps.append({'selected_id':i,'rank':ranks[i],'distance':distances[i],'ordering_key':key(winner)})
+        chosen.append(i);candidates.remove(winner)
+    return {**details,'rule':rule,'selected_ids':chosen,'steps':v2_steps}
 
 
-def select_electrothermal_warmstart(records,*,space,count,objective_scales,rho_aug=.05):
-    return tuple(warmstart_selection_details(records,space=space,count=count,objective_scales=objective_scales,rho_aug=rho_aug)['selected_ids'])
+def select_electrothermal_warmstart(records,*,space,count,objective_scales,rho_aug=.05,rule='pareto_maximin_v1'):
+    return tuple(warmstart_selection_details(records,space=space,count=count,objective_scales=objective_scales,rho_aug=rho_aug,rule=rule)['selected_ids'])
 
 
 def build_electrothermal_payload(task,*,prepared,history,context=None):
