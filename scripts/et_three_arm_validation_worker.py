@@ -87,6 +87,7 @@ def _summarize_initial(store, prepared, plan, *, kind, count, pool_count):
 
 def initialize_numeric(spec, prepared, store, budget, backend):
     """Eight preregistered Sobol points, in their original sequence."""
+    from inspect import signature
     from llmbo_para.electrothermal_evaluation import ElectrothermalEvaluator
     from llmbo_para.electrothermal_provenance import write_initial_plan, load_initial_plan
 
@@ -107,8 +108,16 @@ def initialize_numeric(spec, prepared, store, budget, backend):
     path = store.path / "initial-plan.json"
     # Parego accepts a numerical plan without a WarmStart-selection claim.
     write_initial_plan(path, records, signatures=prepared.signatures)
-    plan = load_initial_plan(path, space=prepared.space,
-                             dataset=prepared.dataset, signatures=prepared.signatures)
+    selection_rule = prepared.config['optimization']['warmstart'].get('selection_rule', 'pareto_maximin_v1')
+    if type(selection_rule) is not str or selection_rule not in ('pareto_maximin_v1', 'pareto_core_spacefill_v2'):
+        raise ValueError('invalid warmstart.selection_rule')
+    plan_options = {'space': prepared.space, 'dataset': prepared.dataset,
+                    'signatures': prepared.signatures}
+    if 'expected_selection_rule' in signature(load_initial_plan).parameters:
+        plan_options['expected_selection_rule'] = selection_rule
+    elif selection_rule != 'pareto_maximin_v1':
+        raise ValueError('old source only supports pareto_maximin_v1')
+    plan = load_initial_plan(path, **plan_options)
     return _summarize_initial(store, prepared, plan,
                               kind="numeric_sobol", count=8, pool_count=8)
 

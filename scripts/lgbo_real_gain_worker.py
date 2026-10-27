@@ -212,6 +212,7 @@ def permanent_api_failure(outcome):
 
 
 def initialization(spec, prepared, store, budget, backend):
+    from inspect import signature
     from llmbo_para.electrothermal_evaluation import ElectrothermalEvaluator
     from llmbo_para.electrothermal_llm import warmstart_selection_details
     from llmbo_para.electrothermal_provenance import write_initial_plan, load_initial_plan
@@ -226,15 +227,29 @@ def initialization(spec, prepared, store, budget, backend):
         records.append(replace(record, signatures=asdict(prepared.signatures)))
     if len(records) != 8 or any(not r.complete_pair_valid for r in records):
         raise ValueError('fresh initialization requires eight complete pairs')
-    details = warmstart_selection_details(records, space=prepared.space, count=8,
-        objective_scales=(.1, 1.), rho_aug=.05)
+    selection_rule = prepared.config['optimization']['warmstart'].get('selection_rule', 'pareto_maximin_v1')
+    if type(selection_rule) is not str or selection_rule not in ('pareto_maximin_v1', 'pareto_core_spacefill_v2'):
+        raise ValueError('invalid warmstart.selection_rule')
+    selection_options = {'space': prepared.space, 'count': 8,
+                         'objective_scales': (.1, 1.), 'rho_aug': .05}
+    if 'rule' in signature(warmstart_selection_details).parameters:
+        selection_options['rule'] = selection_rule
+    elif selection_rule != 'pareto_maximin_v1':
+        raise ValueError('old source only supports pareto_maximin_v1')
+    details = warmstart_selection_details(records, **selection_options)
     by_id = {r.evaluation_id: r for r in records}
     selected = [by_id[ident] for ident in details['selected_ids']]
     evidence = {'origin_run_id': store.run_id, 'screening_records': [r.to_dict() for r in records],
                 'selection': details, 'cost_events': list(store.ledger.events.values()), 'costs': store.ledger.summary()}
     path = store.path/'initial-plan.json'
     write_initial_plan(path, selected, signatures=prepared.signatures, history_evidence=evidence)
-    load_initial_plan(path, space=prepared.space, dataset=prepared.dataset, signatures=prepared.signatures)
+    plan_options = {'space': prepared.space, 'dataset': prepared.dataset,
+                    'signatures': prepared.signatures}
+    if 'expected_selection_rule' in signature(load_initial_plan).parameters:
+        plan_options['expected_selection_rule'] = selection_rule
+    elif selection_rule != 'pareto_maximin_v1':
+        raise ValueError('old source only supports pareto_maximin_v1')
+    load_initial_plan(path, **plan_options)
     result = {'status': 'completed', 'candidate_count': 8, 'costs': store.ledger.summary(),
               'run_directory': str(store.path), 'plan_path': str(path),
               'ordered_records': [r.to_dict() for r in selected]}
