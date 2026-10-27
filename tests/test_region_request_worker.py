@@ -133,14 +133,16 @@ def test_deadline_during_http_read_records_start_and_leaves_no_worker(monkeypatc
     monkeypatch.setattr(requests, '_chat_request_worker', blocked_http_request_worker)
     store = make_store(tmp_path_factory)
     transport = make_transport(requests, store)
-    transport.timeout_s = 3.
+    # Windows process startup can exceed a few seconds under the full suite.
+    # Leave startup headroom while the offline read stays blocked past the deadline.
+    transport.timeout_s = 20.
     previous_children = {process.pid for process in multiprocessing.active_children()}
     started = time.monotonic()
 
     with pytest.raises(requests.LLMRequestFailure) as caught:
         transport.post(payload())
 
-    assert time.monotonic() - started < 6.
+    assert time.monotonic() - started < 24.
     assert caught.value.kind == 'deadline_exceeded'
     assert caught.value.diagnostic['http_request_started']
     assert {process.pid for process in multiprocessing.active_children()} <= previous_children

@@ -21,7 +21,7 @@ def _with_offline_provider(mode, spec, payload, run_path, connection):
 
         def read(self, count):
             if mode == 'blocked_read':
-                time.sleep(10)
+                time.sleep(60)
             if mode == 'malformed_outer':
                 return b'{invalid outer response'[:count]
             content = ('{invalid inner response' if mode == 'malformed_inner' else
