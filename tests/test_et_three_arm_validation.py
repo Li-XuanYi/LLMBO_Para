@@ -238,10 +238,12 @@ def test_eof_recovery_study_has_isolated_entry_and_zero_call_dry_run():
 
     assert eof.runner.CANDIDATE_GATE is True
     assert eof.runner.OUTPUT.name == "g27a"
+    output_existed = eof.runner.OUTPUT.exists()
     report = eof.runner.dry_run()
     assert report["planned_cases"] == 15 and report["new_rounds"] == 750
     assert report["API"] == report["DFN"] == 0
-    assert report["output_not_created"] is True
+    assert eof.runner.OUTPUT.exists() is output_existed
+    assert report["output_not_created"] is (not output_existed)
 
 
 def test_eof_recovery_study_rejects_missing_or_mixed_policy(tmp_path, monkeypatch):
