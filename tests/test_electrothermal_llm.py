@@ -109,6 +109,51 @@ def test_core_spacefill_v2_tie_uses_quality_then_rank_coordinates_and_id():
     assert details['steps'][-1]['distance']==.25
 
 
+def test_core_spacefill_v2_equal_distance_prefers_quality_before_coordinates():
+    from llmbo_para.electrothermal_llm import warmstart_selection_details
+    from llmbo_para.electrothermal_evaluation import ElectrothermalEvaluationResult
+
+    class UnitSpace:
+        profile='electrothermal_4e2t'
+        def validate(self,point):return tuple(point)
+        def normalize(self,point):return tuple(point)
+
+    def row(ident,x,y):
+        return ElectrothermalEvaluationResult(ident,tuple([x]*6),'electrothermal_4e2t',
+            ('0.5C','1C'),(),{'F_U':y[0],'F_T':y[1]},True,tuple(y),
+            'quality-tie','fresh_simulation',{'solver_calls':0,'software_calls':0},{'fixture':'quality'})
+
+    rows=[row('A',.5,(.1,.1)),row('B',.25,(.2,.5)),row('C',.75,(.3,.3))]
+    details=warmstart_selection_details(rows,space=UnitSpace(),count=2,
+        objective_scales=[1.,1.],rule='pareto_core_spacefill_v2')
+    assert details['ranks']=={'A':0,'B':1,'C':1}
+    assert details['quality']['C']<details['quality']['B']
+    assert details['selected_ids']==['A','C']
+
+
+def test_core_spacefill_v2_equal_distance_and_quality_prefers_pareto_rank():
+    from llmbo_para.electrothermal_llm import warmstart_selection_details
+    from llmbo_para.electrothermal_evaluation import ElectrothermalEvaluationResult
+
+    class UnitSpace:
+        profile='electrothermal_4e2t'
+        def validate(self,point):return tuple(point)
+        def normalize(self,point):return tuple(point)
+
+    def row(ident,x,y):
+        return ElectrothermalEvaluationResult(ident,tuple([x]*6),'electrothermal_4e2t',
+            ('0.5C','1C'),(),{'F_U':y[0],'F_T':y[1]},True,tuple(y),
+            'rank-tie','fresh_simulation',{'solver_calls':0,'software_calls':0},{'fixture':'rank'})
+
+    rows=[row('A',.5,(.1,.1)),row('B',.75,(.2,.5)),
+          row('C',.25,(.5,.2)),row('D',.6,(.3,.15))]
+    details=warmstart_selection_details(rows,space=UnitSpace(),count=2,
+        objective_scales=[1.,1.],rule='pareto_core_spacefill_v2')
+    assert details['quality']['B']==details['quality']['C']
+    assert details['ranks']['B']==1 and details['ranks']['C']==2
+    assert details['selected_ids']==['A','B']
+
+
 def test_core_spacefill_v2_rejects_unknown_rule():
     from llmbo_para.electrothermal_llm import warmstart_selection_details
     space,rows=_selector_records([('A',.2,(.1,.9)),('B',.8,(.2,.5))])

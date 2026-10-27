@@ -278,7 +278,8 @@ class ElectrothermalLLMController:
         evidence={'origin_run_id':store.run_id,'screening_records':[{**r.to_dict(),'signatures':asdict(prepared.signatures)} for r in records],
                   'selection':details,'cost_events':list(store.ledger.events.values()),'costs':store.ledger.summary()}
         path=store.path/'initial-plan.json';write_initial_plan(path,selected,signatures=prepared.signatures,history_evidence=evidence)
-        return load_initial_plan(path,space=prepared.space,dataset=prepared.dataset,signatures=prepared.signatures)
+        return load_initial_plan(path,space=prepared.space,dataset=prepared.dataset,signatures=prepared.signatures,
+                                 expected_selection_rule=effective_warmstart_selection_rule(prepared.config))
 
     def request_region(self,prepared,history,context,store):
         payload=build_electrothermal_payload('region_preference_electrothermal',prepared=prepared,history=history,context=context)

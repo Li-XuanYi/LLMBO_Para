@@ -114,11 +114,18 @@ def write_initial_plan(path,records,*,signatures,history_evidence=None):
     return payload['plan_sha256']
 
 
-def load_initial_plan(path,*,space,dataset,signatures):
+def load_initial_plan(path,*,space,dataset,signatures,expected_selection_rule):
+    from .electrothermal_config import WARMSTART_SELECTION_RULES
+    if type(expected_selection_rule) is not str or expected_selection_rule not in WARMSTART_SELECTION_RULES:
+        raise ValueError('invalid expected initial plan selection rule')
     payload=json.loads(Path(path).read_text(encoding='utf-8'));claimed=payload.pop('plan_sha256',None)
     if claimed!=digest_value(payload) or payload.get('schema_version')!=2 or payload.get('parameter_profile')!=space.profile or tuple(payload.get('fit_rates',()))!=dataset.fit_rates:
         raise ValueError('initial plan schema/profile/rate/hash differs')
     if payload.get('signatures',{}).get('initialization_compatibility')!=signatures.initialization_compatibility:raise ValueError('initialization signatures incompatible')
+    evidence=payload.get('history_evidence')
+    if evidence is not None and (not isinstance(evidence,dict) or not isinstance(evidence.get('selection'),dict)
+                                 or evidence['selection'].get('rule')!=expected_selection_rule):
+        raise ValueError('initial plan selection rule differs from configuration')
     records=[];keys=set()
     for raw in payload.get('records',[]):
         record=result_from_dict(raw);space.validate(record.parameters)
@@ -128,7 +135,6 @@ def load_initial_plan(path,*,space,dataset,signatures):
         if key in keys:raise ValueError('initial plan duplicates physical inputs')
         keys.add(key);records.append(record)
     if len(records)<2:raise ValueError('insufficient complete initial records')
-    evidence=payload.get('history_evidence')
     if evidence is not None:
         from .electrothermal_store import CostLedger
         from .electrothermal_llm import warmstart_selection_details

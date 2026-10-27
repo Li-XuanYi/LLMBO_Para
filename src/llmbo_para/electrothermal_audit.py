@@ -408,7 +408,9 @@ def audit_electrothermal_run(run_directory,*,deep=False):
             require(len(history)>=2 and all(r.complete_pair_valid for r in history),'invalid initialization')
             if initial.get('kind')=='imported_plan':
                 planfile=root/'initial-plan.json' if (root/'initial-plan.json').exists() else root/'inputs/initial-plan.json'
-                plan=load_initial_plan(planfile,space=space,dataset=dataset,signatures=signatures)
+                from .electrothermal_config import effective_warmstart_selection_rule
+                plan=load_initial_plan(planfile,space=space,dataset=dataset,signatures=signatures,
+                                       expected_selection_rule=effective_warmstart_selection_rule(cfg))
                 equal(plan.plan_sha256,initial['plan_sha256'],'shared initialization plan digest differs')
                 equal(selected,[r.evaluation_id for r in plan.records],'selected plan IDs differ')
                 evidence=plan.history_evidence

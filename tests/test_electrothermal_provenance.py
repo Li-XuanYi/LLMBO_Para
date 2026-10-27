@@ -53,8 +53,8 @@ def test_initial_plan_recomputes_curves_and_rejects_legacy_or_corruption(tmp_pat
     sig=build_electrothermal_signatures(cfg,ds);ev=ElectrothermalEvaluator(sp,SyntheticElectrothermalSimulator(),fit_rates=R3)
     records=[ev.evaluate(sp.denormalize([v]*6),ds) for v in (.4,.6)]
     path=tmp_path/'plan.json';write_initial_plan(path,records,signatures=sig)
-    assert len(load_initial_plan(path,space=sp,dataset=ds,signatures=sig).records)==2
+    assert len(load_initial_plan(path,space=sp,dataset=ds,signatures=sig,expected_selection_rule='pareto_maximin_v1').records)==2
     value=json.loads(path.read_text());value['records'][0]['rates'][0]['trace']['temperature_k'][1]+=3;path.write_text(json.dumps(value))
-    with pytest.raises(ValueError):load_initial_plan(path,space=sp,dataset=ds,signatures=sig)
+    with pytest.raises(ValueError):load_initial_plan(path,space=sp,dataset=ds,signatures=sig,expected_selection_rule='pareto_maximin_v1')
     path.write_text(json.dumps({'schema_version':1,'parameters':[[.5]*6]*2}))
-    with pytest.raises(ValueError):load_initial_plan(path,space=sp,dataset=ds,signatures=sig)
+    with pytest.raises(ValueError):load_initial_plan(path,space=sp,dataset=ds,signatures=sig,expected_selection_rule='pareto_maximin_v1')

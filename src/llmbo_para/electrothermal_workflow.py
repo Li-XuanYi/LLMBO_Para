@@ -5,7 +5,7 @@ import json
 import math
 import time
 import numpy as np
-from .electrothermal_config import electrothermal_configuration_errors
+from .electrothermal_config import electrothermal_configuration_errors,effective_warmstart_selection_rule
 from .electrothermal_data import load_electrothermal_dataset,ElectrothermalDataset
 from .electrothermal_evaluation import ElectrothermalEvaluator
 from .electrothermal_provenance import build_electrothermal_signatures,load_initial_plan
@@ -36,7 +36,8 @@ def prepare_electrothermal_experiment(config,*,base_dir):
         if config['optimization'].get('initial_plan'):
             spec=config['optimization']['initial_plan'];path=(Path(base_dir)/spec['path']).resolve()
             if sha256_file(path)!=spec['sha256']:raise ValueError('initial plan file hash differs')
-            initial=load_initial_plan(path,space=space,dataset=dataset,signatures=signatures)
+            initial=load_initial_plan(path,space=space,dataset=dataset,signatures=signatures,
+                                      expected_selection_rule=effective_warmstart_selection_rule(config))
             if config['optimization']['mode']!='parego' and initial.history_evidence is None:raise ValueError('LLM comparison initial plan requires full historical screening cost evidence')
         report.update(ready=True,fit_rates=list(dataset.fit_rates),signatures=asdict(signatures))
         return report,PreparedElectrothermalExperiment(config,space,dataset,signatures,initial)
