@@ -38,3 +38,16 @@ def test_profile_and_rate_order_are_explicit():
     space=parameter_space_from_config(et_config())
     assert space.profile=='electrothermal_4e2t'
     assert parameter_space_from_config(synthetic_config()).profile=='voltage_6p'
+
+
+def test_warmstart_selection_rule_is_optional_versioned_and_strict():
+    cfg=et_config()
+    assert configuration_errors(cfg)==[]
+    for rule in ('pareto_maximin_v1','pareto_core_spacefill_v2'):
+        versioned=clone(cfg)
+        versioned['optimization']['warmstart']['selection_rule']=rule
+        assert configuration_errors(versioned)==[]
+    for invalid in ('unknown',None,True,1,[]):
+        versioned=clone(cfg)
+        versioned['optimization']['warmstart']['selection_rule']=invalid
+        assert any('selection_rule' in error for error in configuration_errors(versioned))

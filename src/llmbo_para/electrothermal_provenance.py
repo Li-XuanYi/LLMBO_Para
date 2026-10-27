@@ -39,8 +39,10 @@ def build_electrothermal_signatures(config,dataset,*,source_root=None):
     opt=config['optimization']
     comparison=digest_value({'evaluation':evaluation,'scales':opt['objective_scales'],'HV_reference':opt['hv_reference'],
         'HV_space':'Y/scales','rho_aug':opt['rho_aug'],'transform':'identity','ideal':[0.,0.]})
+    from .electrothermal_config import effective_warmstart_selection_rule
+    warmstart={k:v for k,v in opt['warmstart'].items() if k!='selection_rule'}
     init=digest_value({'evaluation':evaluation,'comparison':comparison,'source':source,'initial_count':opt['initial_count'],
-                      'selection':'pareto_maximin_v1','warmstart':opt['warmstart']})
+                      'selection':effective_warmstart_selection_rule(config),'warmstart':warmstart})
     algorithm=digest_value({'optimization':opt,'budgets':config['budgets'],'llm':config['llm']})
     return SignatureBundle(digest_value(config),dataset.data_signature,model,evaluation,comparison,init,algorithm,source,dataset.fit_rates)
 
@@ -137,7 +139,7 @@ def load_initial_plan(path,*,space,dataset,signatures):
             if not record.signatures or any(record.signatures.get(k)!=getattr(signatures,k) for k in ('data','model_evaluation','evaluation_protocol','initialization_compatibility','source')):raise ValueError('screening semantic signatures differ')
             if record.evaluation_id in pool_by_id:raise ValueError('duplicate screening ID')
             pool.append(record);pool_by_id[record.evaluation_id]=record
-        selection=evidence['selection'];details=warmstart_selection_details(pool,space=space,count=len(records),objective_scales=selection['objective_scales'],rho_aug=selection['rho_aug'])
+        selection=evidence['selection'];details=warmstart_selection_details(pool,space=space,count=len(records),objective_scales=selection['objective_scales'],rho_aug=selection['rho_aug'],rule=selection['rule'])
         for key,value in details.items():
             if digest_value(selection[key])!=digest_value(value):raise ValueError('historical selection does not reproduce')
         if details['selected_ids']!=[r.evaluation_id for r in records]:raise ValueError('historical selected records differ')

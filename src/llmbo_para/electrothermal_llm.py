@@ -265,7 +265,9 @@ class ElectrothermalLLMController:
                 if self.solver_budget is not None and prepared.config['model']['provider']=='pybamm' and self.solver_budget.maximum-self.solver_budget.calls<len(prepared.dataset.fit_rates)*options['max_rate_attempts']:
                     reason='insufficient_solver_reservation';break
                 result=self.evaluator.evaluate(point,prepared.dataset);evaluations+=1;cache[key]=result;records.append(result);store.save_evaluation(result,phase='warmstart_screening')
-        details=warmstart_selection_details(records,space=prepared.space,count=options['initial_count'],objective_scales=options['objective_scales'],rho_aug=options['rho_aug'])
+        from .electrothermal_config import effective_warmstart_selection_rule
+        details=warmstart_selection_details(records,space=prepared.space,count=options['initial_count'],objective_scales=options['objective_scales'],rho_aug=options['rho_aug'],
+                                            rule=effective_warmstart_selection_rule(prepared.config))
         good={r.evaluation_id:r for r in records};selected=[good[i] for i in details['selected_ids']]
         status='completed' if len(selected)==options['initial_count'] else 'insufficient_initialization'
         details.update(status=status,returned_candidates=returned,evaluations=evaluations,requests=self.requests,stop_reason='pool_complete' if len([r for r in records if r.complete_pair_valid])>=settings['pool_size'] else reason,

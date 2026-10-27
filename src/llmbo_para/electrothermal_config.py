@@ -8,6 +8,14 @@ FIXED_KEYS=('cell_volume_m3','cooling_area_m2','negative_porosity','positive_por
             'negative_conductivity_s_m','positive_conductivity_s_m','electrolyte_diffusivity_multiplier')
 LAW_KEYS=('reference_temperature_k','activation_energy_n_j_mol','activation_energy_p_j_mol')
 CONFIRMATIONS=('current','time','temperature_unit','temperature_probe','initial_state','ambient_temperature','cooling')
+WARMSTART_SELECTION_RULES=('pareto_maximin_v1','pareto_core_spacefill_v2')
+
+
+def effective_warmstart_selection_rule(config):
+    rule=config['optimization']['warmstart'].get('selection_rule','pareto_maximin_v1')
+    if type(rule) is not str or rule not in WARMSTART_SELECTION_RULES:
+        raise ValueError('invalid warmstart.selection_rule')
+    return rule
 
 
 def validate_fit_rates(value:object)->FitRates:
@@ -122,7 +130,9 @@ def electrothermal_configuration_errors(config):
     warm=opt.get('warmstart')
     if not isinstance(warm,dict):errors.append('warmstart must be an object')
     else:
-        strict(warm,('count','pool_size','max_requests','max_candidates','max_evaluations'),'warmstart')
+        strict(warm,('count','pool_size','max_requests','max_candidates','max_evaluations','selection_rule'),'warmstart')
+        try:effective_warmstart_selection_rule(config)
+        except ValueError as exc:errors.append(str(exc))
         for name in ('count','pool_size','max_requests','max_candidates','max_evaluations'):numeric(warm.get(name),'warmstart.'+name,integer=True)
         if warm.get('count')!=opt.get('initial_count'):errors.append('warmstart count must equal initial_count')
         if type(warm.get('pool_size')) is int and type(opt.get('initial_count')) is int and warm['pool_size']<opt['initial_count']:errors.append('warmstart pool smaller than seed count')

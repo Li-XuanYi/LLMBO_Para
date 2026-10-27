@@ -1,7 +1,7 @@
 from dataclasses import asdict
 import pytest
 from llmbo_para.config import parameter_space_from_config
-from electrothermal_fixtures import et_config,R3,R4
+from electrothermal_fixtures import et_config,R3,R4,clone
 
 
 def test_three_four_rate_signatures_reject_cache_even_with_same_6d_2d_shape():
@@ -23,6 +23,25 @@ def test_region_switch_changes_run_identity_but_shared_init_is_compatible():
     assert a.config!=b.config and a.initialization_compatibility==b.initialization_compatibility
     cfg['optimization']['objective_scales'][0]*=2
     c=build_electrothermal_signatures(cfg,ds);assert c.initialization_compatibility!=a.initialization_compatibility
+
+
+def test_warmstart_rule_binds_initialization_without_changing_physical_protocol():
+    from llmbo_para.electrothermal_provenance import build_electrothermal_signatures
+    from llmbo_para.electrothermal_synthetic import make_synthetic_dataset
+
+    dataset=make_synthetic_dataset(R3)
+    absent=et_config();v1=clone(absent);v2=clone(absent)
+    v1['optimization']['warmstart']['selection_rule']='pareto_maximin_v1'
+    v2['optimization']['warmstart']['selection_rule']='pareto_core_spacefill_v2'
+    base=build_electrothermal_signatures(absent,dataset)
+    explicit=build_electrothermal_signatures(v1,dataset)
+    changed=build_electrothermal_signatures(v2,dataset)
+    assert base.config!=explicit.config!=changed.config
+    assert base.initialization_compatibility==explicit.initialization_compatibility
+    assert changed.initialization_compatibility!=base.initialization_compatibility
+    assert len({base.algorithm,explicit.algorithm,changed.algorithm})==3
+    for name in ('source','data','model_evaluation','evaluation_protocol','comparison_protocol','fit_rates'):
+        assert getattr(base,name)==getattr(explicit,name)==getattr(changed,name)
 
 
 def test_initial_plan_recomputes_curves_and_rejects_legacy_or_corruption(tmp_path):
