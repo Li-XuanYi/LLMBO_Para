@@ -312,6 +312,91 @@ def test_opt_in_preheader_eof_uses_new_bound_request_and_deep_audit(tmp_path):
     assert not audit_electrothermal_run(root, deep=True)["passed"]
 
 
+def test_deep_audit_binds_recovered_failed_http_request_and_preheader_evidence(tmp_path):
+    from pathlib import Path
+    from llmbo_para.electrothermal_audit import audit_electrothermal_run
+    from llmbo_para.electrothermal_llm import ElectrothermalLLMController
+    from llmbo_para.electrothermal_workflow import (
+        prepare_electrothermal_experiment, run_electrothermal_experiment)
+    from llmbo_para.runstore import canonical_json
+
+    cfg, _ = _recovery_config(tmp_path)
+    cfg["optimization"]["warmstart"]["pool_size"] = 8
+    cfg["llm"].update(enabled=True, endpoint="https://fixture.invalid/v1/chat/completions",
+                      api_key_env="FIXTURE_KEY", model="fixture-model")
+    cfg["budgets"]["max_llm_requests"] = 3
+    _, prepared = prepare_electrothermal_experiment(cfg, base_dir=tmp_path)
+    output = tmp_path / "runs"
+
+    class OfflineChat:
+        calls = 0
+
+        def post(self, payload):
+            self.calls += 1
+            root = next(path.parent for path in output.rglob("manifest.json"))
+            http = root / "http"
+            http.mkdir(exist_ok=True)
+            frozen = json.loads(canonical_json(payload))
+            body = {"model": cfg["llm"]["model"], "messages": [
+                {"role": "system", "content": frozen["instructions"] +
+                 "\nReturn exactly one JSON object matching the supplied response contract."},
+                {"role": "user", "content": json.dumps(
+                    {k: v for k, v in frozen.items() if k != "instructions"},
+                    ensure_ascii=False)}],
+                "max_tokens": cfg["llm"]["max_tokens"], "stream": False,
+                "response_format": {"type": "json_object"}}
+            artifact = payload["artifact_task"]
+            (http / (artifact + ".request.json")).write_text(
+                json.dumps({"endpoint": cfg["llm"]["endpoint"],
+                            "headers": {}, "body": body}), encoding="utf8")
+            if self.calls == 1:
+                diagnostic = _preheader_failure().diagnostic["network_diagnostic"]
+                for suffix in ("error", "supervision"):
+                    (http / (artifact + "." + suffix + ".json")).write_text(
+                        json.dumps({"network_diagnostic": diagnostic,
+                                    "failure_stage": "awaiting_headers",
+                                    "http_request_started": True,
+                                    "http_status": None,
+                                    "status": "failed", "reason": "transport_error",
+                                    "error_type": "URLError"}), encoding="utf8")
+                with (root / "events.jsonl").open("a", encoding="utf8") as stream:
+                    stream.write(json.dumps({"type": "llm_http_started", "task": artifact}) + "\n")
+                    stream.write(json.dumps({"type": "llm_http_finished", "task": artifact}) + "\n")
+                raise _preheader_failure()
+            reply = _eight_candidates(prepared)
+            (http / (artifact + ".response.json")).write_text(
+                json.dumps({"choices": [{"finish_reason": "stop",
+                                        "message": {"content": json.dumps(reply)}}]}),
+                encoding="utf8")
+            return reply
+
+    result = run_electrothermal_experiment(cfg, output, base_dir=tmp_path,
+        llm_controller=ElectrothermalLLMController(
+            transport=OfflineChat(), is_mock=False))
+    root = Path(result["run_directory"])
+    assert audit_electrothermal_run(root, deep=True)["passed"]
+    artifact = "warm_start_electrothermal_request_a"
+    request = root / "http" / (artifact + ".request.json")
+    original = request.read_text(encoding="utf8")
+    changed = json.loads(original)
+    changed["body"]["messages"][1]["content"] = changed["body"]["messages"][1]["content"].replace(
+        "electrothermal_4e2t", "legacy_six")
+    request.write_text(json.dumps(changed), encoding="utf8")
+    assert not audit_electrothermal_run(root, deep=True)["passed"]
+    request.write_text(original, encoding="utf8")
+    supervision = root / "http" / (artifact + ".supervision.json")
+    original_supervision = supervision.read_text(encoding="utf8")
+    changed = json.loads(original_supervision)
+    changed["failure_stage"] = "reading_body"
+    supervision.write_text(json.dumps(changed), encoding="utf8")
+    assert not audit_electrothermal_run(root, deep=True)["passed"]
+    supervision.write_text(original_supervision, encoding="utf8")
+    with (root / "events.jsonl").open("a", encoding="utf8") as stream:
+        stream.write(json.dumps({"type": "llm_http_headers_received",
+                                 "task": artifact, "http_status": 200}) + "\n")
+    assert not audit_electrothermal_run(root, deep=True)["passed"]
+
+
 @pytest.mark.parametrize("stage,expected_calls", [("awaiting_headers", 3),
                                                    ("reading_response", 1)])
 def test_recovery_request_cap_and_nonmatching_failure_stop(tmp_path, stage, expected_calls):

@@ -76,8 +76,42 @@ def _audit_responses_warmstart(root,*,cfg,space,dataset,signatures,events,by_id,
                     require(not (root/'http'/(artifact+'.response.json')).exists(),
                             'WarmStart continued after receiving an HTTP response')
                     if cost['kind']=='llm_request':
-                        require((root/'http'/(artifact+'.request.json')).is_file(),
-                                'recovered WarmStart has no sent HTTP request')
+                        from .electrothermal_requests import request_controls
+                        from .electrothermal_warmstart_wire import audit_candidate_chat_request
+                        request_path=root/'http'/(artifact+'.request.json')
+                        supervision_path=root/'http'/(artifact+'.supervision.json')
+                        error_path=root/'http'/(artifact+'.error.json')
+                        require(all(path.is_file() for path in
+                                    (request_path,supervision_path,error_path)),
+                                'recovered WarmStart lacks HTTP failure evidence')
+                        sent=read('http/'+artifact+'.request.json')
+                        equal(sent.get('endpoint'),cfg['llm']['endpoint'],
+                              'recovered WarmStart endpoint differs')
+                        require(not any(str(k).lower()=='authorization' for k in
+                                        sent.get('headers',{})),
+                                'recovered WarmStart archive contains authorization')
+                        controls=request_controls(cfg,'warm_start_electrothermal')
+                        audit_candidate_chat_request(payload,sent.get('body'),
+                            model=cfg['llm']['model'],max_tokens=controls['max_tokens'],
+                            json_mode=cfg['llm']['json_mode'],thinking=controls.get('thinking'))
+                        supervision=read('http/'+artifact+'.supervision.json')
+                        http_error=read('http/'+artifact+'.error.json')
+                        require(supervision.get('status')=='failed'
+                                and supervision.get('reason')=='transport_error'
+                                and supervision.get('failure_stage')=='awaiting_headers'
+                                and supervision.get('http_request_started') is True
+                                and supervision.get('http_status') is None
+                                and http_error.get('http_request_started') is True
+                                and http_error.get('http_status') is None,
+                                'recovered WarmStart is not corroborated as pre-header failure')
+                        equal(supervision.get('network_diagnostic'),
+                              outcome['network_diagnostic'],
+                              'recovered WarmStart supervision network cause differs')
+                        require(any(e.get('type')=='llm_http_started' and e.get('task')==artifact
+                                    for e in events)
+                                and not any(e.get('type')=='llm_http_headers_received'
+                                            and e.get('task')==artifact for e in events),
+                                'recovered WarmStart HTTP event order differs')
             continue
         if candidate_only:
             from .electrothermal_requests import request_controls
