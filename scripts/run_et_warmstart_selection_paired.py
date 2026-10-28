@@ -468,10 +468,14 @@ def _live_preflight(evidence_dir: Path, output: Path) -> tuple[dict, dict]:
                 ["git", "rev-parse", "HEAD"], cwd=WT, text=True).strip()
             or subprocess.check_output(["git", "status", "--short"],
                                        cwd=WT, text=True).strip()
-            or set(release.get("source_pins", {})) != set(SOURCE_FILES) | set(RUNTIME_FILES)):
+            or set(release.get("source_pins", {})) !=
+            (set(SOURCE_FILES) | set(RUNTIME_FILES) |
+             {path.relative_to(WT).as_posix() for path in
+              (WT / "src/llmbo_para").rglob("*.py")})):
         raise ValueError("approval, source status or software release differs")
     for name, expected in release["source_pins"].items():
-        if not _hex64(expected) or _sha(WT / name) != expected:
+        if (not _hex64(expected) or _sha(WT / name) != expected
+                or _sha(evidence_dir / "source-snapshot" / name) != expected):
             raise ValueError("released source pin differs")
     for gate in ("targeted", "full", "mock"):
         item = release.get("gates", {}).get(gate, {})
