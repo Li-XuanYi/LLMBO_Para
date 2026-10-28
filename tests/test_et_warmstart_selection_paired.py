@@ -293,3 +293,85 @@ def test_pair_derivation_rejects_temperature_cost_or_signature_tampering(
     path.write_text(json.dumps(payload), encoding="utf-8")
     with pytest.raises(ValueError):
         worker.derive_paired_plans(altered, configs=configs, out=tmp_path / "bad-plan")
+
+
+@pytest.fixture(scope="module")
+def paired_mock_case(tmp_path_factory):
+    root = tmp_path_factory.mktemp("paired-closure")
+    runner = load()
+    protocol = runner.load_protocol(PROPOSAL)
+    budget = runner.PairedBudget.start(root / "budget.jsonl", protocol_sha="d" * 64)
+    pair = runner.run_seed_pair(protocol, seed=152325, budget=budget,
+                                root=root, source_root=ROOT, software_fixture=True)
+    return root, protocol, budget, pair
+
+
+def test_mock_pair_closure_has_two_fifty_round_arms_without_region_or_real_calls(paired_mock_case):
+    root, protocol, budget, pair = paired_mock_case
+    assert pair["seed"] == 152325
+    assert pair["pool"]["complete_pool_count"] == 16
+    assert pair["plans"]["v1"]["selected_ids"] != pair["plans"]["v2"]["selected_ids"]
+    assert budget.counts() == {"DFN": 0, "API": 0}
+    assert list(pair["cases"]) == ["v1", "v2"]
+    assert pair["cases"]["v1"]["run_directory"] != pair["cases"]["v2"]["run_directory"]
+    for rule in ("v1", "v2"):
+        case = pair["cases"][rule]
+        assert case["audit_passed"] and case["BO_rounds"] == 50
+        assert len(case["rounds"]) == 50
+        assert case["summary"]["API_calls"] == 0
+        assert case["initial_file_sha"] == pair["plans"][rule]["sha256"]
+    assert [row["weight"] for row in pair["cases"]["v1"]["rounds"]] == [
+        row["weight"] for row in pair["cases"]["v2"]["rounds"]]
+    assert pair["cases"]["v1"]["first_numerical_context_sha"] != pair["cases"]["v2"]["first_numerical_context_sha"]
+
+
+def test_independent_pair_analysis_recomputes_both_rmse_hv_and_costs(paired_mock_case):
+    root, protocol, _, pair = paired_mock_case
+    import analyze_et_warmstart_selection_paired as analyzer
+
+    report = analyzer.analyze_seed(pair, protocol)
+    assert report["seed"] == 152325
+    assert report["status"] == "completed"
+    assert set(report["arms"]) == {"v1", "v2"}
+    assert all(len(report["arms"][arm]["rounds"]) == 50 for arm in ("v1", "v2"))
+    assert all(report["arms"][arm]["final_F_U_V"] >= 0 and
+               report["arms"][arm]["final_F_T_K"] >= 0 for arm in ("v1", "v2"))
+    assert report["pool_charged_once"] is True
+    assert report["delta_final_HV"] == pytest.approx(
+        report["arms"]["v2"]["final_HV"] - report["arms"]["v1"]["final_HV"])
+    assert report["metric_space"] == {"objective_scales": [0.1, 1.0],
+                                      "hv_reference": [10.0, 10.0]}
+
+
+@pytest.mark.parametrize("mutation", ["temperature", "plan_hash", "cost", "scale"])
+def test_pair_analysis_rejects_tampered_curve_plan_cost_or_scale(paired_mock_case, mutation):
+    _, protocol, _, pair = paired_mock_case
+    import analyze_et_warmstart_selection_paired as analyzer
+
+    bad = deepcopy(pair)
+    if mutation == "temperature":
+        bad["cases"]["v1"]["rounds"][0]["rates"][0]["cell_temperature"]["predicted"][0] += 1.0
+    elif mutation == "plan_hash":
+        bad["plans"]["v2"]["sha256"] = "0" * 64
+    elif mutation == "cost":
+        bad["pool"]["costs"]["solver_calls"] += 1
+    else:
+        bad["metric_space"]["objective_scales"] = [1.0, 1.0]
+    with pytest.raises(ValueError):
+        analyzer.analyze_seed(bad, protocol)
+
+
+def test_failed_pool_phase_closes_budget_and_cannot_launch_arms(tmp_path, monkeypatch):
+    runner = load()
+    protocol = runner.load_protocol(PROPOSAL)
+    budget = runner.PairedBudget.start(tmp_path / "budget.jsonl", protocol_sha="e" * 64)
+
+    def fail_pool(*args, **kwargs):
+        raise RuntimeError("mock API/DFN failure before pool completion")
+
+    monkeypatch.setattr(runner, "_phase", fail_pool)
+    with pytest.raises(RuntimeError, match="mock API/DFN failure"):
+        runner.run_seed_pair(protocol, seed=152325, budget=budget,
+                             root=tmp_path, source_root=ROOT, software_fixture=True)
+    assert budget.state()["closed"] is True
+    assert budget.state()["finished"] == ["pool-152325"]

@@ -5,6 +5,7 @@ The live supervisor is added only after its software and provenance gates pass.
 from __future__ import annotations
 
 import argparse
+from copy import deepcopy
 import hashlib
 import json
 import os
@@ -289,6 +290,126 @@ def read_credential() -> str:
     if not isinstance(value, str) or not value or any(c.isspace() for c in value):
         raise ValueError("dedicated OpenCode credential missing")
     return value
+
+
+def _seed_config(protocol: dict, seed: int) -> dict:
+    item = protocol["configs"][str(seed)]
+    path = Path(item["path"])
+    if _sha(path) != item["sha256"]:
+        raise ValueError("seed config changed")
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _phase(spec: dict, budget: PairedBudget, protocol: dict, *, root: Path,
+           source_root: Path, software_fixture: bool) -> dict:
+    """Run one source-pinned, owned worker with the parent's durable budget."""
+    import et_three_arm_validation_worker as worker
+    import run_lgbo_real_gain as helper
+
+    validate_protocol(protocol)
+    deadline = budget.deadline - 15.
+    if time.monotonic() >= deadline:
+        raise TimeoutError("paired deadline exhausted before phase")
+    label = spec["label"]
+    output = root / label
+    output.mkdir(parents=True, exist_ok=False)
+    override = spec.get("base_config_override")
+    intent = {**{key: value for key, value in spec.items() if key != "base_config_override"},
+              "output": str(output), "source_root": str(source_root),
+              "source": helper.fingerprint(source_root), "deadline": deadline,
+              "base_config": override if override is not None else _seed_config(protocol, spec["seed"]),
+              "software_fixture": software_fixture}
+    metadata = root / (label + "-owned.json")
+    result = helper.supervise(worker.run_worker, intent, budget, deadline=deadline,
+                              metadata=metadata,
+                              integrity_check=lambda: validate_protocol(protocol))
+    if json.loads(metadata.read_text(encoding="utf-8"))["owned_tree_stopped"] is not True:
+        raise RuntimeError("owned worker tree remains live")
+    (root / (label + "-result.json")).write_text(
+        json.dumps(result, indent=2, ensure_ascii=False, allow_nan=False),
+        encoding="utf-8")
+    return result
+
+
+def _plan_configs(protocol: dict, seed: int, *, software_fixture: bool) -> dict:
+    import et_three_arm_validation_worker as worker
+
+    base = _seed_config(protocol, seed)
+    v1 = worker.config_for(base, kind="warmstart_initialization",
+                           arm="warmstart_only", seed=seed,
+                           remaining=max(1., min(3600., CAPS["wall_clock_s"])),
+                           initial_plan=None)
+    if software_fixture:
+        v1["model"]["provider"] = "software"
+        v1["run_kind"] = "synthetic_software"
+        v1["llm"]["enabled"] = False
+        v1["budgets"]["max_solver_calls"] = 0
+        v1["budgets"]["max_llm_requests"] = 0
+    v2 = deepcopy(v1)
+    v2["optimization"]["warmstart"]["selection_rule"] = "pareto_core_spacefill_v2"
+    return {"v1": v1, "v2": v2}
+
+
+def run_seed_pair(protocol: dict, *, seed: int, budget: PairedBudget,
+                  root: Path, source_root: Path, software_fixture: bool = False) -> dict:
+    """One 16-point pool, two signed plans, and two ordinary 50-round BO arms."""
+    import et_warmstart_selection_paired_worker as plans_module
+
+    validate_protocol(protocol)
+    if seed not in RUN_ORDER:
+        raise ValueError("seed not in frozen run order")
+    root = Path(root)
+    source_root = Path(source_root)
+    if source_root.resolve() != WT.resolve():
+        raise ValueError("unexpected source checkout")
+    pair = {"seed": seed, "status": "incomplete", "cases": {},
+            "metric_space": {"objective_scales": [0.1, 1.0],
+                             "hv_reference": [10.0, 10.0]}}
+    try:
+        budget.begin(f"pool-{seed}")
+        pool = _phase({"kind": "warmstart_initialization", "arm": "warmstart_only",
+                       "seed": seed, "label": f"seed-{seed}-pool",
+                       "solve_cap": 0 if software_fixture else 32},
+                      budget, protocol, root=root, source_root=source_root,
+                      software_fixture=software_fixture)
+        if (pool.get("audit_passed") is not True
+                or pool.get("complete_pool_count") != 16
+                or pool.get("selected_count") != 8):
+            raise ValueError("shared real candidate pool incomplete")
+        pair["pool"] = pool
+        pair["plans"] = plans_module.derive_paired_plans(
+            pool["run_directory"],
+            configs=_plan_configs(protocol, seed, software_fixture=software_fixture),
+            out=root / f"seed-{seed}-plans")
+        budget.finish(True)
+        for rule in _arm_order()[str(seed)]:
+            budget.begin(f"arm-{seed}-{rule}")
+            plan = pair["plans"][rule]
+            initial = {"path": plan["path"], "sha256": plan["sha256"],
+                       "origin_run_id": pool["run_directory"],
+                       "costs": pair["plans"]["shared_costs"]}
+            base = _seed_config(protocol, seed)
+            base["optimization"]["warmstart"]["selection_rule"] = (
+                "pareto_maximin_v1" if rule == "v1" else "pareto_core_spacefill_v2")
+            row = _phase({"kind": "arm", "arm": "warmstart_only", "seed": seed,
+                          "label": f"seed-{seed}-{rule}",
+                          "solve_cap": 0 if software_fixture else 100,
+                          "initial": initial, "base_config_override": base},
+                         budget, protocol, root=root, source_root=source_root,
+                         software_fixture=software_fixture)
+            if (row.get("audit_passed") is not True or row.get("BO_rounds") != 50
+                    or row.get("initial_file_sha") != plan["sha256"]
+                    or row.get("summary", {}).get("API_calls") != 0):
+                raise ValueError("formal paired arm incomplete")
+            row["arm"] = rule
+            pair["cases"][rule] = row
+            budget.finish(True)
+        pair["status"] = "completed"
+        return pair
+    except BaseException:
+        if budget.state()["phase"] is not None:
+            budget.finish(False)
+        raise
 
 
 def main() -> int:
