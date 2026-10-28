@@ -369,6 +369,7 @@ def _plan_configs(protocol: dict, seed: int, *, software_fixture: bool) -> dict:
 def run_seed_pair(protocol: dict, *, seed: int, budget: PairedBudget,
                   root: Path, source_root: Path, software_fixture: bool = False) -> dict:
     """One 16-point pool, two signed plans, and two ordinary 50-round BO arms."""
+    import sys
     import et_warmstart_selection_paired_worker as plans_module
 
     validate_protocol(protocol)
@@ -378,6 +379,9 @@ def run_seed_pair(protocol: dict, *, seed: int, budget: PairedBudget,
     source_root = Path(source_root)
     if source_root.resolve() != WT.resolve():
         raise ValueError("unexpected source checkout")
+    source_package = str(source_root / "src")
+    if source_package not in sys.path:
+        sys.path.insert(0, source_package)
     pair = {"seed": seed, "status": "incomplete", "cases": {},
             "metric_space": {"objective_scales": [0.1, 1.0],
                              "hv_reference": [10.0, 10.0]}}
@@ -583,11 +587,12 @@ def main() -> int:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--mock-rehearsal", action="store_true")
+    parser.add_argument("--mock-output", type=Path, default=MOCK_OUTPUT)
     args = parser.parse_args()
     if sum((args.dry_run, args.execute, args.mock_rehearsal)) != 1:
         parser.error("choose exactly one of --dry-run or --execute")
     result = (execute_live() if args.execute else
-              run_mock_rehearsal(output=MOCK_OUTPUT)
+              run_mock_rehearsal(output=args.mock_output)
               if args.mock_rehearsal else dry_run())
     print(json.dumps({"status": result.get("status", "dry-run"),
                       "costs": result.get("costs", {"API": 0, "DFN": 0}),
