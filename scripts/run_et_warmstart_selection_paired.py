@@ -19,7 +19,8 @@ WT = Path("C:/Users/aa133/.codex/worktrees/electrothermal-refactor/LLMBO_Para")
 MAIN = Path("D:/Users/aa133/Desktop/LLMBO_Para")
 BASE = MAIN / "bo-repair-work/20261017_et_implementation"
 PROPOSAL = BASE / "warmstart-v1-v2-paired-20261027/proposal/protocol-proposal.json"
-OUTPUT = MAIN / "runs/warmstart-v1-v2-20261027"
+OUTPUT = MAIN / "runs/w27"
+MOCK_OUTPUT = MAIN / "runs/w27mock"
 PLAN_COMMIT = "8e69bf85f8633ae72ee8e80d047d21a27f7ea11e"
 SEEDS = (260437, 152325, 947445, 235695, 299924)
 RUN_ORDER = (152325, 235695, 947445, 260437, 299924)
@@ -586,7 +587,7 @@ def main() -> int:
     if sum((args.dry_run, args.execute, args.mock_rehearsal)) != 1:
         parser.error("choose exactly one of --dry-run or --execute")
     result = (execute_live() if args.execute else
-              run_mock_rehearsal(output=EVIDENCE / "mock-rehearsal")
+              run_mock_rehearsal(output=MOCK_OUTPUT)
               if args.mock_rehearsal else dry_run())
     print(json.dumps({"status": result.get("status", "dry-run"),
                       "costs": result.get("costs", {"API": 0, "DFN": 0}),
