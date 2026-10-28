@@ -375,3 +375,30 @@ def test_failed_pool_phase_closes_budget_and_cannot_launch_arms(tmp_path, monkey
                              root=tmp_path, source_root=ROOT, software_fixture=True)
     assert budget.state()["closed"] is True
     assert budget.state()["finished"] == ["pool-152325"]
+
+
+def test_live_preflight_refuses_absent_release_without_claiming_budget(tmp_path):
+    runner = load()
+    with pytest.raises(ValueError, match="release"):
+        runner.execute_live(evidence_dir=tmp_path / "evidence",
+                            output=tmp_path / "live")
+    assert not (tmp_path / "live").exists()
+    assert not (tmp_path / "evidence" / "budget.jsonl").exists()
+
+
+def test_live_preflight_refuses_existing_output_without_claiming_budget(tmp_path):
+    runner = load()
+    output = tmp_path / "live"
+    output.mkdir()
+    with pytest.raises(ValueError):
+        runner.execute_live(evidence_dir=tmp_path / "evidence", output=output)
+    assert not (tmp_path / "evidence" / "budget.jsonl").exists()
+
+
+def test_five_seed_mock_rehearsal_has_ten_cases_five_hundred_rounds_and_zero_real_cost(tmp_path):
+    runner = load()
+    result = runner.run_mock_rehearsal(output=tmp_path / "mock")
+    assert result == {"status": "completed", "cases": 10, "rounds": 500,
+                      "API": 0, "DFN": 0}
+    assert (tmp_path / "mock" / "analysis.json").is_file()
+    assert not (tmp_path / "mock" / "result.json").read_text(encoding="utf-8").count('"status": "failed"')

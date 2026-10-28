@@ -11,6 +11,7 @@ import json
 import os
 from pathlib import Path
 import random
+import subprocess
 import time
 
 
@@ -36,6 +37,16 @@ SOURCE_FILES = (
     "scripts/run_et_three_arm_validation.py",
     "scripts/analyze_et_three_arm_validation.py",
 )
+EVIDENCE = PROPOSAL.parent.parent
+RUNTIME_FILES = (
+    "scripts/run_et_warmstart_selection_paired.py",
+    "scripts/et_warmstart_selection_paired_worker.py",
+    "scripts/analyze_et_warmstart_selection_paired.py",
+    "scripts/et_three_arm_validation_worker.py",
+    "scripts/run_lgbo_real_gain.py",
+    "scripts/lgbo_real_gain_worker.py",
+)
+_ACTIVE_RELEASE: dict | None = None
 
 
 def _arm_order() -> dict[str, list[str]]:
@@ -307,6 +318,8 @@ def _phase(spec: dict, budget: PairedBudget, protocol: dict, *, root: Path,
     import run_lgbo_real_gain as helper
 
     validate_protocol(protocol)
+    if _ACTIVE_RELEASE is not None:
+        _check_release_pins(_ACTIVE_RELEASE)
     deadline = budget.deadline - 15.
     if time.monotonic() >= deadline:
         raise TimeoutError("paired deadline exhausted before phase")
@@ -322,7 +335,9 @@ def _phase(spec: dict, budget: PairedBudget, protocol: dict, *, root: Path,
     metadata = root / (label + "-owned.json")
     result = helper.supervise(worker.run_worker, intent, budget, deadline=deadline,
                               metadata=metadata,
-                              integrity_check=lambda: validate_protocol(protocol))
+                              integrity_check=lambda: (
+                                  validate_protocol(protocol),
+                                  _check_release_pins(_ACTIVE_RELEASE) if _ACTIVE_RELEASE else None))
     if json.loads(metadata.read_text(encoding="utf-8"))["owned_tree_stopped"] is not True:
         raise RuntimeError("owned worker tree remains live")
     (root / (label + "-result.json")).write_text(
@@ -412,14 +427,168 @@ def run_seed_pair(protocol: dict, *, seed: int, budget: PairedBudget,
         raise
 
 
+def _write_json(path: Path, value: dict) -> None:
+    target = Path(path)
+    temporary = target.with_suffix(target.suffix + ".tmp")
+    with temporary.open("x", encoding="utf-8") as stream:
+        json.dump(value, stream, indent=2, ensure_ascii=False, allow_nan=False)
+        stream.flush()
+        os.fsync(stream.fileno())
+    temporary.replace(target)
+
+
+def _check_release_pins(release: dict) -> None:
+    if release is None:
+        raise ValueError("software release absent")
+    for name, expected in release["source_pins"].items():
+        if _sha(WT / name) != expected:
+            raise ValueError("released source changed: " + name)
+    if _sha(EVIDENCE / "software-release.json") != release["release_sha256"]:
+        raise ValueError("software release file changed")
+
+
+def _live_preflight(evidence_dir: Path, output: Path) -> tuple[dict, dict]:
+    if output.exists() or (evidence_dir / "budget.jsonl").exists():
+        raise ValueError("live experiment already claimed")
+    release_path = evidence_dir / "software-release.json"
+    approval_path = evidence_dir / "approval.json"
+    if not release_path.is_file() or not approval_path.is_file():
+        raise ValueError("software release and local approval record required")
+    protocol = load_protocol()
+    release = json.loads(release_path.read_text(encoding="utf-8"))
+    approval = json.loads(approval_path.read_text(encoding="utf-8"))
+    if (approval.get("approved") is not True
+            or approval.get("plan_commit") != PLAN_COMMIT
+            or approval.get("protocol_sha256") != _sha(PROPOSAL)
+            or approval.get("limits") != CAPS
+            or release.get("status") != "passed"
+            or release.get("protocol_sha256") != _sha(PROPOSAL)
+            or release.get("limits") != CAPS
+            or release.get("head") != subprocess.check_output(
+                ["git", "rev-parse", "HEAD"], cwd=WT, text=True).strip()
+            or subprocess.check_output(["git", "status", "--short"],
+                                       cwd=WT, text=True).strip()
+            or set(release.get("source_pins", {})) != set(SOURCE_FILES) | set(RUNTIME_FILES)):
+        raise ValueError("approval, source status or software release differs")
+    for name, expected in release["source_pins"].items():
+        if not _hex64(expected) or _sha(WT / name) != expected:
+            raise ValueError("released source pin differs")
+    for gate in ("targeted", "full", "mock"):
+        item = release.get("gates", {}).get(gate, {})
+        path = Path(item.get("result_path", ""))
+        if not path.is_file() or _sha(path) != item.get("sha256"):
+            raise ValueError("released software gate missing or changed")
+        result = json.loads(path.read_text(encoding="utf-8"))
+        if gate == "mock":
+            if (result.get("status") != "completed" or result.get("cases") != 10
+                    or result.get("rounds") != 500 or result.get("API") != 0
+                    or result.get("DFN") != 0):
+                raise ValueError("mock rehearsal gate failed")
+        else:
+            counts = result.get("counts", {})
+            if (result.get("exit_code") != 0 or counts.get("tests", 0) <
+                    (1600 if gate == "full" else 24)
+                    or any(counts.get(key) != 0 for key in ("failures", "errors", "skipped"))):
+                raise ValueError("software regression gate failed")
+            if gate == "full" and (result.get("source_unchanged") is not True
+                                   or result.get("boundary", {}).get("network_attempts") != 0
+                                   or result.get("boundary", {}).get("battery_solve_attempts") != 0):
+                raise ValueError("full regression source or offline boundary differs")
+    release["release_sha256"] = _sha(release_path)
+    return protocol, release
+
+
+def run_mock_rehearsal(*, output: Path) -> dict:
+    """Run the entire frozen schedule with software fixtures and no real calls."""
+    import analyze_et_warmstart_selection_paired as analyzer
+
+    protocol = load_protocol()
+    output = Path(output)
+    output.mkdir(parents=True, exist_ok=False)
+    budget = PairedBudget.start(output / "budget.jsonl", protocol_sha=_sha(PROPOSAL))
+    pairs = []
+    for seed in RUN_ORDER:
+        pair = run_seed_pair(protocol, seed=seed, budget=budget, root=output,
+                             source_root=WT, software_fixture=True)
+        analyzer.analyze_seed(pair, protocol)
+        pairs.append(pair)
+    result = {"status": "completed", "pairs": pairs, "costs": budget.counts()}
+    _write_json(output / "result.json", result)
+    report = analyzer.analyze_pair(output / "result.json", protocol)
+    if (report["status"] != "completed" or budget.state()["closed"] is not True
+            or budget.counts() != {"DFN": 0, "API": 0}):
+        raise ValueError("five-seed mock closure failed")
+    _write_json(output / "analysis.json", report)
+    summary = {"status": "completed", "cases": 10, "rounds": 500,
+               "API": 0, "DFN": 0}
+    _write_json(output / "summary.json", summary)
+    return summary
+
+
+def execute_live(*, evidence_dir: Path = EVIDENCE, output: Path = OUTPUT) -> dict:
+    """Start one approved, released live trial; never implicitly resume it."""
+    global _ACTIVE_RELEASE
+    import analyze_et_warmstart_selection_paired as analyzer
+    import run_lgbo_real_gain as helper
+
+    evidence_dir, output = Path(evidence_dir), Path(output)
+    protocol, release = _live_preflight(evidence_dir, output)
+    credential = read_credential()
+    os.environ["LLMBO_OPENCODE_API_KEY"] = credential
+    del credential
+    output.mkdir(parents=True, exist_ok=False)
+    budget = PairedBudget.start(evidence_dir / "budget.jsonl",
+                                protocol_sha=_sha(PROPOSAL))
+    _ACTIVE_RELEASE = release if evidence_dir == EVIDENCE else None
+    result = {"status": "incomplete", "protocol_sha256": _sha(PROPOSAL),
+              "release_sha256": release["release_sha256"],
+              "limits": CAPS, "pairs": []}
+    try:
+        with helper.keep_awake(output / "wake.json"):
+            for seed in RUN_ORDER:
+                pair = run_seed_pair(protocol, seed=seed, budget=budget, root=output,
+                                     source_root=WT)
+                analyzer.analyze_seed(pair, protocol)
+                result["pairs"].append(pair)
+                result["costs"] = budget.counts()
+                _write_json(output / "result.json", result)
+                print(json.dumps({"seed": seed, "completed_pairs": len(result["pairs"]),
+                                  "costs": result["costs"]}), flush=True)
+            result["status"] = "completed"
+            result["costs"] = budget.counts()
+            _write_json(output / "result.json", result)
+            report = analyzer.analyze_pair(output / "result.json", protocol)
+            _write_json(output / "analysis.json", report)
+            if report["status"] != "completed" or budget.state()["closed"] is not True:
+                raise ValueError("final independent paired audit incomplete")
+    except BaseException as exc:
+        result.update(status="failed", error_type=type(exc).__name__,
+                      costs=budget.counts(), finished_phases=budget.state()["finished"])
+        if budget.state()["phase"] is not None:
+            budget.finish(False)
+        _write_json(output / "result.json", result)
+    finally:
+        _ACTIVE_RELEASE = None
+        os.environ.pop("LLMBO_OPENCODE_API_KEY", None)
+    return result
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--execute", action="store_true")
+    parser.add_argument("--mock-rehearsal", action="store_true")
     args = parser.parse_args()
-    if not args.dry_run:
-        parser.error("live execution is unavailable before software release")
-    print(json.dumps(dry_run(), ensure_ascii=False))
-    return 0
+    if sum((args.dry_run, args.execute, args.mock_rehearsal)) != 1:
+        parser.error("choose exactly one of --dry-run or --execute")
+    result = (execute_live() if args.execute else
+              run_mock_rehearsal(output=EVIDENCE / "mock-rehearsal")
+              if args.mock_rehearsal else dry_run())
+    print(json.dumps({"status": result.get("status", "dry-run"),
+                      "costs": result.get("costs", {"API": 0, "DFN": 0}),
+                      "completed_pairs": len(result.get("pairs", []))},
+                     ensure_ascii=False), flush=True)
+    return 0 if args.dry_run or result.get("status") == "completed" else 1
 
 
 if __name__ == "__main__":
