@@ -9,7 +9,7 @@ from pathlib import Path
 import statistics
 
 import analyze_et_three_arm_validation as core
-from run_et_warmstart_quality_gate_trial import RULES, SEEDS, validate_protocol
+from run_et_warmstart_quality_gate_trial import RULES, SEEDS, validate_protocol, verify_trial_failure_policy
 
 
 def _sha(path: Path) -> str:
@@ -50,6 +50,33 @@ def verify_archive_ids(records: list[dict], initial_ids: list[str], round_ids: l
     by_id = {record["evaluation_id"]: record for record in records}
     if len(by_id) != len(records) or set(by_id) != set(initial_ids) | set(round_ids):
         raise ValueError("archive contains duplicate, missing or unseen evaluations")
+    return by_id
+
+
+def verify_archive_records(records: list[dict], initial_ids: list[str], rounds: list[dict]) -> dict:
+    """Validate ordered saves and collapse only substantiated, identical cache hits."""
+    if len(set(initial_ids)) != len(initial_ids) or len(records) != len(initial_ids) + len(rounds):
+        raise ValueError("archive record count or initial IDs differ")
+    by_id = {}
+    for record, expected in zip(records[:len(initial_ids)], initial_ids):
+        if record.get("evaluation_id") != expected:
+            raise ValueError("initial archive order differs")
+        by_id[expected] = record
+    for record, event in zip(records[len(initial_ids):], rounds):
+        ident, cached = event.get("evaluation_id"), event.get("cached")
+        if type(cached) is not bool or record.get("evaluation_id") != ident:
+            raise ValueError("round archive identity or cache flag differs")
+        if cached:
+            if ident not in by_id or record.get("source_kind") != "validated_cache":
+                raise ValueError("cache hit lacks a prior true evaluation")
+            original = by_id[ident]
+            if _digest({k: v for k, v in record.items() if k != "source_kind"}) != _digest(
+                    {k: v for k, v in original.items() if k != "source_kind"}):
+                raise ValueError("cached evaluation differs from its source")
+        else:
+            if ident in by_id or record.get("source_kind") != "fresh_simulation":
+                raise ValueError("unclaimed duplicate or nonfresh evaluation")
+            by_id[ident] = record
     return by_id
 
 
@@ -99,6 +126,7 @@ def analyze_seed(pair: dict, protocol: dict) -> dict:
             or pair["pool"].get("complete_pool_count") != 16
             or audit_electrothermal_run(Path(pair["pool"]["run_directory"]), deep=True).get("passed") is not True):
         raise ValueError("screening pool, audit or cost differs")
+    verify_trial_failure_policy(pair["pool"]["run_directory"])
     pool = [json.loads(path.read_text(encoding="utf-8")) for path in sorted(
         (Path(pair["pool"]["run_directory"]) / "electrothermal-evaluations").glob("*.json"))]
     if len(pool) != 16:
@@ -116,13 +144,14 @@ def analyze_seed(pair: dict, protocol: dict) -> dict:
                 or case.get("parent_initialization_origin") != pair["pool"]["run_directory"]
                 or audit_electrothermal_run(Path(case["run_directory"]), deep=True).get("passed") is not True):
             raise ValueError("formal arm binding, audit or cost differs")
+        verify_trial_failure_policy(case["run_directory"])
         initial = {"audit_passed": True, "ordered_records": plan["records"],
                    "costs": pair["plans"]["shared_costs"]}
         summary, curve, _ = core.analyze_case(case, initial)
         records = [json.loads(path.read_text(encoding="utf-8")) for path in sorted(
             (Path(case["run_directory"]) / "electrothermal-evaluations").glob("*.json"))]
-        by_id = verify_archive_ids(records, [r["evaluation_id"] for r in plan["records"]],
-                                   [r["evaluation_id"] for r in case["rounds"]])
+        by_id = verify_archive_records(records, [r["evaluation_id"] for r in plan["records"]],
+                                      case["rounds"])
         for record in records:
             core.verify_objectives(record)
         for initial_record in plan["records"]:
@@ -130,7 +159,7 @@ def analyze_seed(pair: dict, protocol: dict) -> dict:
             if saved is None or _digest({k: saved[k] for k in ("parameters", "rates", "objectives")}) != _digest(
                     {k: initial_record[k] for k in ("parameters", "rates", "objectives")}):
                 raise ValueError("initial archived curves differ from signed plan")
-        independent_front = front(records)
+        independent_front = front(list(by_id.values()))
         rows = [_row(record) for record in independent_front]
         if _digest({row["evaluation_id"]: row for row in rows}) != _digest({
                 row["evaluation_id"]: row for row in case["summary"]["pareto"]}):

@@ -140,6 +140,12 @@ def _seed_config(protocol: dict, seed: int) -> dict:
     return _read(Path(item["path"]))
 
 
+def verify_trial_failure_policy(run_directory: Path) -> None:
+    pin = _read(Path(run_directory) / "source-execution-pin.json")
+    if pin.get("stop_on_failure") is not True:
+        raise ValueError("trial failure policy is absent or disabled")
+
+
 def _check_source_pins(release: dict) -> None:
     for name, expected in release["source_pins"].items():
         if _sha(WT / name) != expected:
@@ -175,7 +181,7 @@ def _phase(spec: dict, budget: SelectionTrialBudget, protocol: dict, *, root: Pa
               "output": str(output), "source_root": str(source_root),
               "source": helper.fingerprint(source_root), "deadline": deadline,
               "base_config": override if override is not None else _seed_config(protocol, spec["seed"]),
-              "software_fixture": software_fixture}
+              "software_fixture": software_fixture, "stop_on_failure": True}
     metadata = root / (label + "-owned.json")
     result = helper.supervise(worker.run_worker, intent, budget, deadline=deadline,
                               metadata=metadata, integrity_check=lambda: (
@@ -183,6 +189,8 @@ def _phase(spec: dict, budget: SelectionTrialBudget, protocol: dict, *, root: Pa
                                   _check_source_pins(_ACTIVE_RELEASE) if _ACTIVE_RELEASE else None))
     if _read(metadata).get("owned_tree_stopped") is not True:
         raise RuntimeError("owned worker tree remains live")
+    if result.get("status") == "completed":
+        verify_trial_failure_policy(result["run_directory"])
     _write_json(root / (label + "-result.json"), result)
     return result
 
@@ -244,7 +252,10 @@ def run_seed(protocol: dict, *, seed: int, budget: SelectionTrialBudget, root: P
                          root=root, source_root=Path(source_root), software_fixture=software_fixture)
             if (row.get("audit_passed") is not True or row.get("BO_rounds") != 50
                     or row.get("initial_file_sha") != plan["sha256"]
-                    or row.get("summary", {}).get("API_calls") != 0):
+                    or row.get("summary", {}).get("API_calls") != 0
+                    or row.get("summary", {}).get("costs", {}).get("failed_solver_calls") != 0
+                    or len(row.get("rounds", [])) != 50
+                    or any(item.get("complete_pair_valid") is not True for item in row["rounds"])):
                 raise ValueError("formal arm incomplete")
             row["arm"] = arm
             pair["cases"][arm] = row

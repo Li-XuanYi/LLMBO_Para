@@ -124,7 +124,9 @@ def test_failed_second_arm_preserves_completed_pool_arm_and_charges(tmp_path, mo
         if spec["label"].endswith("v2"):
             raise RuntimeError("simulated arm failure")
         return {"audit_passed": True, "BO_rounds": 50,
-                "initial_file_sha": "v1", "summary": {"API_calls": 0}}
+                "initial_file_sha": "v1",
+                "summary": {"API_calls": 0, "costs": {"failed_solver_calls": 0}},
+                "rounds": [{"complete_pair_valid": True}] * 50}
 
     monkeypatch.setattr(runner, "_phase", phase)
     pair = runner.run_seed(protocol, seed=659578, budget=budget, root=tmp_path,

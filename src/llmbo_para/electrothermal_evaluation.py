@@ -102,11 +102,12 @@ def score_output(trace,observation,*,channel,reason=None):
 
 
 class ElectrothermalEvaluator:
-    def __init__(self,space,simulator,*,fit_rates,max_rate_attempts=1,event_callback=None):
+    def __init__(self,space,simulator,*,fit_rates,max_rate_attempts=1,event_callback=None,stop_on_failure=False):
         if space.profile!='electrothermal_4e2t':raise ValueError('electrothermal parameter profile required')
         if type(max_rate_attempts) is not int or max_rate_attempts<1:raise ValueError('positive integer retry budget required')
+        if type(stop_on_failure) is not bool:raise ValueError('stop_on_failure must be a boolean')
         self.space=space;self.simulator=simulator;self.fit_rates=validate_fit_rates(fit_rates)
-        self.max_rate_attempts=max_rate_attempts;self.callback=event_callback;self.counter=0
+        self.max_rate_attempts=max_rate_attempts;self.callback=event_callback;self.stop_on_failure=stop_on_failure;self.counter=0
 
     def evaluate(self,candidate,dataset):
         dataset.validate_integrity()
@@ -116,8 +117,15 @@ class ElectrothermalEvaluator:
         params=dict(zip((s.name for s in self.space.specs),point));results=[]
         backend=getattr(self.simulator,'backend_kind','test_double');cost={'solver_calls':0,'software_calls':0,'retry_calls':0}
         started=time.perf_counter()
+        stopped=False
         for rate in self.fit_rates:
             case=dataset.cases[rate];trace=None;reason=None;attempts=[]
+            if stopped:
+                reason='not attempted after previous failed rate'
+                voltage=score_output(None,case.voltage,channel='voltage',reason=reason)
+                temperature=score_output(None,case.cell_temperature_k,channel='temperature',reason=reason)
+                results.append(ElectrothermalRateResult(rate,voltage,temperature,None,None,()))
+                continue
             for number in range(1,self.max_rate_attempts+1):
                 event={'event_id':ident+':'+rate+':'+str(number),'type':'solver_call' if backend=='dfn' else 'software_call','rate':rate,'attempt':number}
                 if self.callback:self.callback({**event,'status':'started'})
@@ -138,10 +146,11 @@ class ElectrothermalEvaluator:
                     cost['solver_calls']+=native_delta
                     attempts.append({**event,'status':('solver_error' if native_delta else 'preparation_error') if backend=='dfn' else 'software_error',
                         'solver_calls':native_delta,'reason':reason,'elapsed_s':time.perf_counter()-start})
-                    if not isinstance(exc,TransientSimulationError):break
+                    if self.stop_on_failure or not isinstance(exc,TransientSimulationError):break
             voltage=score_output(trace,case.voltage,channel='voltage',reason=reason)
             temperature=score_output(trace,case.cell_temperature_k,channel='temperature',reason=reason)
             results.append(ElectrothermalRateResult(rate,voltage,temperature,trace.solution_id if trace else None,trace.to_dict() if trace else None,tuple(attempts)))
+            if self.stop_on_failure and (not voltage.valid or not temperature.valid):stopped=True
         u=mean_selected_rmse({r.rate:r.voltage.rmse_v for r in results},self.fit_rates) if all(r.voltage.valid for r in results) else None
         t=mean_selected_rmse({r.rate:r.cell_temperature.rmse_k for r in results},self.fit_rates) if all(r.cell_temperature.valid for r in results) else None
         cost['elapsed_s']=time.perf_counter()-started

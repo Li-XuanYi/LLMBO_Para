@@ -23,6 +23,65 @@ MODEL = "deepseek-v4.1-flash"
 ENV_NAME = "LLMBO_OPENCODE_API_KEY"
 
 
+class TrialIncompleteEvaluation(RuntimeError):
+    """A strict trial stops after persisting an incomplete evaluation."""
+
+
+class TrialInvalidReply(RuntimeError):
+    """A strict trial stops after recording a malformed WarmStart reply."""
+
+
+def install_trial_failure_guard(store):
+    """Persist the diagnostic and its charges before stopping the worker."""
+    original = store.save_evaluation
+
+    def checked(result, **kwargs):
+        relative = original(result, **kwargs)
+        if not result.complete_pair_valid:
+            raise TrialIncompleteEvaluation("trial evaluation is incomplete")
+        return relative
+
+    store.save_evaluation = checked
+
+
+def install_trial_reply_guard(store):
+    """Record an invalid reply once and do not request another response."""
+    original = store.ledger.record
+
+    def checked(event):
+        ident = original(event)
+        if event.get("kind") == "screening_rejected" and event.get("reason") == "invalid_reply":
+            raise TrialInvalidReply("trial WarmStart reply is invalid")
+        return ident
+
+    store.ledger.record = checked
+
+
+def execution_pin(root: Path, spec: dict) -> dict:
+    pin = {"source_root": str(root), "source_fingerprint": spec["source"],
+           "source_commit": spec.get("source_commit")}
+    if "stop_on_failure" in spec:
+        if type(spec["stop_on_failure"]) is not bool:
+            raise ValueError("trial failure policy must be boolean")
+        pin["stop_on_failure"] = spec["stop_on_failure"]
+    return pin
+
+
+def make_worker_evaluator(evaluator_type, space, backend, *, fit_rates, spec):
+    """Preserve older evaluator interfaces unless the strict trial is requested."""
+    from inspect import signature
+
+    strict = spec.get("stop_on_failure", False)
+    if type(strict) is not bool:
+        raise ValueError("trial failure policy must be boolean")
+    options = {"fit_rates": fit_rates, "max_rate_attempts": 1}
+    if strict:
+        if "stop_on_failure" not in signature(evaluator_type).parameters:
+            raise ValueError("strict trial policy is unsupported by this source")
+        options["stop_on_failure"] = True
+    return evaluator_type(space, backend, **options)
+
+
 def config_for(base: dict, *, kind: str, arm: str, seed: int,
                remaining: float, initial_plan: dict | None) -> dict:
     """Derive an isolated worker config without changing scientific settings."""
@@ -94,8 +153,8 @@ def initialize_numeric(spec, prepared, store, budget, backend):
     coordinates = spec["coordinates"]
     if len(coordinates) != 8 or len({tuple(p) for p in coordinates}) != 8:
         raise ValueError("BO initialization requires eight distinct frozen points")
-    evaluator = ElectrothermalEvaluator(prepared.space, backend,
-        fit_rates=prepared.dataset.fit_rates, max_rate_attempts=1)
+    evaluator = make_worker_evaluator(ElectrothermalEvaluator, prepared.space, backend,
+        fit_rates=prepared.dataset.fit_rates, spec=spec)
     records = []
     for point in coordinates:
         prepared.space.validate(point)
@@ -127,8 +186,8 @@ def initialize_warmstart(spec, prepared, store, budget, backend):
     from llmbo_para.electrothermal_evaluation import ElectrothermalEvaluator
     from lgbo_real_gain_worker import _controller
 
-    evaluator = ElectrothermalEvaluator(prepared.space, backend,
-        fit_rates=prepared.dataset.fit_rates, max_rate_attempts=1)
+    evaluator = make_worker_evaluator(ElectrothermalEvaluator, prepared.space, backend,
+        fit_rates=prepared.dataset.fit_rates, spec=spec)
     controller = _controller(prepared, budget, software_fixture=spec.get("software_fixture", False))
     if spec.get("software_fixture"):
         from llmbo_para.sobol import Sobol6
@@ -179,8 +238,8 @@ def run_arm(spec, prepared, store, budget, backend):
     shutil.copyfile(source, destination)
     if sha256_file(destination) != spec["initial"]["sha256"]:
         raise ValueError("copied initial plan differs")
-    evaluator = ElectrothermalEvaluator(prepared.space, backend,
-        fit_rates=prepared.dataset.fit_rates, max_rate_attempts=1)
+    evaluator = make_worker_evaluator(ElectrothermalEvaluator, prepared.space, backend,
+        fit_rates=prepared.dataset.fit_rates, spec=spec)
     controller = None
     streak = RequestFailureStreak(spec.get("initial_failure_streak", 0))
     if spec["arm"] == "full_llmbo_mo":
@@ -462,9 +521,11 @@ def run_worker(spec, connection):
         store = ElectrothermalRunStore(spec["output"], config,
             dataset=prepared.dataset, signatures=prepared.signatures,
             command="electrothermal three-arm validation")
-        store.write_json("source-execution-pin.json", {
-            "source_root": str(root), "source_fingerprint": spec["source"],
-            "source_commit": spec.get("source_commit")})
+        pin = execution_pin(root, spec)
+        if spec.get("stop_on_failure", False):
+            install_trial_failure_guard(store)
+            install_trial_reply_guard(store)
+        store.write_json("source-execution-pin.json", pin)
         _attach_api_charges(store, budget)
         if spec["kind"] == "numeric_initialization":
             result = initialize_numeric(spec, prepared, store, budget, backend)
