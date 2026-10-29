@@ -85,6 +85,27 @@ def test_released_source_drift_is_rejected():
         runner._check_source_pins({"source_pins": {"src/llmbo_para/electrothermal_llm.py": "0" * 64}})
 
 
+def test_live_runtime_rejects_wrong_interpreter(tmp_path, monkeypatch):
+    import run_et_warmstart_quality_gate_trial as runner
+
+    monkeypatch.setattr(runner.sys, "executable", str(tmp_path / "wrong-python.exe"))
+    with pytest.raises(ValueError, match="interpreter"):
+        runner.verify_runtime()
+
+
+def test_mock_artifact_pin_detects_tampering(tmp_path):
+    import hashlib
+    import run_et_warmstart_quality_gate_trial as runner
+
+    artifact = tmp_path / "analysis.json"
+    artifact.write_text("original", encoding="utf8")
+    pins = {str(artifact): hashlib.sha256(artifact.read_bytes()).hexdigest()}
+    runner.verify_file_pins(pins, [artifact])
+    artifact.write_text("changed", encoding="utf8")
+    with pytest.raises(ValueError, match="artifact"):
+        runner.verify_file_pins(pins, [artifact])
+
+
 def test_failed_ledger_start_clears_temporary_credential(tmp_path, monkeypatch):
     import os
     import run_et_warmstart_quality_gate_trial as runner
@@ -133,6 +154,25 @@ def test_failed_second_arm_preserves_completed_pool_arm_and_charges(tmp_path, mo
     assert set(pair["cases"]) == {"v1"} and pair["pool"]["complete_pool_count"] == 16
     assert pair["costs"] == {"DFN": 3, "API": 1} and budget.state()["closed"]
     assert json.loads((tmp_path / "seed-659578-partial.json").read_text())["cases"] == pair["cases"]
+
+
+def test_interrupted_pool_closes_budget_and_preserves_partial_seed(tmp_path, monkeypatch):
+    import run_et_warmstart_quality_gate_trial as runner
+    from et_selection_trial_budget import SelectionTrialBudget
+
+    protocol = runner.load_protocol(EVIDENCE / "protocol-no-retry.json")
+    budget = SelectionTrialBudget.start(tmp_path / "budget.jsonl", protocol_sha="a" * 64,
+        caps=protocol["independent_live_caps"], phases=runner.phases_for(protocol))
+    def interrupt(*args, **kwargs):
+        raise KeyboardInterrupt()
+    monkeypatch.setattr(runner, "_phase", interrupt)
+    try:
+        pair = runner.run_seed(protocol, seed=659578, budget=budget, root=tmp_path,
+                               source_root=ROOT, software_fixture=True)
+    except KeyboardInterrupt:
+        pytest.fail("interruption escaped before partial seed and budget closure")
+    assert pair["status"] == "failed" and pair["error_type"] == "KeyboardInterrupt"
+    assert budget.state()["closed"] and (tmp_path / "seed-659578-partial.json").is_file()
 
 
 def test_failure_between_phases_closes_parent_budget(tmp_path, monkeypatch):

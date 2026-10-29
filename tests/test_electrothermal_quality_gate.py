@@ -1,6 +1,8 @@
 """Versioned WarmStart quality gate contracts."""
 
 import pytest
+from dataclasses import replace
+from itertools import permutations
 
 
 from llmbo_para.electrothermal_evaluation import ElectrothermalEvaluationResult
@@ -70,3 +72,17 @@ def test_unknown_unversioned_quality_gate_is_rejected():
     with pytest.raises(ValueError, match="selection rule"):
         warmstart_selection_details(rows, space=UnitSpace(), count=2,
                                     objective_scales=[.1, 1.], rule="pareto_quality_gated")
+
+
+def test_quality_gate_is_order_independent_and_excludes_partial_and_duplicate_points():
+    rows = [row("A", .2, (.1, .9)), row("B", .3, (.2, .5)),
+            row("C", .21, (.25, 1.5)), row("D", .8, (.3, 2.))]
+    duplicate = replace(rows[2], evaluation_id="Z")
+    partial = replace(rows[3], evaluation_id="P", parameters=(.95,) * 6,
+                      complete_pair_valid=False, objectives=None,
+                      objective_components={"F_U": None, "F_T": None})
+    for order in permutations(rows):
+        result = warmstart_selection_details([*order, duplicate, partial], space=UnitSpace(), count=3,
+            objective_scales=[.1, 1.], rule="pareto_quality_gated_spacefill_v3")
+        assert result["selected_ids"] == ["A", "B", "C"]
+        assert result["duplicates"]["C"] == ["Z"] and "P" not in result["pool_ids"]

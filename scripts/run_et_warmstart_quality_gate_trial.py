@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 from copy import deepcopy
 import hashlib
+import importlib.metadata
 import json
 import os
 from pathlib import Path
@@ -21,6 +22,10 @@ MAIN = Path(r"D:\Users\aa133\Desktop\LLMBO_Para")
 EVIDENCE = MAIN / "bo-repair-work/20261017_et_implementation/warmstart-v3-trial-20261029"
 PROPOSAL = EVIDENCE / "protocol-no-retry.json"
 OUTPUT = MAIN / "runs/w29"
+MOCK_OUTPUT = MAIN / "runs/w29mock2"
+LOCKED_PYTHON = MAIN / ".venv-pybamm312/Scripts/python.exe"
+LOCKED_PACKAGES = {"pybamm": "25.10.2", "pybammsolvers": "0.3.3", "casadi": "3.6.7",
+                   "numpy": "2.5.3", "scipy": "1.18.1"}
 SEEDS = (659578, 564327, 336546, 769762, 465948)
 OLD_SEEDS = (376330, 633262, 789058, 609653, 362724,
              260437, 152325, 947445, 235695, 299924)
@@ -148,6 +153,23 @@ def _check_source_pins(release: dict) -> None:
         raise ValueError("released gate record changed")
 
 
+def verify_runtime() -> None:
+    if (os.path.normcase(str(Path(sys.executable).resolve())) !=
+            os.path.normcase(str(LOCKED_PYTHON.resolve())) or sys.version_info[:2] != (3, 12)):
+        raise ValueError("locked Python interpreter differs")
+    for name, expected in LOCKED_PACKAGES.items():
+        if importlib.metadata.version(name) != expected:
+            raise ValueError("locked package version differs: " + name)
+
+
+def verify_file_pins(pins: dict, expected_paths: list[Path]) -> None:
+    if not isinstance(pins, dict) or set(pins) != {str(path) for path in expected_paths}:
+        raise ValueError("artifact pin set differs")
+    for path, expected in pins.items():
+        if not Path(path).is_file() or _sha(Path(path)) != expected:
+            raise ValueError("artifact hash differs")
+
+
 def source_names() -> set[str]:
     files = list((WT / "src/llmbo_para").rglob("*.py"))
     files += list((WT / "src/llmbo_para/prompts").glob("*.txt"))
@@ -251,7 +273,7 @@ def run_seed(protocol: dict, *, seed: int, budget: SelectionTrialBudget, root: P
             budget.finish(True)
             _write_json(partial, pair)
         pair["status"] = "completed"
-    except Exception as exc:
+    except BaseException as exc:
         state = budget.state()
         pair.update(status="failed", failed_phase=state["phase"], error_type=type(exc).__name__,
                     costs=budget.counts())
@@ -315,6 +337,9 @@ def _live_preflight(evidence_dir: Path, output: Path) -> tuple[dict, dict]:
                     or result.get("boundary", {}).get("network_attempts") != 0
                     or result.get("boundary", {}).get("battery_solve_attempts") != 0):
                 raise ValueError("full regression boundary differs")
+    verify_file_pins(release.get("mock_artifacts"),
+                     [MOCK_OUTPUT / "result.json", MOCK_OUTPUT / "analysis.json", MOCK_OUTPUT / "budget.jsonl"])
+    verify_runtime()
     release["release_sha256"] = _sha(release_path)
     return protocol, release
 
@@ -393,7 +418,7 @@ def execute_live(*, evidence_dir: Path = EVIDENCE, output: Path = OUTPUT) -> dic
             if report["status"] != "completed" or not budget.state()["closed"]:
                 raise ValueError("final independent audit incomplete")
             _write_json(output / "analysis.json", report)
-    except Exception as exc:
+    except BaseException as exc:
         state = budget.state()
         if state["phase"] is not None:
             budget.finish(False)
