@@ -45,7 +45,7 @@
 **Files:** The design/plan/audit documents and a new ignored evidence directory only.
 
 - [ ] Record clean branch status and baseline commit, interpreter/PyBaMM versions, hashes of the existing synthetic observations and prior `w27` result. Run locked-interpreter full software regression with network and battery-solve guards; save JUnit, log, counts and process exit. Diagnose failures rather than importing old pass counts.
-- [ ] Generate disabled, per-seed configs from the previous locked physical template. Freeze seed/arm order, 1660/15/28800 caps, 20 phase ceilings, exact 0.5C/1C/60 s semantics, source file hashes and short output path in a credential-free protocol proposal. `--dry-run` must not create live output or read a credential.
+- [ ] Generate disabled, per-seed configs from the previous locked physical template. Freeze seed/arm order, 1660/15/28800 caps, 20 phase ceilings, exact 0.5C/1C/60 s semantics and short output path in a credential-free protocol proposal. Record baseline source hashes; freeze the changed implementation's final source hashes in Task 4 after TDD. `--dry-run` must not create live output or read a credential.
 - [ ] Commit the reviewed documents/protocol generator with explicit file paths.
 
 ### Task 1: TDD v3 selector and compatibility
