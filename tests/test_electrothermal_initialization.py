@@ -85,6 +85,33 @@ def test_v2_initial_plan_import_replays_the_archived_selection_rule(tmp_path):
     assert audit_electrothermal_run(Path(second['run_directory']),deep=True)['passed']
 
 
+def test_v3_plan_rejects_rehashed_quality_gate_tampering(tmp_path):
+    from llmbo_para.electrothermal_llm import ElectrothermalLLMController
+    from llmbo_para.electrothermal_workflow import run_electrothermal_experiment,prepare_electrothermal_experiment
+    from llmbo_para.runstore import digest_value,sha256_file
+    from test_electrothermal_llm import Proposed
+
+    cfg=et_config();cfg['optimization']['mode']='warmstart_only'
+    cfg['optimization']['total_candidate_budget']=2
+    cfg['optimization']['warmstart']['selection_rule']='pareto_quality_gated_spacefill_v3'
+    _,prepared=prepare_electrothermal_experiment(cfg,base_dir=tmp_path)
+    mock=Proposed(prepared.space,[[.2]*6,[.8]*6,[.21]*6,[.7]*6])
+    first=run_electrothermal_experiment(cfg,tmp_path,base_dir=tmp_path,
+        llm_controller=ElectrothermalLLMController(transport=mock,is_mock=True))
+    plan=Path(first['run_directory'])/'initial-plan.json'
+    payload=json.loads(plan.read_text(encoding='utf8'))
+    assert payload['history_evidence']['selection']['rule']=='pareto_quality_gated_spacefill_v3'
+    payload['history_evidence']['selection']['q_gate']+=1.
+    payload.pop('plan_sha256')
+    payload['plan_sha256']=digest_value(payload)
+    forged=tmp_path/'forged-v3-plan.json'
+    forged.write_text(json.dumps(payload),encoding='utf8')
+    cfg['optimization']['initial_plan']={'path':str(forged),'sha256':sha256_file(forged)}
+    report,accepted=prepare_electrothermal_experiment(cfg,base_dir=tmp_path)
+    assert accepted is None
+    assert any('historical selection' in error for error in report['errors'])
+
+
 @pytest.mark.parametrize('actual_rule,forged_rule',[
     ('pareto_maximin_v1','pareto_core_spacefill_v2'),
     ('pareto_core_spacefill_v2','pareto_maximin_v1'),

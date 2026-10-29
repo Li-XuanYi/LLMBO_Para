@@ -8,7 +8,11 @@ FIXED_KEYS=('cell_volume_m3','cooling_area_m2','negative_porosity','positive_por
             'negative_conductivity_s_m','positive_conductivity_s_m','electrolyte_diffusivity_multiplier')
 LAW_KEYS=('reference_temperature_k','activation_energy_n_j_mol','activation_energy_p_j_mol')
 CONFIRMATIONS=('current','time','temperature_unit','temperature_probe','initial_state','ambient_temperature','cooling')
-WARMSTART_SELECTION_RULES=('pareto_maximin_v1','pareto_core_spacefill_v2')
+WARMSTART_SELECTION_RULES=(
+    'pareto_maximin_v1',
+    'pareto_core_spacefill_v2',
+    'pareto_quality_gated_spacefill_v3',
+)
 
 
 def effective_warmstart_selection_rule(config):

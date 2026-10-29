@@ -30,7 +30,26 @@ def load():
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
+    # The historical live runner pins its original checkout. Rebind only the
+    # offline test instance to this checkout and rehash the proposal below.
+    module.WT = ROOT
     return module
+
+
+@pytest.fixture(scope="module")
+def rebased_proposal_path(tmp_path_factory):
+    """Preserve strict source checks while testing the old runner on this branch."""
+    import hashlib
+
+    runner = load()
+    payload = json.loads(PROPOSAL.read_text(encoding="utf-8"))
+    payload["source_files"] = {
+        name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest()
+        for name in runner.SOURCE_FILES
+    }
+    path = tmp_path_factory.mktemp("rebased-paired-protocol") / "protocol.json"
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    return path
 
 
 def load_worker():
@@ -91,9 +110,9 @@ def write_protocol(tmp_path: Path, payload: dict) -> Path:
     return path
 
 
-def test_protocol_has_five_novel_seeds_ten_cases_and_exact_upper_bounds():
+def test_protocol_has_five_novel_seeds_ten_cases_and_exact_upper_bounds(rebased_proposal_path):
     runner = load()
-    protocol = runner.load_protocol(PROPOSAL)
+    protocol = runner.load_protocol(rebased_proposal_path)
     assert protocol["seeds"] == [260437, 152325, 947445, 235695, 299924]
     assert not set(protocol["seeds"]) & OLD_SEEDS
     assert protocol["seed_run_order"] == [152325, 235695, 947445, 260437, 299924]
@@ -117,17 +136,17 @@ def test_protocol_has_five_novel_seeds_ten_cases_and_exact_upper_bounds():
     ("new_bo_rounds_per_arm", 20),
     ("independent_live_caps_if_released", {"DFN": 1161, "API": 15, "wall_clock_s": 28800}),
 ])
-def test_protocol_mutation_is_rejected(tmp_path, field, value):
+def test_protocol_mutation_is_rejected(tmp_path, rebased_proposal_path, field, value):
     runner = load()
-    payload = json.loads(PROPOSAL.read_text(encoding="utf-8"))
+    payload = json.loads(rebased_proposal_path.read_text(encoding="utf-8"))
     payload[field] = value
     with pytest.raises(ValueError):
         runner.load_protocol(write_protocol(tmp_path, payload))
 
 
-def test_arm_order_or_config_pin_mutation_is_rejected(tmp_path):
+def test_arm_order_or_config_pin_mutation_is_rejected(tmp_path, rebased_proposal_path):
     runner = load()
-    original = json.loads(PROPOSAL.read_text(encoding="utf-8"))
+    original = json.loads(rebased_proposal_path.read_text(encoding="utf-8"))
     changed = deepcopy(original)
     changed["arm_order_by_seed"]["152325"] = ["v2", "v1"]
     with pytest.raises(ValueError):
@@ -143,11 +162,11 @@ def test_arm_order_or_config_pin_mutation_is_rejected(tmp_path):
         runner.load_protocol(write_protocol(tmp_path, changed))
 
 
-def test_dry_run_neither_reads_credential_nor_creates_output(tmp_path, monkeypatch):
+def test_dry_run_neither_reads_credential_nor_creates_output(tmp_path, monkeypatch, rebased_proposal_path):
     runner = load()
     monkeypatch.setattr(runner, "read_credential", lambda: pytest.fail("credential read"))
     destination = tmp_path / "live-run"
-    result = runner.dry_run(PROPOSAL, output=destination)
+    result = runner.dry_run(rebased_proposal_path, output=destination)
     assert result["dry_run"] is True
     assert result["planned_cases"] == 10
     assert result["new_rounds"] == 500
@@ -296,10 +315,10 @@ def test_pair_derivation_rejects_temperature_cost_or_signature_tampering(
 
 
 @pytest.fixture(scope="module")
-def paired_mock_case(tmp_path_factory):
+def paired_mock_case(tmp_path_factory, rebased_proposal_path):
     root = tmp_path_factory.mktemp("paired-closure")
     runner = load()
-    protocol = runner.load_protocol(PROPOSAL)
+    protocol = runner.load_protocol(rebased_proposal_path)
     budget = runner.PairedBudget.start(root / "budget.jsonl", protocol_sha="d" * 64)
     pair = runner.run_seed_pair(protocol, seed=152325, budget=budget,
                                 root=root, source_root=ROOT, software_fixture=True)
@@ -361,9 +380,9 @@ def test_pair_analysis_rejects_tampered_curve_plan_cost_or_scale(paired_mock_cas
         analyzer.analyze_seed(bad, protocol)
 
 
-def test_failed_pool_phase_closes_budget_and_cannot_launch_arms(tmp_path, monkeypatch):
+def test_failed_pool_phase_closes_budget_and_cannot_launch_arms(tmp_path, monkeypatch, rebased_proposal_path):
     runner = load()
-    protocol = runner.load_protocol(PROPOSAL)
+    protocol = runner.load_protocol(rebased_proposal_path)
     budget = runner.PairedBudget.start(tmp_path / "budget.jsonl", protocol_sha="e" * 64)
 
     def fail_pool(*args, **kwargs):
@@ -395,8 +414,10 @@ def test_live_preflight_refuses_existing_output_without_claiming_budget(tmp_path
     assert not (tmp_path / "evidence" / "budget.jsonl").exists()
 
 
-def test_five_seed_mock_rehearsal_has_ten_cases_five_hundred_rounds_and_zero_real_cost(tmp_path):
+def test_five_seed_mock_rehearsal_has_ten_cases_five_hundred_rounds_and_zero_real_cost(tmp_path, monkeypatch, rebased_proposal_path):
     runner = load()
+    original = runner.load_protocol
+    monkeypatch.setattr(runner, "load_protocol", lambda path=runner.PROPOSAL: original(rebased_proposal_path))
     result = runner.run_mock_rehearsal(output=tmp_path / "mock")
     assert result == {"status": "completed", "cases": 10, "rounds": 500,
                       "API": 0, "DFN": 0}

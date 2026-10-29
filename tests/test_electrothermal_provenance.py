@@ -30,18 +30,21 @@ def test_warmstart_rule_binds_initialization_without_changing_physical_protocol(
     from llmbo_para.electrothermal_synthetic import make_synthetic_dataset
 
     dataset=make_synthetic_dataset(R3)
-    absent=et_config();v1=clone(absent);v2=clone(absent)
+    absent=et_config();v1=clone(absent);v2=clone(absent);v3=clone(absent)
     v1['optimization']['warmstart']['selection_rule']='pareto_maximin_v1'
     v2['optimization']['warmstart']['selection_rule']='pareto_core_spacefill_v2'
+    v3['optimization']['warmstart']['selection_rule']='pareto_quality_gated_spacefill_v3'
     base=build_electrothermal_signatures(absent,dataset)
     explicit=build_electrothermal_signatures(v1,dataset)
     changed=build_electrothermal_signatures(v2,dataset)
-    assert base.config!=explicit.config!=changed.config
+    gated=build_electrothermal_signatures(v3,dataset)
+    assert len({base.config,explicit.config,changed.config,gated.config})==4
     assert base.initialization_compatibility==explicit.initialization_compatibility
-    assert changed.initialization_compatibility!=base.initialization_compatibility
-    assert len({base.algorithm,explicit.algorithm,changed.algorithm})==3
+    assert len({base.initialization_compatibility,changed.initialization_compatibility,
+                gated.initialization_compatibility})==3
+    assert len({base.algorithm,explicit.algorithm,changed.algorithm,gated.algorithm})==4
     for name in ('source','data','model_evaluation','evaluation_protocol','comparison_protocol','fit_rates'):
-        assert getattr(base,name)==getattr(explicit,name)==getattr(changed,name)
+        assert getattr(base,name)==getattr(explicit,name)==getattr(changed,name)==getattr(gated,name)
 
 
 def test_initial_plan_recomputes_curves_and_rejects_legacy_or_corruption(tmp_path):

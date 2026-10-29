@@ -29,7 +29,9 @@ def is_recoverable_warmstart_preheader_eof(outcome: dict) -> bool:
 
 def warmstart_selection_details(records,*,space,count,objective_scales,rho_aug=.05,rule='pareto_maximin_v1'):
     if type(count) is not int or count<2:raise ValueError('at least two seeds required')
-    if type(rule) is not str or rule not in ('pareto_maximin_v1','pareto_core_spacefill_v2'):
+    if type(rule) is not str or rule not in (
+            'pareto_maximin_v1','pareto_core_spacefill_v2',
+            'pareto_quality_gated_spacefill_v3'):
         raise ValueError('unknown WarmStart selection rule')
     ids={};unique={};duplicates={}
     for record in records:
@@ -63,7 +65,9 @@ def warmstart_selection_details(records,*,space,count,objective_scales,rho_aug=.
 
     core=[i for i in selected if ranks[i]==0]
     chosen=core[:];v2_steps=steps[:len(core)]
-    candidates=[r for r in pool if r.evaluation_id not in set(core)]
+    gate=max((q[i] for i in selected),default=None) if rule=='pareto_quality_gated_spacefill_v3' else None
+    candidates=[r for r in pool if r.evaluation_id not in set(core)
+                and (gate is None or q[r.evaluation_id]<=gate)]
     while candidates and len(chosen)<count:
         distances={r.evaluation_id:min(float(np.linalg.norm(np.asarray(x[r.evaluation_id])-x[s])/np.sqrt(6))
                                        for s in chosen) for r in candidates}
@@ -71,7 +75,10 @@ def warmstart_selection_details(records,*,space,count,objective_scales,rho_aug=.
         winner=min(candidates,key=key);i=winner.evaluation_id
         v2_steps.append({'selected_id':i,'rank':ranks[i],'distance':distances[i],'ordering_key':key(winner)})
         chosen.append(i);candidates.remove(winner)
-    return {**details,'rule':rule,'selected_ids':chosen,'steps':v2_steps}
+    result={**details,'rule':rule,'selected_ids':chosen,'steps':v2_steps}
+    if rule=='pareto_quality_gated_spacefill_v3':
+        result.update(q_gate=gate,baseline_selected_ids=selected[:])
+    return result
 
 
 def select_electrothermal_warmstart(records,*,space,count,objective_scales,rho_aug=.05,rule='pareto_maximin_v1'):
