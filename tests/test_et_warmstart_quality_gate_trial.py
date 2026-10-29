@@ -283,6 +283,25 @@ def test_archive_accepts_cached_round_id_but_rejects_unseen_record():
         verify_archive_ids(records + [{"evaluation_id": "extra"}], ["a", "b"], ["c", "c"])
 
 
+def test_software_bo_nonzero_hv_is_recomputed_from_archived_curves(tmp_path):
+    from analyze_et_three_arm_validation import verify_objectives, exact_hv
+    from test_mo_optimizer import make_optimizer
+
+    optimizer = make_optimizer(tmp_path)
+    optimizer.initialize()
+    initial = optimizer.summary()["HV"]
+    optimizer.step()
+    reported = optimizer.summary()["HV"]
+    files = sorted((optimizer.store.path / "electrothermal-evaluations").glob("*.json"))
+    records = [json.loads(path.read_text(encoding="utf8")) for path in files]
+    for record in records:
+        verify_objectives(record, rates=optimizer.dataset.fit_rates)
+    recomputed = exact_hv([(row["objectives"][0] / .1, row["objectives"][1]) for row in records])
+    assert initial > 0 and reported >= initial
+    assert reported == pytest.approx(recomputed)
+    assert optimizer.store.ledger.summary()["solver_calls"] == 0
+
+
 def test_mock_supervisor_closes_all_phases_without_real_cost(tmp_path, monkeypatch):
     import analyze_et_warmstart_quality_gate_trial as analyzer
     import run_et_warmstart_quality_gate_trial as runner

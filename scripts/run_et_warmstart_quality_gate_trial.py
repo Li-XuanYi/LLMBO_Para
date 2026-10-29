@@ -22,7 +22,7 @@ MAIN = Path(r"D:\Users\aa133\Desktop\LLMBO_Para")
 EVIDENCE = MAIN / "bo-repair-work/20261017_et_implementation/warmstart-v3-trial-20261029"
 PROPOSAL = EVIDENCE / "protocol-no-retry.json"
 OUTPUT = MAIN / "runs/w29"
-MOCK_OUTPUT = MAIN / "runs/w29mock2"
+MOCK_OUTPUT = MAIN / "runs/w29mock3"
 LOCKED_PYTHON = MAIN / ".venv-pybamm312/Scripts/python.exe"
 LOCKED_PACKAGES = {"pybamm": "25.10.2", "pybammsolvers": "0.3.3", "casadi": "3.6.7",
                    "numpy": "2.5.3", "scipy": "1.18.1"}
