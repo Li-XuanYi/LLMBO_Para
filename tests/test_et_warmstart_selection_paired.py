@@ -248,6 +248,35 @@ def test_shared_pool_yields_two_rule_bound_plans_and_reproduces_v1_ids(paired_po
             b["parameters"], b["rates"], b["objectives"])
 
 
+def test_shared_pool_yields_three_distinct_rule_bound_plans(paired_pool, tmp_path):
+    from llmbo_para.electrothermal_workflow import prepare_electrothermal_experiment
+    from llmbo_para.electrothermal_provenance import load_initial_plan
+
+    pool, old_configs, base = paired_pool
+    configs = deepcopy(old_configs)
+    configs["v3"] = deepcopy(configs["v1"])
+    configs["v3"]["optimization"]["warmstart"]["selection_rule"] = "pareto_quality_gated_spacefill_v3"
+    rules = {"v1": "pareto_maximin_v1", "v2": "pareto_core_spacefill_v2",
+             "v3": "pareto_quality_gated_spacefill_v3"}
+    result = load_worker().derive_selection_plans(pool, configs=configs, rules=rules,
+                                                  out=tmp_path / "three-plans")
+    assert result["pool_size"] == 16
+    assert result["shared_costs"]["software_calls"] == 32
+    assert len({result[arm]["sha256"] for arm in rules}) == 3
+    for arm in rules:
+        report, prepared = prepare_electrothermal_experiment(configs[arm], base_dir=base)
+        assert report["ready"]
+        loaded = load_initial_plan(result[arm]["path"], space=prepared.space,
+                                   dataset=prepared.dataset, signatures=prepared.signatures,
+                                   expected_selection_rule=rules[arm])
+        assert len(loaded.records) == 8
+        for other in set(rules) - {arm}:
+            with pytest.raises(ValueError):
+                load_initial_plan(result[other]["path"], space=prepared.space,
+                                  dataset=prepared.dataset, signatures=prepared.signatures,
+                                  expected_selection_rule=rules[arm])
+
+
 def test_pair_derivation_rejects_rule_and_source_mutations(paired_pool, tmp_path):
     pool, configs, _ = paired_pool
     worker = load_worker()

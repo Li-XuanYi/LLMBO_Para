@@ -9,6 +9,7 @@ from pathlib import Path
 
 
 RULES = {"v1": "pareto_maximin_v1", "v2": "pareto_core_spacefill_v2"}
+THREE_RULES = {**RULES, "v3": "pareto_quality_gated_spacefill_v3"}
 
 
 def _sha(path: Path) -> str:
@@ -29,6 +30,12 @@ def _physical_record(raw: dict) -> dict:
 
 
 def derive_paired_plans(pool_run: Path, *, configs: dict[str, dict], out: Path) -> dict[str, dict]:
+    """Keep the original two-rule interface and manifest shape."""
+    return derive_selection_plans(pool_run, configs=configs, rules=RULES, out=out)
+
+
+def derive_selection_plans(pool_run: Path, *, configs: dict[str, dict],
+                           rules: dict[str, str], out: Path) -> dict[str, dict]:
     """Rebind only rule-specific initialization evidence; never repeat or edit a solve."""
     from llmbo_para.electrothermal_audit import audit_electrothermal_run
     from llmbo_para.electrothermal_evaluation import result_from_dict
@@ -40,26 +47,29 @@ def derive_paired_plans(pool_run: Path, *, configs: dict[str, dict], out: Path) 
 
     pool_run = Path(pool_run).resolve(strict=True)
     out = Path(out)
-    if set(configs) != set(RULES):
-        raise ValueError("exactly v1 and v2 configurations required")
-    v1, v2 = deepcopy(configs["v1"]), deepcopy(configs["v2"])
-    if (v1["optimization"]["warmstart"].get("selection_rule") != RULES["v1"]
-            or v2["optimization"]["warmstart"].get("selection_rule") != RULES["v2"]):
-        raise ValueError("paired selection rules differ from protocol")
-    v1_as_v2 = deepcopy(v1)
-    v1_as_v2["optimization"]["warmstart"]["selection_rule"] = RULES["v2"]
-    if _digest(v1_as_v2) != _digest(v2):
-        raise ValueError("paired configurations differ beyond selection rule")
+    if rules not in (RULES, THREE_RULES) or set(configs) != set(rules):
+        raise ValueError("unsupported selection rule set or configuration set")
+    configurations = {arm: deepcopy(configs[arm]) for arm in rules}
+    v1 = configurations["v1"]
+    for arm, rule in rules.items():
+        config = configurations[arm]
+        if config["optimization"]["warmstart"].get("selection_rule") != rule:
+            raise ValueError("paired selection rules differ from protocol")
+        expected = deepcopy(v1)
+        expected["optimization"]["warmstart"]["selection_rule"] = rule
+        if _digest(expected) != _digest(config):
+            raise ValueError("paired configurations differ beyond selection rule")
     prepared = {}
-    for arm, config in (("v1", v1), ("v2", v2)):
+    for arm, config in configurations.items():
         report, current = prepare_electrothermal_experiment(config, base_dir=pool_run.parent)
         if not report["ready"] or current is None:
             raise ValueError(f"{arm} configuration preflight failed")
         prepared[arm] = current
-    first, second = prepared["v1"].signatures, prepared["v2"].signatures
-    if (any(getattr(first, name) != getattr(second, name)
-            for name in ("data", "model_evaluation", "evaluation_protocol", "source"))
-            or first.initialization_compatibility == second.initialization_compatibility):
+    first = prepared["v1"].signatures
+    signatures = [prepared[arm].signatures for arm in rules]
+    if (any(getattr(first, name) != getattr(other, name)
+            for other in signatures for name in ("data", "model_evaluation", "evaluation_protocol", "source"))
+            or len({item.initialization_compatibility for item in signatures}) != len(signatures)):
         raise ValueError("paired physical signatures differ or selection signatures collide")
     audit = audit_electrothermal_run(pool_run, deep=True)
     if audit.get("passed") is not True:
@@ -70,9 +80,9 @@ def derive_paired_plans(pool_run: Path, *, configs: dict[str, dict], out: Path) 
         raise ValueError("source pool initialization artifacts absent")
     loaded = load_initial_plan(source_plan, space=prepared["v1"].space,
                                dataset=prepared["v1"].dataset, signatures=first,
-                               expected_selection_rule=RULES["v1"])
+                               expected_selection_rule=rules["v1"])
     selection = json.loads(source_selection.read_text(encoding="utf-8"))
-    if selection.get("rule") != RULES["v1"] or selection.get("status") != "completed":
+    if selection.get("rule") != rules["v1"] or selection.get("status") != "completed":
         raise ValueError("source pool is not completed v1 screening")
     evidence = loaded.history_evidence
     if evidence is None or evidence.get("origin_run_id") != pool_run.name:
@@ -106,7 +116,7 @@ def derive_paired_plans(pool_run: Path, *, configs: dict[str, dict], out: Path) 
     first_details = warmstart_selection_details(
         pool, space=prepared["v1"].space, count=8,
         objective_scales=v1["optimization"]["objective_scales"],
-        rho_aug=v1["optimization"]["rho_aug"], rule=RULES["v1"],
+        rho_aug=v1["optimization"]["rho_aug"], rule=rules["v1"],
     )
     if first_details["selected_ids"] != selection.get("selected_ids"):
         raise ValueError("v1 source selection does not reproduce")
@@ -116,9 +126,9 @@ def derive_paired_plans(pool_run: Path, *, configs: dict[str, dict], out: Path) 
     source_files = [source_plan, source_selection, *evaluation_paths]
     source_hashes = {str(path): _sha(path) for path in source_files}
     result["pool_sha256"] = _digest(source_hashes)
-    for arm, config in (("v1", v1), ("v2", v2)):
+    for arm, config in configurations.items():
         current = prepared[arm]
-        rule = RULES[arm]
+        rule = rules[arm]
         signed_pool = [replace(record, signatures=asdict(current.signatures)) for record in pool]
         replay = warmstart_selection_details(
             signed_pool, space=current.space, count=8,
@@ -148,7 +158,7 @@ def derive_paired_plans(pool_run: Path, *, configs: dict[str, dict], out: Path) 
     manifest = {"schema_version": 1, "pool_run": str(pool_run),
                 "source_files": source_hashes, "pool_sha256": result["pool_sha256"],
                 "shared_costs": result["shared_costs"],
-                "v1": result["v1"], "v2": result["v2"]}
+                **{arm: result[arm] for arm in rules}}
     manifest_path = out / "paired-plan-manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False, allow_nan=False),
                              encoding="utf-8")
