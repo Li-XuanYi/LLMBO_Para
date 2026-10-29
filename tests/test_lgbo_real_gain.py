@@ -230,6 +230,9 @@ def test_source_bound_initialization_and_two_arm_none_control_close_without_live
     # audits are real; only the battery/API leaves are algebraic/none fixtures.
     import tempfile
     m=load()
+    # Exercise this checkout; the historical runner's hard-coded worktree may
+    # contain unrelated local changes and is not the source under test.
+    m.WT=SCRIPT.parents[1]
     root=Path(tempfile.mkdtemp(prefix='rg-',dir=m.MAIN/'runs'))
     b=m.ExperimentBudget.start(root/'j',protocol_sha='a'*64)
     b.begin('preflight');b.charge('API','fixture-gate');b.finish(True);b.begin('initialization')
