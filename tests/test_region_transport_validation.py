@@ -199,8 +199,10 @@ def test_fake_release_cannot_reach_execution_or_load_a_key(tmp_path, monkeypatch
 
 @pytest.mark.parametrize('damage', [None, 'protocol', 'plan', 'runtime_manifest', 'result', 'source',
                                    'untested_runtime', 'stale_runtime', 'runtime_drift'])
-def test_release_binds_plan_inputs_runtime_and_actual_tested_source(tmp_path, damage):
+def test_release_binds_plan_inputs_runtime_and_actual_tested_source(tmp_path, damage, monkeypatch):
     module = feature()
+    # The runtime and the source under test must be the same checkout.
+    monkeypatch.setattr(module, 'WT', Path(__file__).resolve().parents[1])
     from datetime import datetime, timezone
     plan = tmp_path / 'plan.md'
     plan.write_text('software-only release unit fixture')
@@ -359,10 +361,11 @@ def failing_software_validation_worker(spec, connection):
     module.validation_worker(spec, connection)
 
 
-def test_new_worker_shared_initialization_twenty_rounds_and_global_streak():
+def test_new_worker_shared_initialization_twenty_rounds_and_global_streak(monkeypatch):
     """Actual optimizer/stores/audit; algebraic model and mock none, not real DFN/API."""
     import tempfile
     module = feature()
+    monkeypatch.setattr(module, 'WT', Path(__file__).resolve().parents[1])
     root = Path(tempfile.mkdtemp(prefix='nt24-', dir=module.MAIN/'runs'))
     proposal = module.BASE/'lgbo-real-gain-proposal-20261023'
     base = module.read(proposal/'new_full.disabled-config.json')
@@ -408,6 +411,7 @@ def test_actual_source_and_historical_preparation_stops_before_key_and_clock(mon
     import tempfile
     import shutil
     module = feature()
+    monkeypatch.setattr(module, 'WT', Path(__file__).resolve().parents[1])
     root = Path(tempfile.mkdtemp(prefix='nprep-', dir=module.MAIN/'runs'))
     original = module.EVIDENCE
     for name in ('approval.json', 'proposed-protocol.json'):

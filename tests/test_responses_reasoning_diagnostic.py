@@ -353,7 +353,12 @@ def test_actual_bounded_headers_then_parent_cutoff_preserves_200(tmp_path, monke
 
 def test_observer_wrapper_does_not_preload_spawn_modules(tmp_path):
     m = feature(); p = release_fixture(m, tmp_path)
-    spec = util.spec_from_file_location('own_reasoning_guard', m.EVIDENCE/'run_tests.py')
+    historical = (m.EVIDENCE/'run_tests.py').read_text(encoding='utf8')
+    old_scripts = 'C:/Users/aa133/.codex/worktrees/electrothermal-refactor/LLMBO_Para/scripts'
+    assert historical.count(old_scripts) == 1
+    local_wrapper = tmp_path/'run_tests_local.py'
+    local_wrapper.write_text(historical.replace(old_scripts, (Path(__file__).resolve().parents[1]/'scripts').as_posix()), encoding='utf8')
+    spec = util.spec_from_file_location('own_reasoning_guard', local_wrapper)
     wrapper = util.module_from_spec(spec); spec.loader.exec_module(wrapper)
     assert hasattr(wrapper, 'make_observer'), 'observer import isolation missing'
     names = ('run_responses_reasoning_diagnostic','run_region_transport_validation','run_lgbo_real_gain')
