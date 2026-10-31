@@ -1,1 +1,1 @@
-/src/llmbo_para/prompts/region_preference_lgbo_electrothermal.txt text eol=lf
+/src/llmbo_para/prompts/*.txt text eol=lf
