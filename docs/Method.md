@@ -403,3 +403,4 @@ g_t(\theta_i)=\max_j q_{i,j}+\rho_{\mathrm{aug}}\sum_jq_{i,j}.
 4. **实验层级**：将软件与解析测试、真实 DFN 合成数据测试和实测辨识分开，不从某一层的成功推论另外一层已验证，更不能将本文 Method 描述当作已得到实测结果。
 5. **公平比较**：数值ParEGO、WarmStart-only、完整LLMBO-MO在同一倍率/数据协议中使用统一物理参数域、尺度、权重、评价口径和成本台账；WarmStart-only与Full的Region-Lift消融使用同一经核验有效初始化计划及其指纹，完整归属所有筛选成本。后续加入可靠3C另建配置、签名及实验归档，不覆盖当前三倍率协议。
 6. **代码实现状态**：这是论文 Method 文本，不代表开发工作树已完成相应接口；正式提交时应再次与生效源码、固定物性和实验日志逐项核对。
+7. **2026-11-01 对照设计**：下一轮固定 `pareto_quality_gated_spacefill_v3`；BO、BO+WarmStart、BO+Region、Full 构成配对2×2消融，优先比较0–10轮HV面积和同一代表性Pareto点的电压/温度RMSE。数值与LLM初始化各实评16点，统一v3筛选为8个GP点，全部实评成本及可用解进入外部评价档案。外部对照包括Sobol、ParEGO、NSGA-II、MOEA/D、qLogNEHVI和多目标JES，具体控制、训练样本区别、资源估算与未实现项见[实验规格](superpowers/specs/2026-11-01-ablation-and-benchmark-design.md)。该设计不是新的效果结果，也不修改旧协议归档。
