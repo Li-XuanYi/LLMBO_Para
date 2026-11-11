@@ -39,9 +39,8 @@ def test_warmstart_rule_binds_initialization_without_changing_physical_protocol(
     changed=build_electrothermal_signatures(v2,dataset)
     gated=build_electrothermal_signatures(v3,dataset)
     assert len({base.config,explicit.config,changed.config,gated.config})==4
-    assert base.initialization_compatibility==explicit.initialization_compatibility
-    assert len({base.initialization_compatibility,changed.initialization_compatibility,
-                gated.initialization_compatibility})==3
+    assert len({base.initialization_compatibility,explicit.initialization_compatibility,
+                changed.initialization_compatibility,gated.initialization_compatibility})==4
     assert len({base.algorithm,explicit.algorithm,changed.algorithm,gated.algorithm})==4
     for name in ('source','data','model_evaluation','evaluation_protocol','comparison_protocol','fit_rates'):
         assert getattr(base,name)==getattr(explicit,name)==getattr(changed,name)==getattr(gated,name)

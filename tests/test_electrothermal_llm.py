@@ -41,7 +41,7 @@ def test_core_spacefill_v2_keeps_pareto_core_and_covers_farther_parameters():
         ('C',.21,(.25,1.5)),('D',.8,(.3,2.)),
     ])
     kwargs={'space':space,'count':3,'objective_scales':[.1,1.]}
-    old=warmstart_selection_details(rows,**kwargs)
+    old=warmstart_selection_details(rows,rule='pareto_maximin_v1',**kwargs)
     new=warmstart_selection_details(rows,rule='pareto_core_spacefill_v2',**kwargs)
     assert old['selected_ids']==['A','B','C']
     assert new['selected_ids']==['A','B','D']
@@ -62,7 +62,7 @@ def test_core_spacefill_v2_front_over_budget_uses_existing_front_order():
         ('A',.2,(.1,3.)),('B',.5,(.2,2.)),('C',.8,(.3,1.)),
     ])
     kwargs={'space':space,'count':2,'objective_scales':[.1,1.]}
-    old=warmstart_selection_details(rows,**kwargs)
+    old=warmstart_selection_details(rows,rule='pareto_maximin_v1',**kwargs)
     new=warmstart_selection_details(rows,rule='pareto_core_spacefill_v2',**kwargs)
     assert new['selected_ids']==old['selected_ids']
     by_id={r.evaluation_id:r.objectives for r in rows}

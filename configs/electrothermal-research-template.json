@@ -214,6 +214,7 @@
       10.0
     ],
     "warmstart": {
+      "selection_rule": "pareto_core_spacefill",
       "count": 2,
       "pool_size": 4,
       "max_requests": 3,
