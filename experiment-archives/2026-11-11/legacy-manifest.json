@@ -197,5 +197,2332 @@
         "sha256": "6a652ed36a790490c793a5aa27875f6fa57942b8f67a7b31aa74452ed658fd6c"
       }
     ]
+  },
+  "other-research-records-filtered": {
+    "source": "bo-repair-work",
+    "files": 229274,
+    "uncompressed_bytes": 2053232025,
+    "content_manifest_sha256": "b32c36b04d74750ca412652dbc061c170e1f2e31216947b4c173dc8146e23288",
+    "omitted": [
+      {
+        "path": "bo-repair-work/20261016_electrothermal_refactor_preparation/pytest-temp-02/test_partial_history_trains_ra0/screen/20261016T071235Z_8d9f511653f9_07fcd163-offline/source/docs/audits/electrothermal-identification-scope-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261016_electrothermal_refactor_preparation/pytest-temp-02/test_partial_history_trains_ra0/screen/20261016T071235Z_8d9f511653f9_07fcd163-offline/source/docs/audits/prompt-only-vs-feedback-warmstart-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261016_electrothermal_refactor_preparation/pytest-temp-02/test_partial_history_trains_ra0/screen/20261016T071235Z_8d9f511653f9_07fcd163-offline/source/docs/audits/reference-reproduction-and-continuation-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261016_electrothermal_refactor_preparation/pytest-temp-02/test_partial_history_trains_ra0/screen/20261016T071235Z_8d9f511653f9_07fcd163-offline/source/docs/audits/warmstart-mechanism-related-work-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261016_electrothermal_refactor_preparation/pytest-temp-02/test_quality_selection_preserv0/screen/20261016T071103Z_e1f440ae00da_5d82c0b2-offline/source/docs/audits/electrothermal-identification-scope-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261016_electrothermal_refactor_preparation/pytest-temp-02/test_quality_selection_preserv0/screen/20261016T071103Z_e1f440ae00da_5d82c0b2-offline/source/docs/audits/prompt-only-vs-feedback-warmstart-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261016_electrothermal_refactor_preparation/pytest-temp-02/test_quality_selection_preserv0/screen/20261016T071103Z_e1f440ae00da_5d82c0b2-offline/source/docs/audits/reference-reproduction-and-continuation-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261016_electrothermal_refactor_preparation/pytest-temp-02/test_quality_selection_preserv0/screen/20261016T071103Z_e1f440ae00da_5d82c0b2-offline/source/docs/audits/warmstart-mechanism-related-work-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/configs/21700-4gp-history-feasibility-fit320.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/configs/21700-4gp-history-feasibility.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/configs/21700-4gp-linear-completion.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/configs/21700-feasible-ablation.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/configs/21700-high-rate-repair-candidate.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/configs/21700-high-rate-repair.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/configs/21700-local-gpt56sol-20261011.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/configs/21700-local-qwen-20261011.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/configs/21700-reference-calibrated-pilot.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/configs/21700-single-gp-informed.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/configs/agent-rejection-warmstart.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/configs/agent-success-reference-warmstart.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/configs/bo-repair-initial-points.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/configs/electrothermal-dfn-synthetic.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/configs/electrothermal-research-template.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/configs/electrothermal-synthetic.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/configs/newapi-synthetic-smoke.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/configs/prompt-only-warmstart.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/configs/single-gp-synthetic-smoke.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/agent-success-reference-warmstart.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/21700-electrolyte-calibration-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/21700-reference-alignment-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/2c-3c-repair-2026-10-13.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/4gp-history-feasibility-repair-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/4gp-vs-single-gp-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/ablation-zju-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/agent-rejection-feedback-2026-10-15.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/agent-success-reference-pilot-2026-10-15.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/api-connectivity-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/bo-vs-llmbo-25-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/cutoff-design-attribution-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/electrothermal-final-review-2026-10-18.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/electrothermal-identification-design-review-2026-10-16.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/electrothermal-identification-design-review-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/electrothermal-identification-migration-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/electrothermal-identification-preparation-2026-10-16.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/electrothermal-identification-preparation-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/electrothermal-identification-scope-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/electrothermal-identification-source-manifest-2026-10-16.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/electrothermal-parego-vs-llmbo-mo-2026-10-18.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/electrothermal-stage-a-2026-10-17.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/electrothermal-stage-b-2026-10-18.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/electrothermal-stage-c-2026-10-18.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/electrothermal-stage0-2026-10-17.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/electrothermal-stage0-2026-10-17.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/electrothermal-testing-and-rmse-readiness-2026-10-17.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/electrothermal-testing-and-rmse-readiness-2026-10-17.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/feasibility-repair-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/framework-2026-10-10.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/full-method-diagnosis-2026-10-13.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/full-method-pilot-2026-10-13.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/linear-completion-pilot-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/llm-informed-implementation-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/llmbo-mo-api-precheck-2026-10-17.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/llmbo-mo-api-precheck-2026-10-17.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/llmgp-full-ard-prior-2026-10-15.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/llmgp-matched-5bo-2026-10-15.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/local-ablation-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/newapi-live-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/plain-bo-two-rate-20-2026-10-17.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/plain-bo-two-rate-20-2026-10-17.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/prompt-only-adoption-2026-10-15.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/prompt-only-live-2026-10-15.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/prompt-only-vs-feedback-warmstart-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/quality-warmstart-repair-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/random-initial-cutoff-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/reference-paper-rmse-diagnosis-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/reference-reproduction-and-continuation-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/region-ablation-2026-10-19.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/region-candidate-advice-2026-10-19.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/region-competition-2026-10-19.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/region-eligible-ablation-attempt-2026-10-19.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/region-fairness-repair-2026-10-20.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/region-influence-diagnosis-2026-10-19.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/region-lift-diagnosis-2026-10-18.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/region-request-repair-2026-10-20.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/region-response-repair-2026-10-20.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/single-gp-informed-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/tail-feasibility-repair-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/warmstart-fresh-24-comparison-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/warmstart-gp-diagnosis-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/warmstart-mechanism-related-work-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/warmstart-prompt-comparison-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/warmstart-rmse-comparison-2026-10-15.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/audits/workflow-review-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/proposals/electrothermal-identification-stages-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/proposals/feasible-initialization-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/superpowers/plans/2026-10-16-electrothermal-identification-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/superpowers/plans/2026-10-20-region-fairness-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/superpowers/plans/2026-10-20-region-request-repair-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/superpowers/plans/2026-10-20-region-response-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/docs/superpowers/specs/2026-10-16-electrothermal-identification-design.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/scripts/audit_feasible_screening.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/scripts/bootstrap_zju_environment.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/scripts/calibrate_fixed_electrolyte.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/scripts/check_ablation_initial_feasibility.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/scripts/compare_full_ard_priors.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/scripts/diagnose_random_termination.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/scripts/finalize_ablation_preparation.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/scripts/finalize_calibration_audit.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/scripts/finalize_feasibility_repair.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/scripts/plot_electrolyte_calibration.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/scripts/prepare_reference_21700.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/scripts/run_electrothermal_smoke.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/scripts/run_quality_warmstart_pilot.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/scripts/run_reference_continuation.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/scripts/validate_high_rate_repair.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/electrothermal_audit.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/electrothermal_config.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/electrothermal_data.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/electrothermal_evaluation.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/electrothermal_execution.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/electrothermal_llm.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/electrothermal_parameters.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/electrothermal_provenance.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/electrothermal_region_advice.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/electrothermal_region_selection.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/electrothermal_region_wire.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/electrothermal_requests.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/electrothermal_residuals.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/electrothermal_store.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/electrothermal_synthetic.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/electrothermal_workflow.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/prompt_initialization.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/quality_initialization.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/rejection_initialization.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/screening_history.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/staged_initialization.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/prompts/lengthscale_prior.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/prompts/parameter_groups.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/prompts/region_preference.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/prompts/region_preference_candidate_aware_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/prompts/region_preference_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/prompts/region_preference_fair_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/prompts/region_preference_residual_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/prompts/warm_start.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/prompts/warm_start_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/prompts/warm_start_quality.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/prompts/warm_start_select.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/prompts/warm_start_select_quality.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/prompts/warm_start_select_staged.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/src/llmbo_para/prompts/warm_start_staged.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/electrothermal_process_fixtures.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/region_control_process_fixtures.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/region_request_process_fixtures.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/test_electrothermal_adapter.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/test_electrothermal_audit.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/test_electrothermal_config.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/test_electrothermal_evaluation.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/test_electrothermal_initialization.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/test_electrothermal_parameters.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/test_electrothermal_provenance.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/test_electrothermal_region.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/test_electrothermal_review_fixes.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/test_electrothermal_smoke.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/test_electrothermal_store.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/test_electrothermal_workflow.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/test_feasible_initialization.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/test_gp_lengthscale_prior.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/test_prompt_only_initialization.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/test_quality_initialization.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/test_region_candidate_advice.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/test_region_candidate_advice_hardening.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/test_region_failure_audit.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/test_region_numeric_repairs.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/test_region_payload_repairs.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/test_region_request_deadlines.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/test_region_request_policy.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/test_region_request_worker.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/test_region_signed_residuals.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/test_region_thinking_controls.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/test_region_transport_repairs.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/test_rejection_initialization.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-bug-2vwv9jh7/fresh-init/20261020T063830Z_56bac179ecea_3ab76c89/source/tests/test_staged_quality_initialization.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/configs/21700-4gp-history-feasibility-fit320.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/configs/21700-high-rate-repair-candidate.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/configs/21700-reference-calibrated-pilot.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/configs/agent-success-reference-warmstart.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/configs/electrothermal-research-template.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/21700-electrolyte-calibration-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/21700-reference-alignment-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/4gp-history-feasibility-repair-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/agent-rejection-feedback-2026-10-15.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/agent-success-reference-pilot-2026-10-15.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/cutoff-design-attribution-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/electrothermal-final-review-2026-10-18.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/electrothermal-identification-design-review-2026-10-16.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/electrothermal-identification-design-review-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/electrothermal-identification-migration-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/electrothermal-identification-preparation-2026-10-16.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/electrothermal-identification-preparation-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/electrothermal-identification-scope-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/electrothermal-identification-source-manifest-2026-10-16.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/electrothermal-parego-vs-llmbo-mo-2026-10-18.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/electrothermal-stage-a-2026-10-17.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/electrothermal-stage-b-2026-10-18.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/electrothermal-stage-c-2026-10-18.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/electrothermal-stage0-2026-10-17.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/electrothermal-stage0-2026-10-17.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/electrothermal-testing-and-rmse-readiness-2026-10-17.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/electrothermal-testing-and-rmse-readiness-2026-10-17.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/feasibility-repair-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/full-method-diagnosis-2026-10-13.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/linear-completion-pilot-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/llm-informed-implementation-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/llmbo-mo-api-precheck-2026-10-17.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/llmbo-mo-api-precheck-2026-10-17.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/llmgp-full-ard-prior-2026-10-15.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/plain-bo-two-rate-20-2026-10-17.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/plain-bo-two-rate-20-2026-10-17.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/prompt-only-adoption-2026-10-15.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/prompt-only-vs-feedback-warmstart-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/quality-warmstart-repair-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/random-initial-cutoff-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/reference-paper-rmse-diagnosis-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/reference-reproduction-and-continuation-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/region-candidate-advice-2026-10-19.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/region-competition-2026-10-19.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/region-eligible-ablation-attempt-2026-10-19.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/region-fairness-repair-2026-10-20.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/region-influence-diagnosis-2026-10-19.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/region-lift-diagnosis-2026-10-18.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/region-request-repair-2026-10-20.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/region-response-repair-2026-10-20.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/single-gp-informed-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/tail-feasibility-repair-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/warmstart-fresh-24-comparison-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/warmstart-gp-diagnosis-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/warmstart-mechanism-related-work-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/warmstart-prompt-comparison-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/audits/warmstart-rmse-comparison-2026-10-15.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/proposals/electrothermal-identification-stages-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/proposals/feasible-initialization-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/superpowers/plans/2026-10-16-electrothermal-identification-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/superpowers/plans/2026-10-20-region-fairness-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/superpowers/plans/2026-10-20-region-request-repair-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/superpowers/plans/2026-10-20-region-response-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/docs/superpowers/specs/2026-10-16-electrothermal-identification-design.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/scripts/check_ablation_initial_feasibility.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/src/llmbo_para/electrothermal_region_advice.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/src/llmbo_para/electrothermal_region_selection.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/src/llmbo_para/electrothermal_region_wire.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/src/llmbo_para/prompts/lengthscale_prior.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/src/llmbo_para/prompts/region_preference.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/src/llmbo_para/prompts/region_preference_candidate_aware_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/src/llmbo_para/prompts/region_preference_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/src/llmbo_para/prompts/region_preference_fair_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/src/llmbo_para/prompts/region_preference_residual_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/src/llmbo_para/prompts/warm_start_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/src/llmbo_para/prompts/warm_start_quality.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/src/llmbo_para/prompts/warm_start_select.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/src/llmbo_para/prompts/warm_start_select_quality.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/src/llmbo_para/prompts/warm_start_select_staged.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/src/llmbo_para/prompts/warm_start_staged.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/paired-after-contract-proposal/fixed-eight-unit-fak98n8j/init/20261020T063827Z_56bac179ecea_34c8ce90/source/tests/test_region_candidate_advice_hardening.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/configs/21700-4gp-history-feasibility-fit320.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/configs/21700-high-rate-repair-candidate.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/configs/21700-reference-calibrated-pilot.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/configs/agent-success-reference-warmstart.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/configs/electrothermal-research-template.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/21700-electrolyte-calibration-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/21700-reference-alignment-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/4gp-history-feasibility-repair-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/agent-rejection-feedback-2026-10-15.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/agent-success-reference-pilot-2026-10-15.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/cutoff-design-attribution-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/electrothermal-final-review-2026-10-18.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/electrothermal-identification-design-review-2026-10-16.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/electrothermal-identification-design-review-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/electrothermal-identification-migration-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/electrothermal-identification-preparation-2026-10-16.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/electrothermal-identification-preparation-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/electrothermal-identification-scope-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/electrothermal-identification-source-manifest-2026-10-16.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/electrothermal-parego-vs-llmbo-mo-2026-10-18.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/electrothermal-stage-a-2026-10-17.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/electrothermal-stage-b-2026-10-18.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/electrothermal-stage-c-2026-10-18.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/electrothermal-stage0-2026-10-17.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/electrothermal-stage0-2026-10-17.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/electrothermal-testing-and-rmse-readiness-2026-10-17.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/electrothermal-testing-and-rmse-readiness-2026-10-17.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/full-method-diagnosis-2026-10-13.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/linear-completion-pilot-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/llm-informed-implementation-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/llmbo-mo-api-precheck-2026-10-17.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/llmbo-mo-api-precheck-2026-10-17.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/llmgp-full-ard-prior-2026-10-15.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/plain-bo-two-rate-20-2026-10-17.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/plain-bo-two-rate-20-2026-10-17.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/prompt-only-adoption-2026-10-15.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/prompt-only-vs-feedback-warmstart-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/quality-warmstart-repair-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/random-initial-cutoff-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/reference-paper-rmse-diagnosis-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/reference-reproduction-and-continuation-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/region-candidate-advice-2026-10-19.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/region-eligible-ablation-attempt-2026-10-19.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/region-fairness-repair-2026-10-20.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/region-influence-diagnosis-2026-10-19.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/region-lift-diagnosis-2026-10-18.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/region-request-repair-2026-10-20.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/region-response-repair-2026-10-20.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/tail-feasibility-repair-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/warmstart-fresh-24-comparison-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/warmstart-gp-diagnosis-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/warmstart-mechanism-related-work-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/warmstart-prompt-comparison-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/audits/warmstart-rmse-comparison-2026-10-15.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/proposals/electrothermal-identification-stages-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/proposals/feasible-initialization-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/superpowers/plans/2026-10-16-electrothermal-identification-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/superpowers/plans/2026-10-20-region-fairness-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/superpowers/plans/2026-10-20-region-request-repair-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/superpowers/plans/2026-10-20-region-response-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/docs/superpowers/specs/2026-10-16-electrothermal-identification-design.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/scripts/check_ablation_initial_feasibility.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/src/llmbo_para/electrothermal_region_advice.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/src/llmbo_para/electrothermal_region_selection.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/src/llmbo_para/prompts/region_preference_candidate_aware_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/src/llmbo_para/prompts/region_preference_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/src/llmbo_para/prompts/region_preference_fair_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/src/llmbo_para/prompts/region_preference_residual_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/src/llmbo_para/prompts/warm_start_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/src/llmbo_para/prompts/warm_start_quality.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/src/llmbo_para/prompts/warm_start_select_quality.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/src/llmbo_para/prompts/warm_start_select_staged.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-bug-a8y7tjxf/fresh-init/20261020T041550Z_56bac179ecea_1821a3fd/source/tests/test_region_candidate_advice_hardening.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-gsyat81d/init/20261020T041547Z_56bac179ecea_4e0f9250/source/docs/audits/21700-electrolyte-calibration-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-gsyat81d/init/20261020T041547Z_56bac179ecea_4e0f9250/source/docs/audits/4gp-history-feasibility-repair-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-gsyat81d/init/20261020T041547Z_56bac179ecea_4e0f9250/source/docs/audits/agent-success-reference-pilot-2026-10-15.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-gsyat81d/init/20261020T041547Z_56bac179ecea_4e0f9250/source/docs/audits/electrothermal-identification-design-review-2026-10-16.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-gsyat81d/init/20261020T041547Z_56bac179ecea_4e0f9250/source/docs/audits/electrothermal-identification-design-review-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-gsyat81d/init/20261020T041547Z_56bac179ecea_4e0f9250/source/docs/audits/electrothermal-identification-migration-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-gsyat81d/init/20261020T041547Z_56bac179ecea_4e0f9250/source/docs/audits/electrothermal-identification-preparation-2026-10-16.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-gsyat81d/init/20261020T041547Z_56bac179ecea_4e0f9250/source/docs/audits/electrothermal-identification-preparation-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-gsyat81d/init/20261020T041547Z_56bac179ecea_4e0f9250/source/docs/audits/electrothermal-identification-scope-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-gsyat81d/init/20261020T041547Z_56bac179ecea_4e0f9250/source/docs/audits/electrothermal-identification-source-manifest-2026-10-16.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-gsyat81d/init/20261020T041547Z_56bac179ecea_4e0f9250/source/docs/audits/electrothermal-parego-vs-llmbo-mo-2026-10-18.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-gsyat81d/init/20261020T041547Z_56bac179ecea_4e0f9250/source/docs/audits/electrothermal-testing-and-rmse-readiness-2026-10-17.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-gsyat81d/init/20261020T041547Z_56bac179ecea_4e0f9250/source/docs/audits/electrothermal-testing-and-rmse-readiness-2026-10-17.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-gsyat81d/init/20261020T041547Z_56bac179ecea_4e0f9250/source/docs/audits/prompt-only-vs-feedback-warmstart-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-gsyat81d/init/20261020T041547Z_56bac179ecea_4e0f9250/source/docs/audits/reference-paper-rmse-diagnosis-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-gsyat81d/init/20261020T041547Z_56bac179ecea_4e0f9250/source/docs/audits/reference-reproduction-and-continuation-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-gsyat81d/init/20261020T041547Z_56bac179ecea_4e0f9250/source/docs/audits/region-eligible-ablation-attempt-2026-10-19.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-gsyat81d/init/20261020T041547Z_56bac179ecea_4e0f9250/source/docs/audits/warmstart-fresh-24-comparison-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-gsyat81d/init/20261020T041547Z_56bac179ecea_4e0f9250/source/docs/audits/warmstart-mechanism-related-work-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-gsyat81d/init/20261020T041547Z_56bac179ecea_4e0f9250/source/docs/proposals/electrothermal-identification-stages-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-gsyat81d/init/20261020T041547Z_56bac179ecea_4e0f9250/source/docs/superpowers/plans/2026-10-16-electrothermal-identification-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-gsyat81d/init/20261020T041547Z_56bac179ecea_4e0f9250/source/docs/superpowers/plans/2026-10-20-region-fairness-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-gsyat81d/init/20261020T041547Z_56bac179ecea_4e0f9250/source/docs/superpowers/plans/2026-10-20-region-request-repair-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-gsyat81d/init/20261020T041547Z_56bac179ecea_4e0f9250/source/docs/superpowers/plans/2026-10-20-region-response-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-gsyat81d/init/20261020T041547Z_56bac179ecea_4e0f9250/source/docs/superpowers/specs/2026-10-16-electrothermal-identification-design.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-gsyat81d/init/20261020T041547Z_56bac179ecea_4e0f9250/source/src/llmbo_para/prompts/region_preference_candidate_aware_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-gsyat81d/init/20261020T041547Z_56bac179ecea_4e0f9250/source/src/llmbo_para/prompts/region_preference_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-gsyat81d/init/20261020T041547Z_56bac179ecea_4e0f9250/source/src/llmbo_para/prompts/region_preference_fair_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-gsyat81d/init/20261020T041547Z_56bac179ecea_4e0f9250/source/src/llmbo_para/prompts/region_preference_residual_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-onkzjftd/init/20261020T041522Z_56bac179ecea_859ed9d2/source/docs/audits/21700-electrolyte-calibration-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-onkzjftd/init/20261020T041522Z_56bac179ecea_859ed9d2/source/docs/audits/4gp-history-feasibility-repair-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-onkzjftd/init/20261020T041522Z_56bac179ecea_859ed9d2/source/docs/audits/agent-success-reference-pilot-2026-10-15.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-onkzjftd/init/20261020T041522Z_56bac179ecea_859ed9d2/source/docs/audits/electrothermal-identification-design-review-2026-10-16.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-onkzjftd/init/20261020T041522Z_56bac179ecea_859ed9d2/source/docs/audits/electrothermal-identification-design-review-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-onkzjftd/init/20261020T041522Z_56bac179ecea_859ed9d2/source/docs/audits/electrothermal-identification-migration-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-onkzjftd/init/20261020T041522Z_56bac179ecea_859ed9d2/source/docs/audits/electrothermal-identification-preparation-2026-10-16.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-onkzjftd/init/20261020T041522Z_56bac179ecea_859ed9d2/source/docs/audits/electrothermal-identification-preparation-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-onkzjftd/init/20261020T041522Z_56bac179ecea_859ed9d2/source/docs/audits/electrothermal-identification-scope-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-onkzjftd/init/20261020T041522Z_56bac179ecea_859ed9d2/source/docs/audits/electrothermal-identification-source-manifest-2026-10-16.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-onkzjftd/init/20261020T041522Z_56bac179ecea_859ed9d2/source/docs/audits/electrothermal-parego-vs-llmbo-mo-2026-10-18.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-onkzjftd/init/20261020T041522Z_56bac179ecea_859ed9d2/source/docs/audits/electrothermal-testing-and-rmse-readiness-2026-10-17.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-onkzjftd/init/20261020T041522Z_56bac179ecea_859ed9d2/source/docs/audits/electrothermal-testing-and-rmse-readiness-2026-10-17.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-onkzjftd/init/20261020T041522Z_56bac179ecea_859ed9d2/source/docs/audits/prompt-only-vs-feedback-warmstart-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-onkzjftd/init/20261020T041522Z_56bac179ecea_859ed9d2/source/docs/audits/reference-paper-rmse-diagnosis-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-onkzjftd/init/20261020T041522Z_56bac179ecea_859ed9d2/source/docs/audits/reference-reproduction-and-continuation-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-onkzjftd/init/20261020T041522Z_56bac179ecea_859ed9d2/source/docs/audits/region-eligible-ablation-attempt-2026-10-19.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-onkzjftd/init/20261020T041522Z_56bac179ecea_859ed9d2/source/docs/audits/warmstart-fresh-24-comparison-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-onkzjftd/init/20261020T041522Z_56bac179ecea_859ed9d2/source/docs/audits/warmstart-mechanism-related-work-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-onkzjftd/init/20261020T041522Z_56bac179ecea_859ed9d2/source/docs/proposals/electrothermal-identification-stages-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-onkzjftd/init/20261020T041522Z_56bac179ecea_859ed9d2/source/docs/superpowers/plans/2026-10-16-electrothermal-identification-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-onkzjftd/init/20261020T041522Z_56bac179ecea_859ed9d2/source/docs/superpowers/plans/2026-10-20-region-fairness-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-onkzjftd/init/20261020T041522Z_56bac179ecea_859ed9d2/source/docs/superpowers/plans/2026-10-20-region-request-repair-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-onkzjftd/init/20261020T041522Z_56bac179ecea_859ed9d2/source/docs/superpowers/plans/2026-10-20-region-response-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-onkzjftd/init/20261020T041522Z_56bac179ecea_859ed9d2/source/docs/superpowers/specs/2026-10-16-electrothermal-identification-design.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-onkzjftd/init/20261020T041522Z_56bac179ecea_859ed9d2/source/src/llmbo_para/prompts/region_preference_candidate_aware_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-onkzjftd/init/20261020T041522Z_56bac179ecea_859ed9d2/source/src/llmbo_para/prompts/region_preference_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-onkzjftd/init/20261020T041522Z_56bac179ecea_859ed9d2/source/src/llmbo_para/prompts/region_preference_fair_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/fixed-eight-unit-onkzjftd/init/20261020T041522Z_56bac179ecea_859ed9d2/source/src/llmbo_para/prompts/region_preference_residual_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmp3gggs07_/init/20261020T041435Z_56bac179ecea_8b177250/source/docs/audits/electrothermal-identification-design-review-2026-10-16.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmp3gggs07_/init/20261020T041435Z_56bac179ecea_8b177250/source/docs/audits/electrothermal-identification-design-review-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmp3gggs07_/init/20261020T041435Z_56bac179ecea_8b177250/source/docs/audits/electrothermal-identification-preparation-2026-10-16.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmp3gggs07_/init/20261020T041435Z_56bac179ecea_8b177250/source/docs/audits/electrothermal-identification-source-manifest-2026-10-16.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmp3gggs07_/init/20261020T041435Z_56bac179ecea_8b177250/source/docs/audits/electrothermal-testing-and-rmse-readiness-2026-10-17.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmp3gggs07_/init/20261020T041435Z_56bac179ecea_8b177250/source/docs/superpowers/plans/2026-10-16-electrothermal-identification-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmp3gggs07_/init/20261020T041435Z_56bac179ecea_8b177250/source/docs/superpowers/specs/2026-10-16-electrothermal-identification-design.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmp3gggs07_/init/20261020T041435Z_56bac179ecea_8b177250/source/src/llmbo_para/prompts/region_preference_candidate_aware_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmphtoh3su6/fresh-init/20261020T041439Z_56bac179ecea_f9b8294b/source/docs/audits/electrothermal-identification-design-review-2026-10-16.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmphtoh3su6/fresh-init/20261020T041439Z_56bac179ecea_f9b8294b/source/docs/audits/electrothermal-identification-design-review-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmphtoh3su6/fresh-init/20261020T041439Z_56bac179ecea_f9b8294b/source/docs/audits/electrothermal-identification-migration-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmphtoh3su6/fresh-init/20261020T041439Z_56bac179ecea_f9b8294b/source/docs/audits/electrothermal-identification-preparation-2026-10-16.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmphtoh3su6/fresh-init/20261020T041439Z_56bac179ecea_f9b8294b/source/docs/audits/electrothermal-identification-preparation-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmphtoh3su6/fresh-init/20261020T041439Z_56bac179ecea_f9b8294b/source/docs/audits/electrothermal-identification-source-manifest-2026-10-16.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmphtoh3su6/fresh-init/20261020T041439Z_56bac179ecea_f9b8294b/source/docs/audits/electrothermal-testing-and-rmse-readiness-2026-10-17.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmphtoh3su6/fresh-init/20261020T041439Z_56bac179ecea_f9b8294b/source/docs/audits/electrothermal-testing-and-rmse-readiness-2026-10-17.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmphtoh3su6/fresh-init/20261020T041439Z_56bac179ecea_f9b8294b/source/docs/audits/reference-reproduction-and-continuation-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmphtoh3su6/fresh-init/20261020T041439Z_56bac179ecea_f9b8294b/source/docs/proposals/electrothermal-identification-stages-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmphtoh3su6/fresh-init/20261020T041439Z_56bac179ecea_f9b8294b/source/docs/superpowers/plans/2026-10-16-electrothermal-identification-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmphtoh3su6/fresh-init/20261020T041439Z_56bac179ecea_f9b8294b/source/docs/superpowers/plans/2026-10-20-region-request-repair-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmphtoh3su6/fresh-init/20261020T041439Z_56bac179ecea_f9b8294b/source/docs/superpowers/specs/2026-10-16-electrothermal-identification-design.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmphtoh3su6/fresh-init/20261020T041439Z_56bac179ecea_f9b8294b/source/src/llmbo_para/prompts/region_preference_candidate_aware_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmphtoh3su6/fresh-init/20261020T041439Z_56bac179ecea_f9b8294b/source/src/llmbo_para/prompts/region_preference_fair_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmphtoh3su6/fresh-init/20261020T041439Z_56bac179ecea_f9b8294b/source/src/llmbo_para/prompts/region_preference_residual_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmpmvaq_ltw/fresh-init/20261020T041525Z_56bac179ecea_83da4103/source/docs/audits/electrothermal-identification-design-review-2026-10-16.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmpmvaq_ltw/fresh-init/20261020T041525Z_56bac179ecea_83da4103/source/docs/audits/electrothermal-identification-design-review-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmpmvaq_ltw/fresh-init/20261020T041525Z_56bac179ecea_83da4103/source/docs/audits/electrothermal-identification-migration-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmpmvaq_ltw/fresh-init/20261020T041525Z_56bac179ecea_83da4103/source/docs/audits/electrothermal-identification-preparation-2026-10-16.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmpmvaq_ltw/fresh-init/20261020T041525Z_56bac179ecea_83da4103/source/docs/audits/electrothermal-identification-preparation-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmpmvaq_ltw/fresh-init/20261020T041525Z_56bac179ecea_83da4103/source/docs/audits/electrothermal-identification-source-manifest-2026-10-16.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmpmvaq_ltw/fresh-init/20261020T041525Z_56bac179ecea_83da4103/source/docs/audits/electrothermal-testing-and-rmse-readiness-2026-10-17.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmpmvaq_ltw/fresh-init/20261020T041525Z_56bac179ecea_83da4103/source/docs/audits/electrothermal-testing-and-rmse-readiness-2026-10-17.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmpmvaq_ltw/fresh-init/20261020T041525Z_56bac179ecea_83da4103/source/docs/audits/reference-reproduction-and-continuation-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmpmvaq_ltw/fresh-init/20261020T041525Z_56bac179ecea_83da4103/source/docs/proposals/electrothermal-identification-stages-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmpmvaq_ltw/fresh-init/20261020T041525Z_56bac179ecea_83da4103/source/docs/superpowers/plans/2026-10-16-electrothermal-identification-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmpmvaq_ltw/fresh-init/20261020T041525Z_56bac179ecea_83da4103/source/docs/superpowers/plans/2026-10-20-region-request-repair-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmpmvaq_ltw/fresh-init/20261020T041525Z_56bac179ecea_83da4103/source/docs/superpowers/specs/2026-10-16-electrothermal-identification-design.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmpmvaq_ltw/fresh-init/20261020T041525Z_56bac179ecea_83da4103/source/src/llmbo_para/prompts/region_preference_candidate_aware_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmpmvaq_ltw/fresh-init/20261020T041525Z_56bac179ecea_83da4103/source/src/llmbo_para/prompts/region_preference_fair_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal/tmpmvaq_ltw/fresh-init/20261020T041525Z_56bac179ecea_83da4103/source/src/llmbo_para/prompts/region_preference_residual_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/configs/21700-4gp-history-feasibility-fit320.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/configs/21700-4gp-history-feasibility.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/configs/21700-high-rate-repair-candidate.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/configs/21700-local-gpt56sol-20261011.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/configs/21700-reference-calibrated-pilot.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/configs/agent-success-reference-warmstart.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/configs/electrothermal-research-template.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/21700-electrolyte-calibration-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/21700-reference-alignment-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/4gp-history-feasibility-repair-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/4gp-vs-single-gp-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/agent-rejection-feedback-2026-10-15.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/agent-success-reference-pilot-2026-10-15.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/api-connectivity-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/cutoff-design-attribution-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/electrothermal-final-review-2026-10-18.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/electrothermal-identification-design-review-2026-10-16.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/electrothermal-identification-design-review-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/electrothermal-identification-migration-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/electrothermal-identification-preparation-2026-10-16.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/electrothermal-identification-preparation-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/electrothermal-identification-scope-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/electrothermal-identification-source-manifest-2026-10-16.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/electrothermal-parego-vs-llmbo-mo-2026-10-18.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/electrothermal-stage-a-2026-10-17.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/electrothermal-stage-b-2026-10-18.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/electrothermal-stage-c-2026-10-18.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/electrothermal-stage0-2026-10-17.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/electrothermal-stage0-2026-10-17.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/electrothermal-testing-and-rmse-readiness-2026-10-17.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/electrothermal-testing-and-rmse-readiness-2026-10-17.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/feasibility-repair-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/full-method-diagnosis-2026-10-13.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/full-method-pilot-2026-10-13.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/linear-completion-pilot-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/llm-informed-implementation-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/llmbo-mo-api-precheck-2026-10-17.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/llmbo-mo-api-precheck-2026-10-17.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/llmgp-full-ard-prior-2026-10-15.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/llmgp-matched-5bo-2026-10-15.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/plain-bo-two-rate-20-2026-10-17.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/plain-bo-two-rate-20-2026-10-17.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/prompt-only-adoption-2026-10-15.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/prompt-only-live-2026-10-15.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/prompt-only-vs-feedback-warmstart-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/quality-warmstart-repair-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/random-initial-cutoff-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/reference-paper-rmse-diagnosis-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/reference-reproduction-and-continuation-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/region-candidate-advice-2026-10-19.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/region-competition-2026-10-19.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/region-eligible-ablation-attempt-2026-10-19.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/region-fairness-repair-2026-10-20.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/region-influence-diagnosis-2026-10-19.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/region-lift-diagnosis-2026-10-18.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/region-request-repair-2026-10-20.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/region-response-repair-2026-10-20.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/single-gp-informed-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/tail-feasibility-repair-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/warmstart-fresh-24-comparison-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/warmstart-gp-diagnosis-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/warmstart-mechanism-related-work-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/warmstart-prompt-comparison-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/audits/warmstart-rmse-comparison-2026-10-15.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/proposals/electrothermal-identification-stages-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/proposals/feasible-initialization-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/superpowers/plans/2026-10-16-electrothermal-identification-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/superpowers/plans/2026-10-20-region-fairness-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/superpowers/plans/2026-10-20-region-request-repair-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/superpowers/plans/2026-10-20-region-response-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/docs/superpowers/specs/2026-10-16-electrothermal-identification-design.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/scripts/check_ablation_initial_feasibility.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/src/llmbo_para/electrothermal_evaluation.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/src/llmbo_para/electrothermal_execution.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/src/llmbo_para/electrothermal_parameters.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/src/llmbo_para/electrothermal_provenance.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/src/llmbo_para/electrothermal_region_advice.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/src/llmbo_para/electrothermal_region_selection.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/src/llmbo_para/electrothermal_region_wire.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/src/llmbo_para/electrothermal_residuals.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/src/llmbo_para/electrothermal_synthetic.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/src/llmbo_para/rejection_initialization.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/src/llmbo_para/prompts/lengthscale_prior.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/src/llmbo_para/prompts/parameter_groups.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/src/llmbo_para/prompts/region_preference.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/src/llmbo_para/prompts/region_preference_candidate_aware_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/src/llmbo_para/prompts/region_preference_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/src/llmbo_para/prompts/region_preference_fair_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/src/llmbo_para/prompts/region_preference_residual_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/src/llmbo_para/prompts/warm_start_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/src/llmbo_para/prompts/warm_start_quality.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/src/llmbo_para/prompts/warm_start_select.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/src/llmbo_para/prompts/warm_start_select_quality.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/src/llmbo_para/prompts/warm_start_select_staged.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/src/llmbo_para/prompts/warm_start_staged.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/tests/test_electrothermal_initialization.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/tests/test_region_candidate_advice_hardening.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-bug-b6rku4bh/fresh-init/20261020T042438Z_56bac179ecea_196d8f31/source/tests/test_staged_quality_initialization.py",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/docs/audits/21700-electrolyte-calibration-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/docs/audits/4gp-history-feasibility-repair-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/docs/audits/agent-success-reference-pilot-2026-10-15.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/docs/audits/electrothermal-final-review-2026-10-18.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/docs/audits/electrothermal-identification-design-review-2026-10-16.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/docs/audits/electrothermal-identification-design-review-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/docs/audits/electrothermal-identification-migration-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/docs/audits/electrothermal-identification-preparation-2026-10-16.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/docs/audits/electrothermal-identification-preparation-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/docs/audits/electrothermal-identification-scope-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/docs/audits/electrothermal-identification-source-manifest-2026-10-16.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/docs/audits/electrothermal-parego-vs-llmbo-mo-2026-10-18.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/docs/audits/electrothermal-testing-and-rmse-readiness-2026-10-17.json",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/docs/audits/electrothermal-testing-and-rmse-readiness-2026-10-17.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/docs/audits/llm-informed-implementation-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/docs/audits/prompt-only-vs-feedback-warmstart-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/docs/audits/reference-paper-rmse-diagnosis-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/docs/audits/reference-reproduction-and-continuation-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/docs/audits/region-eligible-ablation-attempt-2026-10-19.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/docs/audits/region-influence-diagnosis-2026-10-19.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/docs/audits/warmstart-fresh-24-comparison-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/docs/audits/warmstart-mechanism-related-work-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/docs/audits/warmstart-prompt-comparison-2026-10-14.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/docs/proposals/electrothermal-identification-stages-2026-10-16.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/docs/proposals/feasible-initialization-2026-10-11.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/docs/superpowers/plans/2026-10-16-electrothermal-identification-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/docs/superpowers/plans/2026-10-20-region-fairness-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/docs/superpowers/plans/2026-10-20-region-request-repair-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/docs/superpowers/plans/2026-10-20-region-response-plan.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/docs/superpowers/specs/2026-10-16-electrothermal-identification-design.md",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/src/llmbo_para/prompts/region_preference_candidate_aware_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/src/llmbo_para/prompts/region_preference_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/src/llmbo_para/prompts/region_preference_fair_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/src/llmbo_para/prompts/region_preference_residual_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/src/llmbo_para/prompts/warm_start_electrothermal.txt",
+        "reason": "unreadable"
+      },
+      {
+        "path": "bo-repair-work/20261017_et_implementation/region-response-repair-20261020/validation-proposal-r2/fixed-eight-unit-wiyzsbxq/init/20261020T042435Z_56bac179ecea_1276e20b/source/src/llmbo_para/prompts/warm_start_select_quality.txt",
+        "reason": "unreadable"
+      }
+    ],
+    "parts": [
+      {
+        "name": "other-research-records-filtered.tar.zst.part001",
+        "bytes": 50331648,
+        "sha256": "4bb63db09273eaad7cb250aa3fd0de8ce281b8495c332cd4bf74f3563ad2285c"
+      },
+      {
+        "name": "other-research-records-filtered.tar.zst.part002",
+        "bytes": 50331648,
+        "sha256": "727aaccb1ca8a5ef1ed8a0667e90295833e928ecbbb303bd6fb0c23c6f2f8c75"
+      },
+      {
+        "name": "other-research-records-filtered.tar.zst.part003",
+        "bytes": 50331648,
+        "sha256": "bc9c99f96709b9e8730d1e946022718cffc5780a177a431e307c8b29aa001a6e"
+      },
+      {
+        "name": "other-research-records-filtered.tar.zst.part004",
+        "bytes": 50331648,
+        "sha256": "0a7d4291dd979cfa7cf5781471c100b4a58b3f8eb59d5945f9665ca45d719553"
+      },
+      {
+        "name": "other-research-records-filtered.tar.zst.part005",
+        "bytes": 50331648,
+        "sha256": "b02312689f37b659f89490b011903158dfff3ea43a7d72906510cafa3b9d44ab"
+      },
+      {
+        "name": "other-research-records-filtered.tar.zst.part006",
+        "bytes": 49727724,
+        "sha256": "c3a3949c8470d545e1ed9d2d1f667467bc5436d2a90012cb01474ac9274f85da"
+      }
+    ]
+  },
+  "recovered-long-paths": {
+    "source": "long-path recovery",
+    "files": 568,
+    "uncompressed_bytes": 11574302,
+    "content_manifest_sha256": "042e42b24a54b214eca1a22450b9e329c30994981e944b3158afe6c66f42170a",
+    "omitted": [],
+    "recovers": "other-research-records-filtered unreadable entries",
+    "parts": [
+      {
+        "name": "recovered-long-paths.tar.zst.part001",
+        "bytes": 945525,
+        "sha256": "552a5654d3fa419e367c5c7eaf07a20eaa500d60bfea2c30313ad551d97b1f47"
+      }
+    ]
   }
 }
