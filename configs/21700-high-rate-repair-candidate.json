@@ -1,0 +1,18 @@
+{
+  "parameters": [
+    0.7292787398454192,
+    0.6285912174582646,
+    3.1425645232092747e-13,
+    2.3752720366650134e-14,
+    257.4680963524171,
+    0.23196407392502486
+  ],
+  "provenance": {
+    "source_evidence": "bo-repair-work\\20261013T085639Z_prompt-ablation\\local-results\\evidence.json",
+    "sha256": "30e438d947a9c15377bba34c0e6cc2c11e2c6400a7616681f764d3936f3495ad",
+    "source_arm": "warm_start_only",
+    "source_directory": "/home/yqt/XuanyiLi/LLMBO_Para/bo-repair-work/20261013T085639Z_prompt-ablation/retry01/formal/arms/20261013T093329Z_0bb3f343b490_ba904895",
+    "original_objective_v": 0.045473608200181384,
+    "note": "Previously identified on the same workbook with fixed electrolyte multiplier 1.5. Reused for replay, not a new LLM result."
+  }
+}

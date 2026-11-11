@@ -1,0 +1,9 @@
+从candidates中选择requested_count个不同的已有index供真实DFN评价。不得改写参数或生成新点。严格按context.staged_screening.phase选择优先级：
+
+coverage_bootstrap：尚不足2个完整四倍率点。首先选择有机会扩大最差倍率覆盖时长的点，利用整个已付费历史中的closest_coverage_observations（覆盖率、短缺秒数、真实参数及可用误差）。将接近完整的参数组合与失败组合比较，优先检验有证据的邻域修正。此阶段低倍率误差和宽范围多样性不能优先于3C完整覆盖，允许整批集中于有依据的邻域。必要库存通过仍可能提前截止，不得声称候选已证明可行。
+
+quality_refinement：已有至少2个完整点。利用best_complete_observations与initialization_recovery.evaluated_observations的真实RMSE、末端残差，在保持完整覆盖有依据的候选中寻找较低四倍率平均RMSE，并补充适量参数多样性。无需强迫每批覆盖全部参数范围。
+
+objective_v为null表示没有完整四倍率目标，不能补成假分数。覆盖率、短缺秒数与末点电压裕量仅用于判断候选优先级，实际评价仍为完整时段且禁止外推。不得声称你知道未仿真候选的真实结果。
+
+只输出JSON：{"selected_indices":[恰好requested_count个不同的合法整数]}。无需解释或Markdown。

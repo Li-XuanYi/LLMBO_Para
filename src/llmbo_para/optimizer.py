@@ -8,7 +8,7 @@ from typing import Mapping
 
 import numpy as np
 
-from .acquisition import composite_ei
+from .acquisition import composite_ei, scalar_log_ei
 from .evaluation import DischargeSeries, EvaluationResult, FourRateEvaluator
 from .llm import LLMClient
 from .metrics import RATE_ORDER, LogRMSETransform
@@ -18,6 +18,7 @@ from .runstore import RunStore, digest_value
 from .sobol import Sobol6
 from .surrogate import Matern52GP
 from .bo_repair import RepairSettings, CompletionModel, LocalNeighborhood, decision_scores, select_candidate
+from .informed import InformedSettings, region_decision, trust_feedback
 
 
 class Optimizer:
@@ -43,6 +44,10 @@ class Optimizer:
         initial_evaluations=None,
         candidate_filter=None,
         bo_repair=None,
+        surrogate_mode: str = "per_rate",
+        llm_informed_enabled: bool = False,
+        llm_informed=None,
+        screening_history=None,
     ):
         if any(not isinstance(v, int) or isinstance(v, bool) for v in (initial_llm_count, initial_sobol_count, candidate_pool_size, mc_draws, gp_sweeps, seed)):
             raise ValueError("optimizer sizes and seed must be integers")
@@ -51,22 +56,54 @@ class Optimizer:
         if any(not isinstance(flag, bool) for flag in (llm_warm_start_enabled, llm_gp_groups_enabled, strict_llm_tasks)):
             raise ValueError("LLM component switches and strict task policy must be booleans")
         self.space, self.evaluator, self.series_by_rate = space, evaluator, dict(series_by_rate)
+        if not isinstance(surrogate_mode, str) or surrogate_mode not in {"per_rate", "single_objective"}:
+            raise ValueError("surrogate_mode must be per_rate or single_objective")
+        if surrogate_mode == "single_objective" and llm_gp_groups_enabled:
+            raise ValueError("single_objective uses one full Matérn kernel; disable parameter-group mixtures")
+        self.surrogate_mode = surrogate_mode
+        if type(llm_informed_enabled) is not bool:
+            raise ValueError("llm_informed_enabled must be boolean")
+        if llm_informed_enabled and (surrogate_mode != "single_objective" or llm is None):
+            raise ValueError("LLM-Informed needs a single objective GP and an explicit LLM client")
+        self.informed_enabled = llm_informed_enabled
+        self.informed_settings = InformedSettings.parse(llm_informed)
+        self.informed_trust = self.informed_settings.trust_init
+        self.informed_stats = dict(enabled=llm_informed_enabled, requested_iterations=0, request_attempts=0,
+            valid_responses=0, adopted=0, error_iterations=0, fallback_counts={})
         if set(self.series_by_rate) != set(RATE_ORDER):
             raise ValueError(f"optimizer needs all rates: {RATE_ORDER}")
         self.llm, self.store, self.seed = llm, run_store, seed
         self.initial_llm_count, self.initial_sobol_count = initial_llm_count, initial_sobol_count
         self.pool_size, self.mc_draws, self.gp_sweeps = candidate_pool_size, mc_draws, gp_sweeps
         self.records: list[EvaluationResult] = []
+        self.screening_history = screening_history
+        self.historical_records = list(screening_history.results) if screening_history is not None else []
+        if self.historical_records and (surrogate_mode != "per_rate" or initial_evaluations is None):
+            raise ValueError("supplementary screening requires verified initial cache and per-rate models")
+        historical_valid = [r for r in self.historical_records if r.valid]
+        if historical_valid and (screening_history.catalog.get('schema_version') != 2
+            or screening_history.catalog.get('reused_valid_candidates') != len(historical_valid)
+            or min(r.objective_v for r in initial_evaluations) > min(r.objective_v for r in historical_valid) + 1e-12):
+            raise ValueError('quality screening must preserve its best complete point in the verified initial set')
         self.frozen_transforms = None
-        self.repair_enabled = bo_repair is not None
+        self.repair_enabled = bo_repair is not None or surrogate_mode == "single_objective"
         self.repair = RepairSettings.parse(bo_repair)
+        if screening_history is not None and (surrogate_mode != "per_rate" or self.repair.training_data != "per_rate" or bo_repair is None):
+            raise ValueError("screening history requires explicit per-rate repaired training")
+        if surrogate_mode == "single_objective" and self.repair.training_data != "complete":
+            raise ValueError("single_objective requires complete four-rate objective labels")
         self.neighborhood = LocalNeighborhood(self.repair, seed)
-        self.completion = CompletionModel()
+        self.completion = CompletionModel(self.repair.completion_model)
         self._model_cache, self._training_keys = {}, {}
         self.model_training_counts = {}
-        self.model_fit_counts = {rate: 0 for rate in RATE_ORDER}
+        self.model_keys = ("objective",) if surrogate_mode == "single_objective" else RATE_ORDER
+        self.model_fit_counts = {rate: 0 for rate in self.model_keys}
         self.sobol = Sobol6()
         self.seen: set[tuple[float, ...]] = set()
+        self.seen.update(tuple(round(v, 12) for v in self.space.normalize(r.parameters)) for r in self.historical_records)
+        if len(self.seen) != len(self.historical_records) or any(
+                self.space.validate(p) == r.parameters for p in (initial_candidates or []) for r in self.historical_records):
+            raise ValueError("supplementary screening history contains duplicate initial/evaluated points")
         self.used = False
         self.llm_warm_start_enabled, self.llm_gp_groups_enabled = llm_warm_start_enabled, llm_gp_groups_enabled
         self.strict_llm_tasks = strict_llm_tasks
@@ -85,8 +122,10 @@ class Optimizer:
         if self.initial_candidates is not None:
             if len(self.initial_candidates) != initial_llm_count + initial_sobol_count or len(self.initial_candidates) < 2:
                 raise ValueError("shared initial set size must match the complete initial allocation")
-            if initial_candidates_source not in {"random", "llm"}:
-                raise ValueError("shared initial set requires explicit random or llm provenance")
+            if initial_candidates_source not in {"random", "llm", "history"}:
+                raise ValueError("shared initial set requires explicit random, llm or history provenance")
+            if initial_candidates_source == "history" and initial_evaluations is None:
+                raise ValueError("historical continuation requires verified cached evaluations")
             if (initial_candidates_source == "llm") != llm_warm_start_enabled:
                 raise ValueError("shared initial source must match the WarmStart ablation switch")
 
@@ -180,6 +219,9 @@ class Optimizer:
 
     def _fit_models(self):
         fit_started = time.perf_counter()
+        # Negative IDs refer to the separate immutable screening ledger. Normal
+        # candidate IDs and the BO evaluation budget retain their old meaning.
+        training_records = list(zip(range(-len(self.historical_records), 0), self.historical_records)) + list(enumerate(self.records))
         good = [r for r in self.records if r.valid]
         if len(good) < 2 and not self.repair_enabled:
             raise RuntimeError("at least two complete valid four-rate evaluations are required to fit GPs")
@@ -188,11 +230,13 @@ class Optimizer:
         transforms = self.frozen_transforms
         groups = getattr(self, "groups", {})
         models, training_metadata = {}, {}
-        for rate in RATE_ORDER:
-            training = [(i, record, next(q for q in record.rates if q.rate == rate))
-                for i, record in enumerate(self.records)
-                if self.repair.training_data == "per_rate" or record.valid]
-            training = [(i, record, q) for i, record, q in training if q.valid]
+        for rate in self.model_keys:
+            if rate == "objective":
+                training = [(i, record, record.objective_v) for i, record in enumerate(self.records) if record.valid]
+            else:
+                training = [(i, record, q.rmse_v) for i, record in training_records
+                    for q in record.rates if q.rate == rate and q.valid
+                    and (self.repair.training_data == "per_rate" or record.valid)]
             ids = [i for i, _, _ in training]
             self.model_training_counts[rate] = len(training)
             training_metadata[rate] = {"record_ids": ids, "count": len(ids), "fit_reused": False}
@@ -200,7 +244,7 @@ class Optimizer:
                 training_metadata[rate]["fallback"] = "fewer_than_two_valid_rate_labels"
                 continue
             x = np.asarray([self.space.normalize(record.parameters) for _, record, _ in training])
-            values = [q.rmse_v for _, _, q in training]
+            values = [value for _, _, value in training]
             if rate not in transforms:
                 transforms[rate] = LogRMSETransform.fit(values)
                 training_metadata[rate]["transform_frozen_at_record_count"] = len(self.records)
@@ -219,7 +263,7 @@ class Optimizer:
             training_metadata[rate]["cumulative_fits"] = self.model_fit_counts[rate]
         best = float(min(r.objective_v for r in good)) if good else None
         if self.repair.feasibility_weighting:
-            self.completion.fit([self.space.normalize(r.parameters) for r in self.records], [r.valid for r in self.records])
+            self.completion.fit([self.space.normalize(r.parameters) for _, r in training_records], [r.valid for _, r in training_records])
         if self.store:
             snapshot = {
                 "transforms": {rate: asdict(transform) for rate, transform in transforms.items()},
@@ -231,6 +275,9 @@ class Optimizer:
                 snapshot.update(schema_version=2, training_data=self.repair.training_data,
                     training=training_metadata, completion_model=self.completion.state,
                     neighborhood=self.neighborhood.state_dict())
+            if self.surrogate_mode == "single_objective":
+                snapshot.update(surrogate_mode=self.surrogate_mode, target="log_of_mean_four_rate_rmse",
+                    kernel="full_6d_ard_matern52")
             self.store.write_json(f"models/after-{len(self.records):06d}.json", snapshot)
         self.gp_fit_s += time.perf_counter() - fit_started
         return models, transforms, best
@@ -285,6 +332,47 @@ class Optimizer:
             global_quota=quota, radius=self.neighborhood.radius, local_target=local_target,
             local_actual=local_actual, local_fallback="local_pool_underfilled" if local_actual < local_target else None)
 
+    def _apply_informed(self, model, transform, best, norm, eligible, probabilities, ready, next_index):
+        ordinal = next_index-self.initial_llm_count-self.initial_sobol_count
+        envelope = dict(iteration=ordinal, candidate_id=next_index, settings=asdict(self.informed_settings),
+            trust_before=self.informed_trust, request=None, preference=None, decision=None, status=None)
+        if not ready:
+            envelope["status"] = "gp_unavailable"
+        elif ordinal >= self.informed_settings.active_until:
+            envelope["status"] = "inactive"
+        else:
+            self.informed_stats["requested_iterations"] += 1
+            try:
+                preference = self.llm.region_preference(self.space, self.records,
+                    iteration=ordinal, settings=self.informed_settings)
+                envelope["preference"] = preference
+                self.informed_stats["valid_responses"] += 1
+                envelope["status"] = "evaluated"
+            except (RuntimeError, ValueError) as exc:
+                envelope.update(status="llm_error", error_type=type(exc).__name__)
+                self.informed_stats["error_iterations"] += 1
+            envelope["request"] = dict(self.llm.last_region_request)
+            self.informed_stats["request_attempts"] += envelope["request"]["attempts"]
+            if envelope["status"] == "evaluated":
+                try:
+                    envelope["decision"] = region_decision(model, transform, best, norm, eligible, preference,
+                        space=self.space, settings=self.informed_settings, trust=self.informed_trust,
+                        iteration=ordinal, seed=self.seed, candidate_id=next_index, probabilities=probabilities,
+                        feasibility_weighting=self.repair.feasibility_weighting, candidate_filter=self.candidate_filter)
+                except (ValueError, np.linalg.LinAlgError, FloatingPointError) as exc:
+                    envelope.update(status="lift_error", error_type=type(exc).__name__)
+                    self.informed_stats["error_iterations"] += 1
+        decision = envelope["decision"]
+        if decision and decision["accepted"]:
+            self.informed_stats["adopted"] += 1
+        else:
+            reason = decision["fallback_reason"] if decision else envelope["status"]
+            counts = self.informed_stats["fallback_counts"]
+            counts[reason] = counts.get(reason, 0)+1
+        if self.store:
+            self.store.write_json(f"informed/candidate-{next_index:06d}.json", envelope)
+        return envelope
+
     def optimize(self, total_candidate_budget: int) -> dict:
         if self.used:
             raise ValueError("an Optimizer instance is single-use; create a new run for another configuration")
@@ -330,8 +418,12 @@ class Optimizer:
             candidates, proposal = self._candidate_pool(next_index)
             norm = np.asarray([row[0] for row in candidates])
             acquisition_started = time.perf_counter()
-            ready = set(models) == set(RATE_ORDER) and best is not None
-            raw_ei = composite_ei(norm, models, transforms, best, draws=self.mc_draws, seed=self.seed + next_index) if ready else np.zeros(len(norm))
+            ready = set(models) == set(self.model_keys) and best is not None
+            if ready and self.surrogate_mode == "single_objective":
+                mean, std = models["objective"].predict(norm)
+                raw_ei = scalar_log_ei(mean, std, transforms["objective"], best)
+            else:
+                raw_ei = composite_ei(norm, models, transforms, best, draws=self.mc_draws, seed=self.seed + next_index) if ready else np.zeros(len(norm))
             probabilities = self.completion.predict(norm) if self.repair.feasibility_weighting else None
             scores, policy, fallback = decision_scores(raw_ei, probabilities, enabled=self.repair.feasibility_weighting)
             if not ready:
@@ -340,6 +432,13 @@ class Optimizer:
             self.acquisition_s += time.perf_counter() - acquisition_started
             eligible = np.asarray(proposal["eligible"])
             selected_index = select_candidate(scores, eligible, seed=self.seed, candidate_id=next_index, cold_start=not ready)
+            informed = None
+            if self.informed_enabled:
+                informed = self._apply_informed(models.get("objective"), transforms.get("objective"), best,
+                    norm, eligible, probabilities, ready, next_index)
+                if informed["decision"] is not None:
+                    selected_index = informed["decision"]["selected_index"]
+                    scores = np.asarray(informed["decision"]["effective_scores"])
             selected = candidates[selected_index][1]
             self.seen.add(tuple(round(float(v), 12) for v in candidates[selected_index][0]))
             if self.store:
@@ -353,11 +452,24 @@ class Optimizer:
                     acquisition.update(schema_version=2, proposal=proposal, decision_scores=scores.tolist(),
                         p_complete=probabilities.tolist() if probabilities is not None else None,
                         policy=policy, fallback=fallback, gp_ready=ready)
+                if self.surrogate_mode == "single_objective":
+                    acquisition.update(surrogate_mode=self.surrogate_mode, acquisition_kind="analytic_lognormal_ei_v",
+                        mc_seed=None, mc_draws=0)
+                if self.informed_enabled:
+                    acquisition.update(informed_artifact=f"informed/candidate-{next_index:06d}.json",
+                        informed_applied=bool(informed["decision"] and informed["decision"]["accepted"]))
                 self.store.write_json(f"acquisition/candidate-{next_index:06d}.json", acquisition)
                 self.store.write_json(f"plans/candidate-{next_index:06d}.json", {"candidate_id": next_index, "parameters": selected})
                 self.store.append_event({"type": "candidate_started", "candidate_id": next_index})
             result = self.evaluator.evaluate(selected, self.series_by_rate)
             self._record(next_index, result)
+            if self.informed_enabled:
+                accepted = bool(informed["decision"] and informed["decision"]["accepted"])
+                feedback = trust_feedback(self.informed_trust, accepted, result.valid, result.objective_v,
+                    best, self.informed_settings)
+                self.informed_trust = feedback["trust_after"]
+                if self.store:
+                    self.store.write_json(f"informed-feedback/candidate-{next_index:06d}.json", feedback)
             update = self.neighborhood.update(result, proposal["origins"][selected_index])
             if self.store and self.repair_enabled:
                 self.store.write_json(f"feedback/candidate-{next_index:06d}.json", update)
@@ -389,14 +501,28 @@ class Optimizer:
             "groups": self.groups,
             "groups_learned_lambda": {
                 rate: (models[rate].lambda_ if rate in models else None)
-                for rate in RATE_ORDER
+                for rate in self.model_keys
             },
+            "surrogate_mode": self.surrogate_mode,
+            "llm_informed": {**self.informed_stats, "final_trust": self.informed_trust},
             "gp_training_counts": self.model_training_counts,
             "gp_fit_counts": self.model_fit_counts,
             "initial_best_objective_v": min((r.objective_v for r in self.records[:initial_count] if r.valid), default=None),
             "bo_candidate_valid": sum(r.valid for r in self.records[initial_count:]),
             "rate_valid_counts": {rate: sum(q.valid for r in self.records for q in r.rates if q.rate == rate) for rate in RATE_ORDER},
         }
+        if self.screening_history is not None:
+            cost = self.screening_history.catalog["attributed_screening_cost"]
+            summary["screening_history"] = {
+                "reused_failed_candidates": sum(not r.valid for r in self.historical_records),
+                "partial_rate_labels": self.screening_history.catalog["partial_rate_labels"],
+                "attributed_screening_cost": cost,
+                "attributed_total_candidate_evaluations": cost["candidate_evaluations"] + summary["new_candidate_evaluations"],
+                "attributed_total_rate_solves": cost["rate_solve_attempts"] + summary["rate_solve_attempts"],
+            }
+            if self.screening_history.catalog.get('schema_version') == 2:
+                summary['screening_history'].update(reused_valid_candidates=sum(r.valid for r in self.historical_records),
+                    reused_candidates=len(self.historical_records))
         if self.store is not None:
             self.store.write_json("summary.json", summary)
             self.store.append_event({"type": "optimization_completed", "summary": summary})

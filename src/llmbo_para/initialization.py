@@ -13,7 +13,7 @@ from .feasibility import simulation_signature
 from .metrics import RATE_ORDER
 from .runstore import digest_value, sha256_file
 
-SIMULATION_FILES = ("data.py", "evaluation.py", "metrics.py", "parameters.py", "pybamm_adapter.py", "providers.py", "reference_cell.py")
+SIMULATION_FILES = ("data.py", "evaluation.py", "metrics.py", "parameters.py", "pybamm_adapter.py", "pybamm_compat.py", "providers.py", "reference_cell.py")
 
 
 def validated_simulation_sources(screening_directory):

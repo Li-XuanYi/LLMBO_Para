@@ -14,7 +14,7 @@ from .audit import audit_run, read_json
 from .config import configuration_errors, parameter_space_from_config
 from .data import WorkbookSchema, load_four_rate_workbook
 from .evaluation import DischargeSeries, FourRateEvaluator
-from .llm import HttpJsonTransport, ChatCompletionsTransport, LLMClient
+from .llm import HttpJsonTransport, ChatCompletionsTransport, LLMClient, build_llm_context
 from .metrics import RATE_ORDER
 from .optimizer import Optimizer
 from .parameters import ParameterSpace
@@ -34,6 +34,7 @@ class PreparedExperiment:
     workbook: Path | None = None
     initial_plan: Path | None = None
     initial_evaluations: list | None = None
+    screening_history: object | None = None
 
 
 class ExperimentFailure(RuntimeError):
@@ -123,9 +124,19 @@ def prepare_experiment(config: dict, *, base_dir: Path | None = None, archived_s
             if item.assumptions:
                 warnings.append(f"{rate}: " + "; ".join(item.assumptions))
         cached = validated_cached_results(config, series, plan, initial_plan) if initial_plan else None
+        history = None
+        if optimization.get("reuse_screening_history"):
+            if cached is None:
+                raise ValueError("screening history reuse requires cached original evaluations")
+            from .screening_history import load_screening_history
+            history = load_screening_history(config, series, plan, initial_plan)
+            report["screening_history"] = {k: history.catalog[k] for k in (
+                "reused_failed_candidates", "partial_rate_labels", "attributed_screening_cost")}
+            if history.catalog.get('schema_version') == 2:
+                report['screening_history'].update({k:history.catalog[k] for k in ('reused_valid_candidates','reused_candidates')})
         report.update(ready=True, samples_by_rate={r: len(v.time_s) for r, v in series.items()}, input_sha256=hashes,
                       cached_initial_evaluations=0 if cached is None else len(cached))
-        return report, PreparedExperiment(config, space, series, hashes, workbook, initial_plan, cached)
+        return report, PreparedExperiment(config, space, series, hashes, workbook, initial_plan, cached, history)
     except (ValueError, TypeError, OSError, KeyError) as exc:
         errors.append(f"input preflight: {type(exc).__name__}: {exc}")
         return report, None
@@ -142,30 +153,10 @@ def build_llm(config: dict, store: RunStore, *, prepared=None) -> LLMClient | No
     if not config["optimization"]["llm_enabled"]:
         return None
     llm = config["llm"]
-    context = {"cell_id": config["cell_id"], "cell_format": config["cell_format"],
-               "base_parameterization": config["model"].get("parameterization_id"),
-               "model": config["model"]["name"], "conditions_by_rate": config["conditions_by_rate"],
-               "llm_model": llm["model"]}
-    context["initial_state_mode"] = config["model"].get("initial_state_mode", "explicit_soc")
-    context["nominal_capacity_ah"] = config["nominal_capacity_ah"]
-    if config["model"].get("provider") == "pybamm":
-        context["fixed_electrolyte_diffusivity_multiplier"] = config["model"].get("fixed_electrolyte_diffusivity_multiplier", 1.0)
-    if prepared is not None:
-        context["discharge_summary_by_rate"] = {}
-        for rate, series in prepared.series.items():
-            currents, times = series.current_a, series.time_s
-            summary = {"duration_s": times[-1] - times[0], "samples": len(times), "current_source": series.current_source}
-            if currents is not None:
-                sign = series.discharge_current_sign
-                summary["discharged_charge_ah"] = sum((a + b) * .5 * (right - left) * sign / 3600
-                    for a, b, left, right in zip(currents, currents[1:], times, times[1:]))
-                if all(value == currents[0] for value in currents):
-                    summary["constant_discharge_current_a"] = currents[0] * sign
-            context["discharge_summary_by_rate"][rate] = summary
     parameterization_file = store.path / "parameterization.json"
-    if parameterization_file.exists():
-        values = read_json(parameterization_file)["values"]
-        context["nominal_parameter_values_from_reference"] = {spec.name: values[spec.name] for spec in prepared.space.specs} if prepared is not None else {}
+    values = read_json(parameterization_file)["values"] if parameterization_file.exists() else None
+    context = build_llm_context(config, space=prepared.space if prepared is not None else None,
+        series_by_rate=prepared.series if prepared is not None else None, parameter_values=values)
     return LLMClient(build_transport(llm, store),
                      context=context, run_store=store, min_diversity_distance=llm["min_diversity_distance"])
 
@@ -215,6 +206,8 @@ def run_experiment(config: dict, output, *, base_dir=None, command="run_experime
                         raise ValueError("cached source record changed during archiving")
         if simulator is not None and config["run_kind"] != "synthetic_software_smoke_only":
             raise ValueError("simulator overrides are allowed only in explicit synthetic tests")
+        if prepared.screening_history is not None:
+            prepared.screening_history.archive(store)
         backend = simulator or build_backend(prepared)
         if hasattr(backend, "save_parameterization"):
             backend.save_parameterization(store)
@@ -240,6 +233,10 @@ def run_experiment(config: dict, output, *, base_dir=None, command="run_experime
             initial_evaluations=prepared.initial_evaluations,
             candidate_filter=gate.check if gate else None,
             bo_repair=options.get("bo_repair"),
+            surrogate_mode=options.get("surrogate_mode", "per_rate"),
+            llm_informed_enabled=options.get("llm_informed_enabled", False),
+            llm_informed=options.get("llm_informed"),
+            screening_history=prepared.screening_history,
         )
         summary = optimizer.optimize(options["total_candidate_budget"])
         audit_started = time.perf_counter()
@@ -248,7 +245,7 @@ def run_experiment(config: dict, output, *, base_dir=None, command="run_experime
         store.write_json("result-audit.json", audit)
         if not audit["passed"]:
             raise RuntimeError("post-run consistency audit failed; see result-audit.json")
-        status = "completed_with_failures" if summary["candidate_failed"] else "completed"
+        status = "completed_with_failures" if summary["candidate_failed"] or summary.get("llm_informed",{}).get("error_iterations",0) else "completed"
         store.finish(status, summary)
         return {"run_directory": str(store.path), "run_kind": config["run_kind"], "status": status, "audit_passed": audit["passed"], **summary}
     except BaseException as exc:
@@ -302,11 +299,22 @@ def run_fixed_candidates(config: dict, output, candidates, *, mode: str, base_di
     if mode not in {"smoke", "recovery"} or not candidates:
         raise ValueError("fixed evaluation needs smoke/recovery mode and at least one explicit candidate")
     config = json.loads(json.dumps(config))
+    original_config = json.loads(json.dumps(config))
     original_hash = digest_value(config)
     config["optimization"]["llm_enabled"] = False
+    for name in ("llm_warm_start_enabled", "llm_gp_groups_enabled", "llm_informed_enabled"):
+        if name in config["optimization"]:
+            config["optimization"][name] = False
+    # Fixed candidate replay does not initialize or optimize. Keep the original
+    # provenance separately; no cached initialization plan is executed here.
+    for name in ("initial_candidates", "initial_candidates_source", "initial_candidates_evidence"):
+        config["optimization"].pop(name, None)
+    config["optimization"].update(warm_start_llm_points=0, sobol_points=2)
+    config["optimization"].pop("reuse_screening_history", None)
     report, prepared = prepare_experiment(config, base_dir=base_dir, archived_series=archived_series)
     store = RunStore(output, config, data_hashes=source_hashes or (prepared.input_hashes if prepared else {}), command=f"llmbo-para {mode} explicit-candidates")
     store.write_json("preflight.json", report)
+    store.write_json("original-config.json", original_config)
     store.write_json("execution-mode.json", {"mode": mode, "original_config_sha256": original_hash,
                                              "llm_calls": 0, "candidate_count": len(candidates)})
     if source_info:

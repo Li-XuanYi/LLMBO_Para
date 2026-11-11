@@ -46,7 +46,7 @@ class ArchivedRequest:
         return call
 
 
-def screen_family(template, source, suite, base_dir, *, budget=None, resume_plan=None, artifact_root=None):
+def screen_family(template, source, suite, base_dir, *, budget=None, resume_plan=None, artifact_root=None, initializer_type=None, feedback_plan=None, success_examples=None):
     budget = budget or ScreeningBudget()
     config = deepcopy(template)
     config["optimization"].update(llm_enabled=source == "llm", llm_warm_start_enabled=source == "llm", llm_gp_groups_enabled=False)
@@ -96,8 +96,13 @@ def screen_family(template, source, suite, base_dir, *, budget=None, resume_plan
                 "parameters": plan["parameters"], "cost": plan["screening_cost"], "continue_to": 8})
             print(json.dumps({"source": source, "two_point_checkpoint_passed": True, **plan["screening_cost"]}), flush=True)
 
-        initializer = FeasibleInitializer(config, prepared.space, prepared.series, evaluator, store, gate=gate, source=source,
+        initializer = (initializer_type or FeasibleInitializer)(config, prepared.space, prepared.series, evaluator, store, gate=gate, source=source,
             llm_factory=factory if source == "llm" else None, parameterization_fingerprint=fingerprint, checkpoint_callback=checkpoint, budget=budget)
+        if feedback_plan:
+            if resume_plan:raise ValueError("feedback seeding and budget continuation cannot be combined")
+            initializer.seed_feedback_from_plan(feedback_plan)
+        for reference in success_examples or []:
+            initializer.add_verified_success_example(reference['record_path'],reference['sha256'])
         if resume_plan:
             restore = initializer.restore_random if source == "random" else initializer.restore_llm
             restore(read_json(resume_plan), resume_plan)

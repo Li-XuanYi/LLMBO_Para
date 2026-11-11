@@ -44,9 +44,11 @@ def audit_run(path, *, deep: bool = False, require_terminal: bool = True) -> dic
             issues.append("raw workbook copy does not match recorded input hash")
         checks.append("local_input_archive")
         options = manifest["config"]["optimization"]
+        single = options.get("surrogate_mode", "per_rate") == "single_objective"
+        model_keys = ("objective",) if single else RATE_ORDER
         from .bo_repair import RepairSettings, CompletionModel, decision_scores, LocalNeighborhood, select_candidate
         repair = RepairSettings.parse(options.get("bo_repair"))
-        repaired = "bo_repair" in options
+        repaired = "bo_repair" in options or single
         if "initial_candidates" in options and (path / "initial-set.json").exists():
             plan_file = path / "inputs/initial-plan.json"
             if not plan_file.exists() or sha256_file(plan_file) != options["initial_candidates_evidence"]["sha256"]:
@@ -60,6 +62,13 @@ def audit_run(path, *, deep: bool = False, require_terminal: bool = True) -> dic
                     issues.append("initial source labels differ from shared plan provenance")
             checks.append("shared_initial_set_provenance")
         space = parameter_space_from_config(manifest["config"])
+        historical, history_catalog = [], None
+        if options.get("reuse_screening_history"):
+            from .screening_history import audited_history
+            from .evaluation import DischargeSeries
+            historical, history_catalog = audited_history(path, manifest["config"],
+                {r: DischargeSeries(**s) for r, s in series.items()}, hashes)
+            checks.append("self_contained_screening_history_labels_lineage_and_cost")
         cached_count = 0
         for index, file in enumerate(sorted((path / "attempts").glob("*.json"))):
             record = read_json(file)
@@ -148,6 +157,17 @@ def audit_run(path, *, deep: bool = False, require_terminal: bool = True) -> dic
                 issues.append(f"{file.name}: J is not the equal mean of four RMSEs")
         checks.append("four_rate_alignment_rmse_and_objective_recalculation")
         summary = read_json(path / "summary.json")
+        if history_catalog is not None:
+            cost = history_catalog["attributed_screening_cost"]
+            expected_history_summary = {"reused_failed_candidates": sum(not r['valid'] for r in historical),
+                "partial_rate_labels": history_catalog["partial_rate_labels"],
+                "attributed_screening_cost": cost,
+                "attributed_total_candidate_evaluations": cost["candidate_evaluations"] + sum(not r.get("cache_provenance") for r in attempts),
+                "attributed_total_rate_solves": cost["rate_solve_attempts"] + sum(len(q["attempts"]) for r in attempts if not r.get("cache_provenance") for q in r["rates"])}
+            if history_catalog.get('schema_version') == 2:
+                expected_history_summary.update(reused_valid_candidates=sum(r['valid'] for r in historical),reused_candidates=len(historical))
+            if summary.get("screening_history") != expected_history_summary:
+                issues.append("screening history summary double-counts or omits labels/cost")
         expected_budget = manifest["config"]["optimization"]["total_candidate_budget"]
         mode_file = path / "execution-mode.json"
         if mode_file.exists():
@@ -197,19 +217,25 @@ def audit_run(path, *, deep: bool = False, require_terminal: bool = True) -> dic
         frozen = None
         fixed_groups = None
         repair_frozen, previous_models, previous_ids = {}, {}, {}
-        expected_fit_counts = {rate:0 for rate in RATE_ORDER}
+        expected_fit_counts = {rate:0 for rate in model_keys}
         for file in models:
             state = read_json(file)
             history_count = int(file.stem.split("-")[-1])
+            all_past = historical + attempts[:history_count]
+            indexed_past = list(zip(range(-len(historical), 0), historical)) + list(enumerate(attempts[:history_count]))
             training = [row for row in attempts[:history_count] if row["valid"]]
+            if single and (state.get("surrogate_mode") != "single_objective" or set(state["models"]) - {"objective"}
+                    or state.get("target") != "log_of_mean_four_rate_rmse" or state.get("kernel") != "full_6d_ard_matern52"):
+                issues.append(f"{file.name}: single objective GP mode/target/kernel differs")
             if not repaired and (set(state["transforms"]) != set(RATE_ORDER) or set(state["models"]) != set(RATE_ORDER)):
                 issues.append(f"{file.name}: GP archive does not contain all four rates")
             if repaired:
                 from dataclasses import asdict
                 if state.get("schema_version") != 2 or state.get("training_data") != repair.training_data:
                     issues.append(f"{file.name}: repaired GP schema/policy differs from configuration")
-                for rate in RATE_ORDER:
-                    rows = [(i, row, next(q for q in row["rates"] if q["rate"] == rate)) for i, row in enumerate(attempts[:history_count])]
+                for rate in model_keys:
+                    rows = [(i, row, {"valid":row["valid"], "rmse_v":row["objective_v"]} if single
+                        else next(q for q in row["rates"] if q["rate"] == rate)) for i, row in indexed_past]
                     rows = [(i, row, q) for i, row, q in rows if q["valid"] and (repair.training_data == "per_rate" or row["valid"])]
                     metadata = state["training"][rate]
                     if metadata["record_ids"] != [i for i, _, _ in rows] or metadata["count"] != len(rows):
@@ -229,13 +255,13 @@ def audit_run(path, *, deep: bool = False, require_terminal: bool = True) -> dic
                 if state["transforms"] != repair_frozen:
                     issues.append(f"{file.name}: per-rate frozen transforms do not reproduce")
                 if repair.feasibility_weighting:
-                    classifier = CompletionModel().fit([space.normalize(r["parameters"]) for r in attempts[:history_count]], [r["valid"] for r in attempts[:history_count]])
+                    classifier = CompletionModel(repair.completion_model).fit([space.normalize(r["parameters"]) for r in all_past], [r["valid"] for r in all_past])
                     if classifier.state != state["completion_model"]:
                         issues.append(f"{file.name}: joint completion classifier does not reproduce")
                 previous_models = state["models"]
                 previous_ids = {r:v["record_ids"] for r,v in state["training"].items()}
                 neighborhood = state["neighborhood"]
-                if neighborhood["settings"] != asdict(repair):
+                if RepairSettings.parse(neighborhood["settings"]) != repair:
                     issues.append(f"{file.name}: local search settings differ from configuration")
                 if history_count == initial_count:
                     expected_local = {"radius_after":repair.local_radius,"success_streak":0,"failure_streak":0}
@@ -256,8 +282,12 @@ def audit_run(path, *, deep: bool = False, require_terminal: bool = True) -> dic
                 issues.append(f"{file.name}: parameter groups changed during optimization")
             fixed_groups.update(groups)
             for rate, model in state["models"].items():
-                if repaired:
-                    training = [row for row in attempts[:history_count] if
+                if single:
+                    training = [row for row in attempts[:history_count] if row["valid"]]
+                    if model["group"] or model["lambda"] != 0:
+                        issues.append(f"{file.name}: single Matérn kernel contains a subset mixture")
+                elif repaired:
+                    training = [row for row in all_past if
                         (repair.training_data == "per_rate" or row["valid"]) and next(q["valid"] for q in row["rates"] if q["rate"] == rate)]
                 if options.get("llm_gp_groups_enabled") is False and (model["group"] or model["lambda"] != 0):
                     issues.append(f"{file.name}/{rate}: disabled GP LLM component still changed the kernel")
@@ -266,14 +296,29 @@ def audit_run(path, *, deep: bool = False, require_terminal: bool = True) -> dic
                 if not model["group"] and model["lambda"] != 0:
                     issues.append(f"{file.name}/{rate}: empty group did not fall back to full-dimensional kernel")
                 expected_x = [space.normalize(row["parameters"]) for row in training]
+                diagnostics = model.get("fit_diagnostics")
+                if diagnostics is not None:
+                    trace = diagnostics["marginal_log_likelihood_trace"]
+                    if (len(trace) != diagnostics["sweeps_completed"] + 1
+                        or not 0 <= diagnostics["sweeps_completed"] <= options["gp_sweeps"]
+                        or any(not math.isfinite(v) for v in trace)
+                        or any(b < a - 1e-10 for a, b in zip(trace, trace[1:]))
+                        or not math.isclose(trace[-1], model["marginal_log_likelihood"], abs_tol=1e-10)
+                        or model["max_sweeps"] != options["gp_sweeps"]):
+                        issues.append(f"{file.name}/{rate}: GP fitting diagnostics do not reproduce")
                 transform = LogRMSETransform(**state["transforms"][rate])
-                expected_y = [transform.transform(next(q["rmse_v"] for q in row["rates"] if q["rate"] == rate)) for row in training]
+                expected_y = [transform.transform(row["objective_v"] if single else next(q["rmse_v"] for q in row["rates"] if q["rate"] == rate)) for row in training]
                 if np.shape(model["x"]) != np.shape(expected_x) or not np.allclose(model["x"], expected_x, rtol=1e-12, atol=1e-14):
                     issues.append(f"{file.name}/{rate}: GP training inputs differ from actually valid observations")
                 if np.shape(model["y"]) != np.shape(expected_y) or not np.allclose(model["y"], expected_y, rtol=1e-12, atol=1e-14):
                     issues.append(f"{file.name}/{rate}: GP labels differ from actually simulated log-RMSEs")
         checks.append("frozen_transforms_and_full_six_dimensional_gp_states" if models else "gp_not_applicable_to_fixed_candidate_run")
         acquisitions = sorted((path / "acquisition").glob("*.json"))
+        informed_enabled = options.get("llm_informed_enabled", False)
+        from .informed import InformedSettings
+        informed_trust = InformedSettings.parse(options.get("llm_informed")).trust_init
+        informed_stats = dict(enabled=informed_enabled,requested_iterations=0,request_attempts=0,
+            valid_responses=0,adopted=0,error_iterations=0,fallback_counts={})
         gate = None
         if options.get("inventory_feasibility_filter"):
             from dataclasses import asdict
@@ -288,6 +333,9 @@ def audit_run(path, *, deep: bool = False, require_terminal: bool = True) -> dic
             issues.append("optimization result lacks complete acquisition decision records")
         for file in acquisitions:
             row = read_json(file)
+            if single and (row.get("surrogate_mode") != "single_objective" or row.get("acquisition_kind") != "analytic_lognormal_ei_v"
+                    or row.get("mc_draws") != 0 or row.get("mc_seed") is not None):
+                issues.append(f"{file.name}: scalar acquisition must use analytic voltage-scale EI")
             candidate_id = int(file.stem.split("-")[-1])
             scores = np.asarray(row["composite_ei"])
             selected = row["selected_index"]
@@ -299,7 +347,7 @@ def audit_run(path, *, deep: bool = False, require_terminal: bool = True) -> dic
             if repaired:
                 from .evaluation import EvaluationResult, RateResult
                 state = read_json(path / "models" / f"after-{candidate_id:06d}.json")
-                ready = set(state["models"]) == set(RATE_ORDER) and bool(previous)
+                ready = set(state["models"]) == set(model_keys) and bool(previous)
                 if row.get("schema_version") != 2 or row["gp_ready"] != ready:
                     issues.append(f"{file.name}: acquisition schema or GP readiness differs")
                 classifier = CompletionModel(); classifier.state = state["completion_model"]
@@ -317,7 +365,7 @@ def audit_run(path, *, deep: bool = False, require_terminal: bool = True) -> dic
                     issues.append(f"{file.name}: candidate pool metadata has inconsistent lengths")
                 if proposal["radius"] != state["neighborhood"]["radius"] or proposal["local_actual"] != proposal["origins"].count("local"):
                     issues.append(f"{file.name}: candidate radius or local pool count differs")
-                past_keys = {tuple(round(v,12) for v in space.normalize(value["parameters"])) for value in attempts[:candidate_id]}
+                past_keys = {tuple(round(v,12) for v in space.normalize(value["parameters"])) for value in historical + attempts[:candidate_id]}
                 keys = [tuple(round(v,12) for v in point) for point in row["normalized_pool"]]
                 if len(set(keys)) != len(keys) or any(key in past_keys for key in keys):
                     issues.append(f"{file.name}: candidate pool duplicates a current or evaluated point")
@@ -326,6 +374,14 @@ def audit_run(path, *, deep: bool = False, require_terminal: bool = True) -> dic
                 eligible = np.asarray([o == "global" or not quota for o in proposal["origins"]])
                 if proposal["global_quota"] != quota or proposal["eligible"] != eligible.tolist() or not np.any(eligible):
                     issues.append(f"{file.name}: global exploration quota/mask differs")
+                informed_decision = None
+                if informed_enabled:
+                    from .informed_audit import replay_informed_step
+                    informed_decision, informed_trust = replay_informed_step(path,options=options,candidate_id=candidate_id,
+                        initial_count=initial_count,state=state,row=row,attempts=attempts,space=space,ready=ready,
+                        probabilities=predicted,gate=gate,trust=informed_trust,stats=informed_stats,issues=issues)
+                    if informed_decision:
+                        expected_scores = np.asarray(informed_decision["effective_scores"])
                 if not np.allclose(row["decision_scores"], expected_scores, rtol=1e-12, atol=1e-14) or row["policy"] != policy or row["fallback"] != fallback:
                     issues.append(f"{file.name}: constrained scores or declared fallback differ")
                 expected_selected = select_candidate(expected_scores,eligible,seed=options["seed"],candidate_id=candidate_id,cold_start=not ready)
@@ -356,17 +412,31 @@ def audit_run(path, *, deep: bool = False, require_terminal: bool = True) -> dic
                 issues.append(f"{file.name}: selected normalized input differs from evaluated parameters")
             if deep and (not repaired or row["gp_ready"]):
                 from .surrogate import Matern52GP
-                from .acquisition import composite_ei
+                from .acquisition import composite_ei, scalar_log_ei
                 state = read_json(path / "models" / f"after-{candidate_id:06d}.json")
                 fitted = {rate: Matern52GP.from_state(value) for rate, value in state["models"].items()}
                 transforms = {rate: LogRMSETransform(**value) for rate, value in state["transforms"].items()}
-                recomputed = composite_ei(row["normalized_pool"], fitted, transforms, row["best_observed_objective_v"], draws=row["mc_draws"], seed=row["mc_seed"])
+                if single:
+                    mean, std = fitted["objective"].predict(row["normalized_pool"])
+                    recomputed = scalar_log_ei(mean, std, transforms["objective"], row["best_observed_objective_v"])
+                else:
+                    recomputed = composite_ei(row["normalized_pool"], fitted, transforms, row["best_observed_objective_v"], draws=row["mc_draws"], seed=row["mc_seed"])
                 if not np.allclose(scores, recomputed, rtol=1e-10, atol=1e-12):
                     issues.append(f"{file.name}: posterior Monte Carlo EI does not reproduce from saved GP state")
         if acquisitions:
             checks.append("acquisition_choice" + ("_and_monte_carlo_recalculation" if deep else "_without_recomputing_all_gp_draws"))
         else:
             checks.append("acquisition_not_applicable_without_bo_iterations")
+        if informed_enabled and initial_count:
+            from .informed_audit import equivalent
+            expected_names = {f"candidate-{i:06d}.json" for i in range(initial_count,expected_budget)}
+            for folder in ("informed", "informed-feedback"):
+                if {f.name for f in (path/folder).glob("*.json")} != expected_names:
+                    issues.append("LLM-Informed decision/feedback archive sequence is incomplete")
+            informed_stats["final_trust"] = informed_trust
+            if not equivalent(summary.get("llm_informed"),informed_stats):
+                issues.append("LLM-Informed summary call/adoption/error counts do not reproduce")
+            checks.append("llm_informed_requests_posterior_shift_guards_and_feedback_replay")
         if require_terminal and not (path / "terminal.json").exists():
             issues.append("run has no terminal lifecycle record")
     except (ValueError, KeyError, TypeError, OSError, IndexError) as exc:

@@ -1,0 +1,7 @@
+从candidates中选择requested_count个不同index供真实DFN评价；只返回已有index，不改写参数、不生成新点。这是有反馈的质量探索，目标为完整四倍率等权RMSE，不能只挑看似容易放电的点。
+
+context.initialization_recovery.evaluated_observations包含此前真实参数、各倍率RMSE、末点及最后10%残差、覆盖时长、失败分类。best_completed_observation是当前最佳真实点。null是不可用目标/倍率误差，不能补成假分数。根据真实反馈选择有机会改善误差、检验参数补偿且补充未探索方向的候选；若没有观察数据，结合明确的基础参数化和必要约束选择有差异的试探点。
+
+候选已经经过必要物理条件过滤，但还未证明完整可行或低RMSE。避免重复此前失败机制，也不要让整个选择批次挤在单一体积分数/高扩散区域。不得声称你已仿真、知道新候选真实误差或掌握未给出的电流/温度/SOC。
+
+只输出JSON：{"selected_indices":[恰好requested_count个不同的合法整数]}。无需解释或Markdown。

@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "run_kind": "synthetic_software_smoke_only",
+  "cell_id": "software-fixture-no-physical-cell",
+  "cell_format": "synthetic",
+  "nominal_capacity_ah": 1.0,
+  "rates": [
+    "0.5C",
+    "1C",
+    "2C",
+    "3C"
+  ],
+  "parameters": {
+    "Negative electrode active material volume fraction": {
+      "lower": 0.2,
+      "upper": 0.8,
+      "unit": "1",
+      "transform": "linear"
+    },
+    "Positive electrode active material volume fraction": {
+      "lower": 0.2,
+      "upper": 0.8,
+      "unit": "1",
+      "transform": "linear"
+    },
+    "Negative particle diffusivity [m2.s-1]": {
+      "lower": 1e-16,
+      "upper": 1e-12,
+      "unit": "m2.s-1",
+      "transform": "log10"
+    },
+    "Positive particle diffusivity [m2.s-1]": {
+      "lower": 1e-16,
+      "upper": 1e-12,
+      "unit": "m2.s-1",
+      "transform": "log10"
+    },
+    "Negative electrode conductivity [S.m-1]": {
+      "lower": 0.1,
+      "upper": 300,
+      "unit": "S.m-1",
+      "transform": "linear"
+    },
+    "Positive electrode conductivity [S.m-1]": {
+      "lower": 0.1,
+      "upper": 300,
+      "unit": "S.m-1",
+      "transform": "linear"
+    }
+  },
+  "physical_constraints": {
+    "fixed_porosity": {
+      "negative": null,
+      "positive": null
+    }
+  },
+  "conditions_by_rate": {
+    "0.5C": {
+      "initial_soc": 1.0,
+      "initial_temperature_k": 298.15,
+      "ambient_temperature_k": 298.15,
+      "voltage_cutoff_v": 2.5
+    },
+    "1C": {
+      "initial_soc": 1.0,
+      "initial_temperature_k": 298.15,
+      "ambient_temperature_k": 298.15,
+      "voltage_cutoff_v": 2.5
+    },
+    "2C": {
+      "initial_soc": 1.0,
+      "initial_temperature_k": 298.15,
+      "ambient_temperature_k": 298.15,
+      "voltage_cutoff_v": 2.5
+    },
+    "3C": {
+      "initial_soc": 1.0,
+      "initial_temperature_k": 298.15,
+      "ambient_temperature_k": 298.15,
+      "voltage_cutoff_v": 2.5
+    }
+  },
+  "data": {
+    "kind": "builtin_synthetic",
+    "evaluation_grid": "all_measured_samples_no_extrapolation",
+    "discharge_current_sign": 1,
+    "time_unit": "s",
+    "current_unit": "A",
+    "voltage_unit": "V"
+  },
+  "model": {
+    "provider": "synthetic",
+    "name": "DFN",
+    "fixture_formula": "normalized_quadratic_voltage_offset"
+  },
+  "optimization": {
+    "seed": 20261010,
+    "warm_start_llm_points": 0,
+    "sobol_points": 4,
+    "total_candidate_budget": 9,
+    "candidate_pool_size": 64,
+    "composite_ei_draws": 64,
+    "gp_sweeps": 20,
+    "max_rate_attempts": 1,
+    "parallel_workers": 1,
+    "llm_enabled": false,
+    "gpu_backend": "cpu",
+    "surrogate_mode": "single_objective",
+    "llm_warm_start_enabled": false,
+    "llm_gp_groups_enabled": false,
+    "bo_repair": {
+      "training_data": "complete",
+      "candidate_policy": "local",
+      "feasibility_weighting": false
+    }
+  },
+  "llm": {
+    "transport": "structured_json_service",
+    "endpoint": null,
+    "api_key_env": null,
+    "model": null,
+    "timeout_s": 30.0,
+    "min_diversity_distance": 0.001
+  }
+}
