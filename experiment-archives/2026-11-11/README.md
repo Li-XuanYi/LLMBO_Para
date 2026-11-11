@@ -14,11 +14,25 @@ pre-specified confirmatory comparison.
 | `classical-retained` | retained classical runs, review and execution records |
 | `fresh-retained` | retained fresh-seed runs, software rehearsal and review |
 | `hv-and-evidence` | HV recalculations, sensitivity analysis and evidence audit |
+| `other-runs` | remaining historical files under `runs/` |
+| `other-research-records-filtered` | remaining research work under `bo-repair-work/`, excluding generated pytest workspaces |
 
 Archives are Zstandard-compressed tar streams split into parts. The manifest
 records each part's SHA-256 and the ordered hash of the archived file names and
 file hashes. `pack.py` documents the source paths and exclusions. Environment
 directories, caches, Python bytecode, `.env` files and symlinks are omitted.
+`legacy-manifest.json` records the additional bundles and any files omitted
+because they were unreadable or matched credential checks. `pack_legacy.py`
+documents the exact exclusions. Separate linked Git worktrees are represented
+by their Git branches. Two old software-rehearsal directories containing cases
+later removed from the classical comparison are excluded from these bundles.
+The generated pytest workspace directories whose top-level names match
+`ge`, `gep`, `p` or `t` followed by at least ten digits are omitted; these
+contain repeated test-run source snapshots. Their originals remain local. An
+earlier interrupted `other-research-records` stream is incomplete and its
+intermediate parts were removed from the current tree; its prior Git objects
+remain in branch history. Only bundles listed in a completed manifest can be
+restored.
 
 To restore a bundle, concatenate its parts in numeric order as binary data,
 decompress the resulting `.tar.zst` with `zstd -d`, then extract the `.tar` at

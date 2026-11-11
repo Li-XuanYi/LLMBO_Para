@@ -53,7 +53,9 @@ def export(name,source,exclude_top):
             for current,dirs,files in os.walk(source):
                 cur=Path(current)
                 dirs[:]=sorted(d for d in dirs if d not in SKIP_DIRS and not d.startswith(('.venv','.cache','pytest-cache'))
-                               and not (cur==source and d in exclude_top))
+                               and not (cur==source and d in exclude_top)
+                               and not (name=='other-research-records-filtered' and cur==source
+                                        and re.fullmatch(r'(?:ge|gep|p|t)\d{10,}',d)))
                 for filename in sorted(files):
                     path=cur/filename;relative=path.relative_to(PROJECT).as_posix()
                     if path.is_symlink() or filename in ('.git','.env') or filename.startswith('.env.') or filename.endswith(('.pyc','.pyo','.pem','.key','.p12','.pfx')):
@@ -80,9 +82,8 @@ def export(name,source,exclude_top):
 
 
 def main():
-    result={}
-    for name,source,skip in [('other-runs',PROJECT/'runs',PREVIOUS|REMOVED_REHEARSALS),
-                             ('other-research-records',PROJECT/'bo-repair-work',{'fg-code','warmstart-v31','environments'})]:
+    result=json.loads((OUT/'legacy-manifest.json').read_text(encoding='utf8'))
+    for name,source,skip in [('other-research-records-filtered',PROJECT/'bo-repair-work',{'fg-code','warmstart-v31','environments'})]:
         print('packing',name,flush=True);result[name]=export(name,source,skip)
         (OUT/'legacy-manifest.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf8')
         print('packed',name,result[name]['files'],'omitted',len(result[name]['omitted']),flush=True)
