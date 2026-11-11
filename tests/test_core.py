@@ -36,6 +36,9 @@ def test_space() -> ParameterSpace:
     return ParameterSpace.from_bounds(bounds, transforms, units)
 
 
+test_space.__test__ = False  # Helper, not an assertion-bearing pytest test.
+
+
 def series_fixture():
     return {
         rate: DischargeSeries(rate, (0.0, 1.0, 2.0), (4.2, 4.0, 3.8), (-0.5, -0.5, -0.5))

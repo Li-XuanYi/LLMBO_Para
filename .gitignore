@@ -8,3 +8,5 @@ runs/
 .env
 Reference/
 data/raw/
+bo-repair-work/
+.venv/

@@ -89,7 +89,7 @@ class RunStore:
             "argv": sys.argv,
             "dependencies": {
                 name: self._package_version(name)
-                for name in ("numpy", "openpyxl", "et_xmlfile", "pybamm", "casadi", "torch")
+                for name in ("numpy", "scipy", "openpyxl", "et_xmlfile", "pybamm", "pybammsolvers", "casadi", "pytest", "torch")
             },
             "config_sha256": self.config_hash,
             "config": config,
@@ -124,7 +124,7 @@ class RunStore:
         if (root / "pyproject.toml").is_file() and (root / "src" / "llmbo_para" / "runstore.py").resolve() == Path(__file__).resolve():
             for folder in ("src", "configs", "scripts", "tests", "docs"):
                 files.extend(p for p in (root / folder).rglob("*") if p.is_file() and "__pycache__" not in p.parts)
-            files.extend(root / name for name in ("pyproject.toml", "requirements-py312.lock", "README.md", ".gitignore"))
+            files.extend(root / name for name in ("pyproject.toml", "requirements-py312.lock", "requirements-research.lock", "requirements-test.lock", "README.md", ".gitignore", "BO-Repair-Report.md"))
         else:
             # A non-editable wheel has no repository beside it; still archive
             # the actual imported package rather than silently saving no code.

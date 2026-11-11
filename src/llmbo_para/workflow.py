@@ -238,6 +238,7 @@ def run_experiment(config: dict, output, *, base_dir=None, command="run_experime
             strict_llm_tasks=options.get("strict_llm_tasks", False),
             initial_evaluations=prepared.initial_evaluations,
             candidate_filter=gate.check if gate else None,
+            bo_repair=options.get("bo_repair"),
         )
         summary = optimizer.optimize(options["total_candidate_budget"])
         audit_started = time.perf_counter()

@@ -1,0 +1,7 @@
+# Python 3.12 test dependencies; colorama is Windows-only.
+pytest==8.4.2
+pluggy==1.6.0
+iniconfig==2.3.1
+packaging==26.3
+pygments==2.21.0
+colorama==0.4.6; sys_platform == "win32"

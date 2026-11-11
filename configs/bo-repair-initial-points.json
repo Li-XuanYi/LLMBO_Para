@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "source": "random",
+  "parameters": [
+    [
+      0.7478259281968358,
+      0.639107971788921,
+      1.8891369826299512e-13,
+      1.4410372528610634e-13,
+      236.70026676542273,
+      0.2224212854092804
+    ],
+    [
+      0.7462278106836824,
+      0.5859855976637175,
+      7.668492771442968e-14,
+      3.0134012700883617e-13,
+      247.2666565706484,
+      0.7138427033831554
+    ],
+    [
+      0.7344085037704609,
+      0.6648843810509686,
+      9.373938745626314e-14,
+      2.3481499610751896e-13,
+      192.57635621357463,
+      0.7557145898729114
+    ],
+    [
+      0.7465666859831797,
+      0.5578913877536589,
+      6.046976740431625e-13,
+      9.254742370460872e-14,
+      214.5982696543375,
+      0.7223839865902848
+    ],
+    [
+      0.735756054758248,
+      0.6615334172084277,
+      3.5071692132392185e-13,
+      5.275339178982747e-14,
+      160.39300151022377,
+      0.6283129527457458
+    ],
+    [
+      0.7379745922924361,
+      0.5509099687576794,
+      4.463695091132083e-13,
+      1.9157221904596363e-13,
+      163.84408341678682,
+      0.746557397746137
+    ],
+    [
+      0.7369636821135983,
+      0.6191239822685795,
+      1.4605611196078635e-13,
+      1.1217988736618214e-13,
+      246.05413262792592,
+      0.6561344106977416
+    ],
+    [
+      0.7300716652733312,
+      0.6609530873172614,
+      2.285960243877882e-13,
+      2.228782887142323e-13,
+      208.5229858872214,
+      0.3546689518809446
+    ]
+  ],
+  "source_plan_sha256": "f3eae69027c9948424f124f8ebb11b264dadf5e32ac6c38980eeeccf985ba383",
+  "source_plan_reference": "runs/feasible-initial/20261011T104033Z_f0124707e08d_39c761a7/initial-plan.json",
+  "note": "Previously selected parameter vectors only. Old trajectories/labels are NOT a reusable cache after P0. Re-evaluate these exact eight points once with current code on the target host.",
+  "historical_screening_cost": {
+    "source": "random",
+    "target": 8,
+    "accepted": 8,
+    "pending": 0,
+    "candidate_evaluations": 387,
+    "physical_rejections": 379,
+    "analytical_rejections": 12139,
+    "generated_draws": 12526,
+    "batches": 0,
+    "selection_requests": 0,
+    "api_requests": 0,
+    "rate_solve_attempts": 1548,
+    "elapsed_s": 1748.13329300005,
+    "simulation_elapsed_s": 1663.7726479000994,
+    "new_candidate_evaluations": 187,
+    "new_rate_solve_attempts": 748,
+    "new_generated_draws": 5806,
+    "accepted_points_per_min": 0.27457860445884563,
+    "eta_minutes": 0.0
+  },
+  "prior_candidate_evaluations": 200
+}

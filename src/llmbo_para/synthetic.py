@@ -45,3 +45,25 @@ class SyntheticSimulator:
         offset = 0.001 + sum((v - 0.37) ** 2 for v in x) * 0.01
         offset += RATE_ORDER.index(measured.rate) * 0.0001
         return measured.time_s, tuple(v + offset for v in measured.voltage_v)
+
+
+class FeasibilityFixtureSimulator:
+    """Artificial six-dimensional coverage problem for P0 verification only.
+
+    Rate coverage regions are nested boxes around .5 in normalized space. The
+    voltage offset has its optimum at .52. This construction is deliberately
+    simple and supplies no evidence about DFN or real battery identifiability.
+    """
+    def __init__(self, space):
+        self.space = space
+
+    def simulate(self, parameters, measured):
+        from .evaluation import SimulationTrace
+        x = self.space.normalize(tuple(parameters[name] for name in PARAMETER_NAMES))
+        width = {"0.5C":.5, "1C":.38, "2C":.26, "3C":.14}[measured.rate]
+        if max(abs(v-.5) for v in x) > width:
+            return SimulationTrace(measured.time_s[:2], measured.voltage_v[:2],
+                termination="event: artificial coverage boundary", voltage_cutoff=False, simulation_completed=False)
+        offset = .01 + .15*sum((v-.52)**2 for v in x) + RATE_ORDER.index(measured.rate)*.001
+        return SimulationTrace(measured.time_s, tuple(v+offset for v in measured.voltage_v),
+            termination="final time", voltage_cutoff=False, simulation_completed=True)

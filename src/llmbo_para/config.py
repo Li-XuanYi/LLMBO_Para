@@ -61,7 +61,7 @@ def configuration_errors(config: dict) -> list[str]:
     nested_allowed = {
         "data": {"kind", "path", "sha256", "evaluation_grid", "legacy_assumed_1s", "sample_period_s", "time_column", "current_column", "voltage_column", "temperature_column", "temperature_unit", "time_unit", "current_unit", "voltage_unit", "sheet_by_rate", "discharge_current_sign"},
         "model": {"provider", "name", "parameterization_id", "parameter_values_factory", "pybamm_version", "options", "mesh_points", "solver", "fixture_formula", "initial_state_mode", "fixed_electrolyte_diffusivity_multiplier"},
-        "optimization": {"seed", "warm_start_llm_points", "sobol_points", "total_candidate_budget", "candidate_pool_size", "composite_ei_draws", "parallel_workers", "llm_enabled", "gpu_backend", "gp_sweeps", "max_rate_attempts", "llm_warm_start_enabled", "llm_gp_groups_enabled", "strict_llm_tasks", "initial_candidates", "initial_candidates_source", "initial_candidates_evidence", "inventory_feasibility_filter"},
+        "optimization": {"seed", "warm_start_llm_points", "sobol_points", "total_candidate_budget", "candidate_pool_size", "composite_ei_draws", "parallel_workers", "llm_enabled", "gpu_backend", "gp_sweeps", "max_rate_attempts", "llm_warm_start_enabled", "llm_gp_groups_enabled", "strict_llm_tasks", "initial_candidates", "initial_candidates_source", "initial_candidates_evidence", "inventory_feasibility_filter", "bo_repair"},
         "llm": {"transport", "endpoint", "api_key_env", "model", "timeout_s", "min_diversity_distance", "max_tokens", "json_mode"},
         "physical_constraints": {"fixed_porosity"},
         "parameters": set(PARAMETER_NAMES),
@@ -218,6 +218,14 @@ def configuration_errors(config: dict) -> list[str]:
                 number(solver.get(key), "model.solver." + key, positive=True)
 
     optimization = section("optimization")
+    if "bo_repair" in optimization:
+        from .bo_repair import RepairSettings
+        try:
+            if not isinstance(optimization["bo_repair"], dict):
+                raise ValueError("optimization.bo_repair must be an object")
+            RepairSettings.parse(optimization["bo_repair"])
+        except ValueError as exc:
+            errors.append(str(exc))
     for key, minimum in (("seed", 0), ("warm_start_llm_points", 0), ("sobol_points", 0 if "initial_candidates" in optimization else 2), ("total_candidate_budget", 2), ("candidate_pool_size", 1), ("composite_ei_draws", 1), ("gp_sweeps", 0), ("max_rate_attempts", 1)):
         number(optimization.get(key), "optimization." + key, minimum=minimum, integer=True)
     sizes = [optimization.get(k) for k in ("warm_start_llm_points", "sobol_points", "total_candidate_budget")]

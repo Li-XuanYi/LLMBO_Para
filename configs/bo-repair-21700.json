@@ -1,0 +1,168 @@
+{
+  "schema_version": 1,
+  "run_kind": "research",
+  "cell_id": "research-group-measured-21700-reference-Chen2020",
+  "cell_format": "21700",
+  "nominal_capacity_ah": 5.0,
+  "rates": [
+    "0.5C",
+    "1C",
+    "2C",
+    "3C"
+  ],
+  "parameters": {
+    "Negative electrode active material volume fraction": {
+      "lower": 0.2,
+      "upper": 0.8,
+      "unit": "1",
+      "transform": "linear"
+    },
+    "Positive electrode active material volume fraction": {
+      "lower": 0.2,
+      "upper": 0.8,
+      "unit": "1",
+      "transform": "linear"
+    },
+    "Negative particle diffusivity [m2.s-1]": {
+      "lower": 1e-16,
+      "upper": 1e-12,
+      "unit": "m2.s-1",
+      "transform": "log10"
+    },
+    "Positive particle diffusivity [m2.s-1]": {
+      "lower": 1e-16,
+      "upper": 1e-12,
+      "unit": "m2.s-1",
+      "transform": "log10"
+    },
+    "Negative electrode conductivity [S.m-1]": {
+      "lower": 100,
+      "upper": 300,
+      "unit": "S.m-1",
+      "transform": "linear"
+    },
+    "Positive electrode conductivity [S.m-1]": {
+      "lower": 0.2,
+      "upper": 0.8,
+      "unit": "S.m-1",
+      "transform": "linear"
+    }
+  },
+  "physical_constraints": {
+    "fixed_porosity": {
+      "negative": 0.25,
+      "positive": 0.335
+    }
+  },
+  "conditions_by_rate": {
+    "0.5C": {
+      "initial_soc": null,
+      "initial_temperature_k": 298.15,
+      "ambient_temperature_k": 298.15,
+      "voltage_cutoff_v": 2.5
+    },
+    "1C": {
+      "initial_soc": null,
+      "initial_temperature_k": 298.15,
+      "ambient_temperature_k": 298.15,
+      "voltage_cutoff_v": 2.5
+    },
+    "2C": {
+      "initial_soc": null,
+      "initial_temperature_k": 298.15,
+      "ambient_temperature_k": 298.15,
+      "voltage_cutoff_v": 2.5
+    },
+    "3C": {
+      "initial_soc": null,
+      "initial_temperature_k": 298.15,
+      "ambient_temperature_k": 298.15,
+      "voltage_cutoff_v": 2.5
+    }
+  },
+  "data": {
+    "kind": "xlsx",
+    "path": "../data/raw/6c796b3f08156229636b033d3e6ff036ad8ae143525e86c5de16983e5a1483a7/true_data.xlsx",
+    "sha256": "6c796b3f08156229636b033d3e6ff036ad8ae143525e86c5de16983e5a1483a7",
+    "evaluation_grid": "all_measured_samples_no_extrapolation",
+    "legacy_assumed_1s": true,
+    "sample_period_s": 1.0,
+    "time_column": null,
+    "current_column": "I",
+    "voltage_column": "U",
+    "temperature_column": null,
+    "temperature_unit": null,
+    "time_unit": "s",
+    "current_unit": "A",
+    "voltage_unit": "V",
+    "sheet_by_rate": {
+      "0.5C": "0.5C",
+      "1C": "1C",
+      "2C": "2C",
+      "3C": "3C"
+    },
+    "discharge_current_sign": 1
+  },
+  "model": {
+    "provider": "pybamm",
+    "name": "DFN",
+    "parameterization_id": "Reference-Chen2020",
+    "parameter_values_factory": "llmbo_para.reference_cell:chen2020_reference_parameters",
+    "pybamm_version": "25.10.2",
+    "options": {
+      "thermal": "isothermal"
+    },
+    "mesh_points": {
+      "x_n": 20,
+      "x_s": 20,
+      "x_p": 20,
+      "r_n": 20,
+      "r_p": 20
+    },
+    "solver": {
+      "name": "IDAKLUSolver",
+      "rtol": 1e-06,
+      "atol": 1e-06,
+      "dt_max": 60.0,
+      "num_threads": 1
+    },
+    "initial_state_mode": "parameterization",
+    "fixed_electrolyte_diffusivity_multiplier": 1.5
+  },
+  "optimization": {
+    "seed": 20261011,
+    "warm_start_llm_points": 0,
+    "sobol_points": 8,
+    "total_candidate_budget": 13,
+    "candidate_pool_size": 64,
+    "composite_ei_draws": 64,
+    "gp_sweeps": 2,
+    "max_rate_attempts": 1,
+    "parallel_workers": 1,
+    "llm_enabled": false,
+    "gpu_backend": "cpu",
+    "llm_warm_start_enabled": false,
+    "llm_gp_groups_enabled": false,
+    "strict_llm_tasks": false,
+    "inventory_feasibility_filter": true,
+    "bo_repair": {
+      "training_data": "per_rate",
+      "candidate_policy": "local",
+      "feasibility_weighting": false,
+      "local_fraction": 0.75,
+      "local_radius": 0.02,
+      "min_radius": 0.002,
+      "max_radius": 0.2,
+      "global_every": 5
+    }
+  },
+  "llm": {
+    "transport": "structured_json_service",
+    "endpoint": null,
+    "api_key_env": null,
+    "model": null,
+    "timeout_s": 30.0,
+    "min_diversity_distance": 0.001
+  },
+  "status": "P0_portable_smoke_pending_DFN_validation"
+}

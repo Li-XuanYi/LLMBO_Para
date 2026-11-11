@@ -17,6 +17,7 @@ from .progress import summarize_progress
 from .runstore import RunStore, digest_value
 from .sobol import Sobol6
 from .surrogate import Matern52GP
+from .bo_repair import RepairSettings, CompletionModel, LocalNeighborhood, decision_scores, select_candidate
 
 
 class Optimizer:
@@ -41,6 +42,7 @@ class Optimizer:
         strict_llm_tasks: bool = False,
         initial_evaluations=None,
         candidate_filter=None,
+        bo_repair=None,
     ):
         if any(not isinstance(v, int) or isinstance(v, bool) for v in (initial_llm_count, initial_sobol_count, candidate_pool_size, mc_draws, gp_sweeps, seed)):
             raise ValueError("optimizer sizes and seed must be integers")
@@ -56,6 +58,13 @@ class Optimizer:
         self.pool_size, self.mc_draws, self.gp_sweeps = candidate_pool_size, mc_draws, gp_sweeps
         self.records: list[EvaluationResult] = []
         self.frozen_transforms = None
+        self.repair_enabled = bo_repair is not None
+        self.repair = RepairSettings.parse(bo_repair)
+        self.neighborhood = LocalNeighborhood(self.repair, seed)
+        self.completion = CompletionModel()
+        self._model_cache, self._training_keys = {}, {}
+        self.model_training_counts = {}
+        self.model_fit_counts = {rate: 0 for rate in RATE_ORDER}
         self.sobol = Sobol6()
         self.seen: set[tuple[float, ...]] = set()
         self.used = False
@@ -172,34 +181,109 @@ class Optimizer:
     def _fit_models(self):
         fit_started = time.perf_counter()
         good = [r for r in self.records if r.valid]
-        if len(good) < 2:
+        if len(good) < 2 and not self.repair_enabled:
             raise RuntimeError("at least two complete valid four-rate evaluations are required to fit GPs")
-        x = np.asarray([self.space.normalize(r.parameters) for r in good], dtype=float)
-        models = {}
-        by_rate = {rate: np.asarray([next(q.rmse_v for q in record.rates if q.rate == rate) for record in good]) for rate in RATE_ORDER}
         if self.frozen_transforms is None:
-            self.frozen_transforms = {
-                rate: LogRMSETransform.fit(by_rate[rate])
-                for rate in RATE_ORDER
-            }
+            self.frozen_transforms = {}
         transforms = self.frozen_transforms
         groups = getattr(self, "groups", {})
+        models, training_metadata = {}, {}
         for rate in RATE_ORDER:
+            training = [(i, record, next(q for q in record.rates if q.rate == rate))
+                for i, record in enumerate(self.records)
+                if self.repair.training_data == "per_rate" or record.valid]
+            training = [(i, record, q) for i, record, q in training if q.valid]
+            ids = [i for i, _, _ in training]
+            self.model_training_counts[rate] = len(training)
+            training_metadata[rate] = {"record_ids": ids, "count": len(ids), "fit_reused": False}
+            if len(training) < 2:
+                training_metadata[rate]["fallback"] = "fewer_than_two_valid_rate_labels"
+                continue
+            x = np.asarray([self.space.normalize(record.parameters) for _, record, _ in training])
+            values = [q.rmse_v for _, _, q in training]
+            if rate not in transforms:
+                transforms[rate] = LogRMSETransform.fit(values)
+                training_metadata[rate]["transform_frozen_at_record_count"] = len(self.records)
             transform = transforms[rate]
-            y = np.asarray([transform.transform(v) for v in by_rate[rate]])
+            y = np.asarray([transform.transform(v) for v in values])
             names = groups.get(rate, ())
             indexes = [self.space.specs.index(s) for s in self.space.specs if s.name in names]
-            models[rate] = Matern52GP(max_sweeps=self.gp_sweeps).fit(x, y, indexes)
-        best = min(r.objective_v for r in good)
+            key = digest_value({"x": x.tolist(), "y": y.tolist(), "group": indexes})
+            if self._training_keys.get(rate) == key:
+                models[rate] = self._model_cache[rate]
+                training_metadata[rate]["fit_reused"] = True
+            else:
+                models[rate] = Matern52GP(max_sweeps=self.gp_sweeps).fit(x, y, indexes)
+                self._model_cache[rate], self._training_keys[rate] = models[rate], key
+                self.model_fit_counts[rate] += 1
+            training_metadata[rate]["cumulative_fits"] = self.model_fit_counts[rate]
+        best = float(min(r.objective_v for r in good)) if good else None
+        if self.repair.feasibility_weighting:
+            self.completion.fit([self.space.normalize(r.parameters) for r in self.records], [r.valid for r in self.records])
         if self.store:
-            self.store.write_json(f"models/after-{len(self.records):06d}.json", {
+            snapshot = {
                 "transforms": {rate: asdict(transform) for rate, transform in transforms.items()},
                 "models": {rate: model.state_dict() for rate, model in models.items()},
                 "sobol_next_index": self.sobol.index,
                 "evaluated_normalized": sorted(self.seen),
-            })
+            }
+            if self.repair_enabled:
+                snapshot.update(schema_version=2, training_data=self.repair.training_data,
+                    training=training_metadata, completion_model=self.completion.state,
+                    neighborhood=self.neighborhood.state_dict())
+            self.store.write_json(f"models/after-{len(self.records):06d}.json", snapshot)
         self.gp_fit_s += time.perf_counter() - fit_started
-        return models, transforms, float(best)
+        return models, transforms, best
+
+    def _candidate_pool(self, next_index):
+        candidates, pool_seen, origins, centers = [], set(), [], []
+        valid = sorted([i for i, r in enumerate(self.records) if r.valid], key=lambda i: self.records[i].objective_v)
+        local_target = int(self.pool_size*self.repair.local_fraction) if self.repair.candidate_policy == "local" and valid else 0
+
+        def add(normalized, origin, center_id=None):
+            key = tuple(round(float(v), 12) for v in normalized)
+            if key in self.seen or key in pool_seen:
+                return False
+            try:
+                physical = self.space.denormalize(normalized)
+            except ValueError:
+                return False
+            if self.candidate_filter is not None:
+                check = self.candidate_filter(physical)
+                if not check["feasible"]:
+                    self.analytical_rejections += 1
+                    if self.store:
+                        self.store.append_event({"type": "bo_analytical_rejection", "candidate_id": next_index,
+                            "normalized": normalized.tolist(), "parameters": physical, **check})
+                    return False
+            pool_seen.add(key); candidates.append((normalized, physical)); origins.append(origin); centers.append(center_id)
+            return True
+
+        # Rejection rather than clipping avoids introducing atoms on the bounds.
+        for _ in range(max(0, local_target*100)):
+            if len(candidates) >= local_target:
+                break
+            center_id = valid[int(self.neighborhood.rng.integers(min(4, len(valid))))]
+            center = np.asarray(self.space.normalize(self.records[center_id].parameters))
+            point = center + self.neighborhood.rng.uniform(-self.neighborhood.radius, self.neighborhood.radius, 6)
+            if np.all((point >= 0) & (point <= 1)):
+                add(point, "local", center_id)
+        local_actual = len(candidates)
+        for _ in range(self.pool_size*100):
+            if len(candidates) >= self.pool_size:
+                break
+            add(self.sobol.draw(1)[0], "global")
+        if not candidates:
+            raise RuntimeError("candidate pool contained no legal unique points")
+        # Every kth *evaluation* is global; a global pool fraction alone is insufficient.
+        ordinal = next_index - self.initial_llm_count - self.initial_sobol_count + 1
+        quota = self.repair.candidate_policy == "local" and ordinal % self.repair.global_every == 0
+        eligible = np.asarray([origin == "global" or not quota for origin in origins])
+        if not np.any(eligible):
+            raise RuntimeError("global exploration quota has no legal candidate; no silent local replacement")
+        return candidates, dict(origins=origins, center_record_ids=centers, eligible=eligible.tolist(),
+            global_quota=quota, radius=self.neighborhood.radius, local_target=local_target,
+            local_actual=local_actual, local_fallback="local_pool_underfilled" if local_actual < local_target else None)
 
     def optimize(self, total_candidate_budget: int) -> dict:
         if self.used:
@@ -243,51 +327,40 @@ class Optimizer:
         next_index = initial_count
         models, transforms, best = self._fit_models()
         while next_index < total_candidate_budget:
-            candidates = []
-            pool_seen = set()
-            attempts = 0
-            while len(candidates) < self.pool_size and attempts < self.pool_size * 100:
-                batch = self.sobol.draw(1)
-                attempts += len(batch)
-                for normalized in batch:
-                    key = tuple(round(float(v), 12) for v in normalized)
-                    if key in self.seen or key in pool_seen:
-                        continue
-                    try:
-                        physical = self.space.denormalize(normalized)
-                    except ValueError:
-                        continue
-                    if self.candidate_filter is not None:
-                        check = self.candidate_filter(physical)
-                        if not check["feasible"]:
-                            self.analytical_rejections += 1
-                            if self.store:
-                                self.store.append_event({"type": "bo_analytical_rejection", "candidate_id": next_index,
-                                    "normalized": normalized.tolist(), "parameters": physical, **check})
-                            continue
-                    pool_seen.add(key)
-                    candidates.append((normalized, physical))
-                    if len(candidates) == self.pool_size:
-                        break
-            if not candidates:
-                raise RuntimeError("candidate pool contained no legal unique points")
+            candidates, proposal = self._candidate_pool(next_index)
             norm = np.asarray([row[0] for row in candidates])
             acquisition_started = time.perf_counter()
-            scores = composite_ei(norm, models, transforms, best, draws=self.mc_draws, seed=self.seed + next_index)
+            ready = set(models) == set(RATE_ORDER) and best is not None
+            raw_ei = composite_ei(norm, models, transforms, best, draws=self.mc_draws, seed=self.seed + next_index) if ready else np.zeros(len(norm))
+            probabilities = self.completion.predict(norm) if self.repair.feasibility_weighting else None
+            scores, policy, fallback = decision_scores(raw_ei, probabilities, enabled=self.repair.feasibility_weighting)
+            if not ready:
+                scores = np.zeros(len(norm))
+                policy, fallback = "seeded_eligible_space_filling", "gp_or_complete_objective_unavailable"
             self.acquisition_s += time.perf_counter() - acquisition_started
-            selected_index = int(np.argmax(scores))
+            eligible = np.asarray(proposal["eligible"])
+            selected_index = select_candidate(scores, eligible, seed=self.seed, candidate_id=next_index, cold_start=not ready)
             selected = candidates[selected_index][1]
             self.seen.add(tuple(round(float(v), 12) for v in candidates[selected_index][0]))
             if self.store:
-                self.store.write_json(f"acquisition/candidate-{next_index:06d}.json", {
-                    "normalized_pool": norm.tolist(), "composite_ei": scores.tolist(),
+                acquisition = {
+                    "normalized_pool": norm.tolist(), "composite_ei": raw_ei.tolist(),
                     "mc_seed": self.seed + next_index, "mc_draws": self.mc_draws,
                     "best_observed_objective_v": best, "selected_index": selected_index,
                     "sobol_next_index": self.sobol.index,
-                })
+                }
+                if self.repair_enabled:
+                    acquisition.update(schema_version=2, proposal=proposal, decision_scores=scores.tolist(),
+                        p_complete=probabilities.tolist() if probabilities is not None else None,
+                        policy=policy, fallback=fallback, gp_ready=ready)
+                self.store.write_json(f"acquisition/candidate-{next_index:06d}.json", acquisition)
                 self.store.write_json(f"plans/candidate-{next_index:06d}.json", {"candidate_id": next_index, "parameters": selected})
                 self.store.append_event({"type": "candidate_started", "candidate_id": next_index})
-            self._record(next_index, self.evaluator.evaluate(selected, self.series_by_rate))
+            result = self.evaluator.evaluate(selected, self.series_by_rate)
+            self._record(next_index, result)
+            update = self.neighborhood.update(result, proposal["origins"][selected_index])
+            if self.store and self.repair_enabled:
+                self.store.write_json(f"feedback/candidate-{next_index:06d}.json", update)
             next_index += 1
             models, transforms, best = self._fit_models()
         elapsed = time.perf_counter() - start
@@ -315,9 +388,14 @@ class Optimizer:
             "candidate_evaluations_per_min": sum(not r.cache_provenance for r in self.records) * 60.0 / elapsed if elapsed else None,
             "groups": self.groups,
             "groups_learned_lambda": {
-                rate: (models[rate].lambda_ if 'models' in locals() else None)
+                rate: (models[rate].lambda_ if rate in models else None)
                 for rate in RATE_ORDER
             },
+            "gp_training_counts": self.model_training_counts,
+            "gp_fit_counts": self.model_fit_counts,
+            "initial_best_objective_v": min((r.objective_v for r in self.records[:initial_count] if r.valid), default=None),
+            "bo_candidate_valid": sum(r.valid for r in self.records[initial_count:]),
+            "rate_valid_counts": {rate: sum(q.valid for r in self.records for q in r.rates if q.rate == rate) for rate in RATE_ORDER},
         }
         if self.store is not None:
             self.store.write_json("summary.json", summary)
