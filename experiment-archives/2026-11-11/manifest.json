@@ -1,0 +1,75 @@
+{
+  "factorial": {
+    "sources": [
+      "runs/f1101",
+      "bo-repair-work/20261017_et_implementation/fourarm-results-review-20261102"
+    ],
+    "files": 18964,
+    "uncompressed_bytes": 470389563,
+    "content_manifest_sha256": "4f652c83f1b7937cf14caeab52e2dc8be25627ef0976a89111b09a938f913b41",
+    "parts": [
+      {
+        "name": "factorial.tar.zst.part001",
+        "bytes": 50331648,
+        "sha256": "08d0576a06dccad450aa6dfec910cdd7a0dda85bf124dea84a20e8210aa18106"
+      },
+      {
+        "name": "factorial.tar.zst.part002",
+        "bytes": 43001169,
+        "sha256": "01fd43185c9afce64c14da21cac59407089f7812229c67f0dcf49836b3c42660"
+      }
+    ]
+  },
+  "classical-retained": {
+    "sources": [
+      "runs/cr1103",
+      "runs/cr1103-review",
+      "bo-repair-work/20261017_et_implementation/classical-baselines-20261102"
+    ],
+    "files": 4606,
+    "uncompressed_bytes": 73991197,
+    "content_manifest_sha256": "fb3bf45891861bd9dec2d2e8c5ec75971b089afe3ebabf5bfffc7e5a4bd9849a",
+    "parts": [
+      {
+        "name": "classical-retained.tar.zst.part001",
+        "bytes": 13668773,
+        "sha256": "2b31df83fa22b2afc12f1f12cd3e8023246b49646954a0ccb2172c57c6ab6a12"
+      }
+    ]
+  },
+  "fresh-retained": {
+    "sources": [
+      "runs/n1104",
+      "runs/n1104r",
+      "runs/n1104s",
+      "runs/n1104-review"
+    ],
+    "files": 11362,
+    "uncompressed_bytes": 174667379,
+    "content_manifest_sha256": "f4b902053b208ff69ff66ac2332ac6f5c81d323df76041e3b81d08422aab71cd",
+    "parts": [
+      {
+        "name": "fresh-retained.tar.zst.part001",
+        "bytes": 36403934,
+        "sha256": "a042434161972c0f7f82c7f96aab2bc4711b64d827c815a947e1f5aa9916b4e7"
+      }
+    ]
+  },
+  "hv-and-evidence": {
+    "sources": [
+      "runs/hv01-20261105",
+      "runs/hv-reference-sensitivity",
+      "runs/evidence-audit-20261106"
+    ],
+    "files": 16,
+    "uncompressed_bytes": 247338,
+    "content_manifest_sha256": "87ec44dc4f881c83fe6876bfb6f6be39c65b70fe14ac16cdf944f37672c1f10f",
+    "parts": [
+      {
+        "name": "hv-and-evidence.tar.zst.part001",
+        "bytes": 33179,
+        "sha256": "fe6e6c873537af621000ae7349578d38dc12dae1776192b565bf114eb888567c"
+      }
+    ]
+  }
+}
