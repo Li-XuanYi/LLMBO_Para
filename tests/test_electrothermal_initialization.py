@@ -43,7 +43,7 @@ def test_v2_mock_warmstart_archives_rule_and_v1_v2_plans_cannot_mix(tmp_path):
     assert run['API_calls']==0 and run['costs']['solver_calls']==0
 
     old=clone(cfg)
-    old['optimization']['warmstart'].pop('selection_rule')
+    old['optimization']['warmstart']['selection_rule']='pareto_maximin_v1'
     plan=root/'initial-plan.json'
     old['optimization']['initial_plan']={'path':str(plan),'sha256':sha256_file(plan)}
     report,prepared=prepare_electrothermal_experiment(old,base_dir=tmp_path)

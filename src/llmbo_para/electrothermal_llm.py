@@ -9,6 +9,7 @@ from .pareto import pareto_indices
 from .electrothermal_provenance import candidate_key,write_initial_plan,load_initial_plan
 from .runstore import digest_value,canonical_json
 from .electrothermal_lgbo import is_lgbo_method
+from .electrothermal_config import DEFAULT_WARMSTART_SELECTION_RULE,WARMSTART_SELECTION_RULES
 
 
 def is_recoverable_warmstart_preheader_eof(outcome: dict) -> bool:
@@ -27,9 +28,9 @@ def is_recoverable_warmstart_preheader_eof(outcome: dict) -> bool:
             and diagnostic.get('os_errno')==8)
 
 
-def warmstart_selection_details(records,*,space,count,objective_scales,rho_aug=.05,rule='pareto_maximin_v1'):
+def warmstart_selection_details(records,*,space,count,objective_scales,rho_aug=.05,rule=DEFAULT_WARMSTART_SELECTION_RULE):
     if type(count) is not int or count<2:raise ValueError('at least two seeds required')
-    if type(rule) is not str or rule not in ('pareto_maximin_v1','pareto_core_spacefill_v2'):
+    if type(rule) is not str or rule not in WARMSTART_SELECTION_RULES:
         raise ValueError('unknown WarmStart selection rule')
     ids={};unique={};duplicates={}
     for record in records:
@@ -62,19 +63,19 @@ def warmstart_selection_details(records,*,space,count,objective_scales,rho_aug=.
     if rule=='pareto_maximin_v1':return details
 
     core=[i for i in selected if ranks[i]==0]
-    chosen=core[:];v2_steps=steps[:len(core)]
+    chosen=core[:];coverage_steps=steps[:len(core)]
     candidates=[r for r in pool if r.evaluation_id not in set(core)]
     while candidates and len(chosen)<count:
         distances={r.evaluation_id:min(float(np.linalg.norm(np.asarray(x[r.evaluation_id])-x[s])/np.sqrt(6))
                                        for s in chosen) for r in candidates}
         key=lambda r:(-distances[r.evaluation_id],q[r.evaluation_id],ranks[r.evaluation_id],x[r.evaluation_id],r.evaluation_id)
         winner=min(candidates,key=key);i=winner.evaluation_id
-        v2_steps.append({'selected_id':i,'rank':ranks[i],'distance':distances[i],'ordering_key':key(winner)})
+        coverage_steps.append({'selected_id':i,'rank':ranks[i],'distance':distances[i],'ordering_key':key(winner)})
         chosen.append(i);candidates.remove(winner)
-    return {**details,'rule':rule,'selected_ids':chosen,'steps':v2_steps}
+    return {**details,'rule':rule,'selected_ids':chosen,'steps':coverage_steps}
 
 
-def select_electrothermal_warmstart(records,*,space,count,objective_scales,rho_aug=.05,rule='pareto_maximin_v1'):
+def select_electrothermal_warmstart(records,*,space,count,objective_scales,rho_aug=.05,rule=DEFAULT_WARMSTART_SELECTION_RULE):
     return tuple(warmstart_selection_details(records,space=space,count=count,objective_scales=objective_scales,rho_aug=rho_aug,rule=rule)['selected_ids'])
 
 

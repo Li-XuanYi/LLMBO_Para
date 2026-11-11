@@ -8,11 +8,12 @@ FIXED_KEYS=('cell_volume_m3','cooling_area_m2','negative_porosity','positive_por
             'negative_conductivity_s_m','positive_conductivity_s_m','electrolyte_diffusivity_multiplier')
 LAW_KEYS=('reference_temperature_k','activation_energy_n_j_mol','activation_energy_p_j_mol')
 CONFIRMATIONS=('current','time','temperature_unit','temperature_probe','initial_state','ambient_temperature','cooling')
-WARMSTART_SELECTION_RULES=('pareto_maximin_v1','pareto_core_spacefill_v2')
+DEFAULT_WARMSTART_SELECTION_RULE='pareto_core_spacefill'
+WARMSTART_SELECTION_RULES=(DEFAULT_WARMSTART_SELECTION_RULE,'pareto_maximin_v1','pareto_core_spacefill_v2')
 
 
 def effective_warmstart_selection_rule(config):
-    rule=config['optimization']['warmstart'].get('selection_rule','pareto_maximin_v1')
+    rule=config['optimization']['warmstart'].get('selection_rule',DEFAULT_WARMSTART_SELECTION_RULE)
     if type(rule) is not str or rule not in WARMSTART_SELECTION_RULES:
         raise ValueError('invalid warmstart.selection_rule')
     return rule

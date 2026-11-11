@@ -37,7 +37,7 @@ def test_warmstart_rule_binds_initialization_without_changing_physical_protocol(
     explicit=build_electrothermal_signatures(v1,dataset)
     changed=build_electrothermal_signatures(v2,dataset)
     assert base.config!=explicit.config!=changed.config
-    assert base.initialization_compatibility==explicit.initialization_compatibility
+    assert len({base.initialization_compatibility,explicit.initialization_compatibility,changed.initialization_compatibility})==3
     assert changed.initialization_compatibility!=base.initialization_compatibility
     assert len({base.algorithm,explicit.algorithm,changed.algorithm})==3
     for name in ('source','data','model_evaluation','evaluation_protocol','comparison_protocol','fit_rates'):
