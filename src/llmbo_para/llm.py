@@ -20,6 +20,33 @@ from .parameters import ParameterSpace
 from .runstore import reject_inline_secrets
 
 
+def build_llm_context(config, *, space=None, series_by_rate=None, parameter_values=None):
+    """Build fixed, JSON-safe context from configured and archived input data."""
+    context = {"cell_id": config["cell_id"], "cell_format": config["cell_format"],
+               "base_parameterization": config["model"].get("parameterization_id"),
+               "model": config["model"]["name"], "conditions_by_rate": config["conditions_by_rate"],
+               "llm_model": config["llm"]["model"]}
+    context["initial_state_mode"] = config["model"].get("initial_state_mode", "explicit_soc")
+    context["nominal_capacity_ah"] = config["nominal_capacity_ah"]
+    if config["model"].get("provider") == "pybamm":
+        context["fixed_electrolyte_diffusivity_multiplier"] = config["model"].get("fixed_electrolyte_diffusivity_multiplier", 1.0)
+    if series_by_rate is not None:
+        context["discharge_summary_by_rate"] = {}
+        for rate, series in series_by_rate.items():
+            currents, times = series.current_a, series.time_s
+            summary = {"duration_s": times[-1] - times[0], "samples": len(times), "current_source": series.current_source}
+            if currents is not None:
+                sign = series.discharge_current_sign
+                summary["discharged_charge_ah"] = sum((a + b) * .5 * (right - left) * sign / 3600
+                    for a, b, left, right in zip(currents, currents[1:], times, times[1:]))
+                if all(value == currents[0] for value in currents):
+                    summary["constant_discharge_current_a"] = currents[0] * sign
+            context["discharge_summary_by_rate"][rate] = summary
+    if parameter_values is not None:
+        context["nominal_parameter_values_from_reference"] = {spec.name: parameter_values[spec.name] for spec in space.specs} if space is not None else {}
+    return context
+
+
 class JsonTransport(Protocol):
     def post(self, payload: Mapping) -> Mapping: ...
 
@@ -260,18 +287,8 @@ class LLMClient:
         optimizer, which falls back for that iteration rather than inventing a
         region. A later iteration can try again with new observations.
         """
-        from .informed import observation_summary, validate_region_response
-        if type(iteration) is not int or iteration < 0:
-            raise ValueError("region request iteration must be a nonnegative integer")
-        payload = {"task":"region_preference", "iteration":iteration,
-            "parameter_order":[s.name for s in space.specs], "units":[s.unit for s in space.specs],
-            "bounds":[[s.lower,s.upper] for s in space.specs], "transforms":[s.transform for s in space.specs],
-            "physical_constraints":{"negative_porosity":space.negative_porosity,"positive_porosity":space.positive_porosity},
-            "objective":"minimize the arithmetic mean of four complete measured-grid RMSEs (V)",
-            "observations":observation_summary(space, records),
-            "region_policy":{"min_width":settings.min_width,"max_width":settings.max_width},
-            "response_schema":{"kind":"region or none", "coordinate_space":"normalized", "lb":"six normalized numbers, region only",
-                "ub":"six normalized numbers, region only", "confidence":"number in [0,1]", "reason":"short rationale"}}
+        from .informed import REGION_REPAIR_INSTRUCTION, region_request_payload, validate_region_response
+        payload = region_request_payload(space, records, iteration=iteration, settings=settings)
         for attempt in range(1, 3):
             prefix = f"informed-requests/iteration-{iteration:06d}/attempt-{attempt:03d}/"
             self.last_region_request = {"iteration":iteration,"attempts":attempt,"archive_prefix":prefix,"valid_response":False}
@@ -288,7 +305,7 @@ class LLMClient:
                 self.last_region_request["valid_response"] = True
                 return validated
             payload = {**payload, "contract_repair":{"previous_response":response,"error":reason,
-                "instruction":"Correct the JSON schema only, or explicitly abstain using kind=none. Never invent missing parameter values."}}
+                "instruction":REGION_REPAIR_INSTRUCTION}}
         raise ValueError("region JSON contract failed after two archived attempts")
 
     def warm_start(self, space: ParameterSpace, count: int = 10) -> tuple[tuple[float, ...], ...]:

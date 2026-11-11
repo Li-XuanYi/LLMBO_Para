@@ -12,8 +12,10 @@ import numpy as np
 
 from .acquisition import scalar_log_ei
 from .bo_repair import decision_scores, select_candidate
-from .metrics import RATE_ORDER
 from .sobol import Sobol6
+
+
+REGION_REPAIR_INSTRUCTION = "Correct the JSON schema only, or explicitly abstain using kind=none. Never invent missing parameter values."
 
 
 @dataclass(frozen=True)
@@ -67,7 +69,8 @@ def validate_region_response(payload):
     if kind not in ("none", "region") or payload.get("coordinate_space") != "normalized":
         raise ValueError("kind must be region/none and coordinate_space must be normalized")
     confidence = payload.get("confidence")
-    if type(confidence) not in (int, float) or not math.isfinite(confidence) or not 0 <= confidence <= 1:
+    # Check the interval before math.isfinite converts arbitrary JSON ints to float.
+    if type(confidence) not in (int, float) or not 0 <= confidence <= 1 or not math.isfinite(confidence):
         raise ValueError("region confidence must be a finite number in [0, 1]")
     if not isinstance(payload.get("reason"), str) or len(payload["reason"]) > 2000:
         raise ValueError("region reason must be a short string")
@@ -78,7 +81,7 @@ def validate_region_response(payload):
         return result
     for key in ("lb", "ub"):
         v = payload.get(key)
-        if not isinstance(v, list) or len(v) != 6 or any(type(x) not in (int, float) or not math.isfinite(x) or not 0 <= x <= 1 for x in v):
+        if not isinstance(v, list) or len(v) != 6 or any(type(x) not in (int, float) or not 0 <= x <= 1 or not math.isfinite(x) for x in v):
             raise ValueError("region bounds require exactly six finite normalized numbers")
         result[key] = [float(x) for x in v]
     if any(lo >= hi for lo, hi in zip(result["lb"], result["ub"])):
@@ -100,6 +103,21 @@ def observation_summary(space, records):
         rows.append({"record_id": i, "parameters_normalized": list(space.normalize(r.parameters)),
             "valid": r.valid, "objective_v": r.objective_v, "rates": rates})
     return rows
+
+
+def region_request_payload(space, records, *, iteration, settings):
+    """Deterministic task payload shared by live requests and offline replay."""
+    if type(iteration) is not int or iteration < 0:
+        raise ValueError("region request iteration must be a nonnegative integer")
+    return {"task":"region_preference", "iteration":iteration,
+        "parameter_order":[s.name for s in space.specs], "units":[s.unit for s in space.specs],
+        "bounds":[[s.lower,s.upper] for s in space.specs], "transforms":[s.transform for s in space.specs],
+        "physical_constraints":{"negative_porosity":space.negative_porosity,"positive_porosity":space.positive_porosity},
+        "objective":"minimize the arithmetic mean of four complete measured-grid RMSEs (V)",
+        "observations":observation_summary(space, records),
+        "region_policy":{"min_width":settings.min_width,"max_width":settings.max_width},
+        "response_schema":{"kind":"region or none", "coordinate_space":"normalized", "lb":"six normalized numbers, region only",
+            "ub":"six normalized numbers, region only", "confidence":"number in [0,1]", "reason":"short rationale"}}
 
 
 def region_decision(gp, transform, best, pool, eligible, preference, *, space, settings,
@@ -139,6 +157,8 @@ def region_decision(gp, transform, best, pool, eligible, preference, *, space, s
     width = ub-lb
     if np.any(width < settings.min_width-1e-12) or np.any(width > settings.max_width+1e-12):
         return fallback("region_width")
+    if plain_ei[plain] <= 0:
+        return fallback("zero_plain_ei")
     # Separate sequence: adding the LLM module must not advance the BO pool RNG.
     anchors = lb + Sobol6(start_index=1).draw(settings.n_anchors)*width
     keep = []
@@ -180,7 +200,9 @@ def region_decision(gp, transform, best, pool, eligible, preference, *, space, s
     shifted_ei = scalar_log_ei(mean-shift, std, transform, best)
     shifted_scores, _, _ = decision_scores(shifted_ei, probabilities, enabled=feasibility_weighting)
     lifted = select_candidate(shifted_scores, eligible, seed=seed, candidate_id=candidate_id)
-    gap = float(np.log(max(plain_ei[plain],1e-12))-np.log(max(plain_ei[lifted],1e-12)))
+    # A fixed EI floor erases relative loss in the tails. A zero alternative
+    # cannot meet a finite loss limit; use None rather than infinity in JSON.
+    gap = math.log(float(plain_ei[plain]))-math.log(float(plain_ei[lifted])) if plain_ei[lifted] > 0 else None
     sigma_ratio = float(std[lifted]/max(std[plain],1e-12))
     result.update(anchors=anchors.tolist(), anchor_weights=weights.tolist(), anchor_consistency=consistency,
         anneal=anneal, correlation=corr.tolist(), kernel_norm_sq=norm_sq, reliability=reliability,
@@ -190,7 +212,7 @@ def region_decision(gp, transform, best, pool, eligible, preference, *, space, s
         return fallback("zero_shift")
     if lifted == plain:
         return fallback("same_as_plain")
-    if gap > settings.max_plain_log_ei_gap:
+    if gap is None or gap > settings.max_plain_log_ei_gap:
         return fallback("plain_ei_gap")
     if np.any(x[lifted] < lb) or np.any(x[lifted] > ub):
         return fallback("outside_region")

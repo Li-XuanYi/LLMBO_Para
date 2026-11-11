@@ -10,9 +10,7 @@ import pytest
 from llmbo_para.audit import audit_run
 from llmbo_para.config import configuration_errors, parameter_space_from_config
 from llmbo_para.informed import InformedSettings, region_decision, validate_region_response, trust_feedback
-from llmbo_para.llm import LLMClient
 from llmbo_para.metrics import LogRMSETransform
-from llmbo_para.runstore import RunStore
 from llmbo_para.surrogate import Matern52GP
 from llmbo_para.workflow import run_experiment
 from test_single_objective import scalar_config
@@ -32,6 +30,10 @@ class RegionTransport:
             raise RuntimeError("fixture unavailable")
         if self.mode == "malformed_content":
             return {"content":"not JSON"}
+        if self.mode == "huge_confidence" or self.mode == "huge_repair" and len(self.calls) % 2:
+            return {**preference(), "confidence":10**400}
+        if self.mode == "huge_bound":
+            return {**preference(), "lb":[-(10**400)]*6}
         if self.mode == "invalid" or self.mode == "repair" and len(self.calls) % 2:
             return {**preference(), "lb":[0.1]*5}
         if self.mode == "none":
@@ -51,7 +53,8 @@ def execute(tmp_path, monkeypatch, mode="region", enabled=True):
     config = informed_config() if enabled else scalar_config()
     transport = RegionTransport(mode)
     monkeypatch.setenv("LLMBO_TEST_REGION_KEY", "fixture-key-not-a-secret")
-    monkeypatch.setattr("llmbo_para.workflow.build_llm", lambda c,s,**kw: LLMClient(transport,run_store=s) if enabled else None)
+    # Keep production context construction; replace only the network boundary.
+    monkeypatch.setattr("llmbo_para.workflow.build_transport", lambda *a,**kw: transport)
     result = run_experiment(config,tmp_path,command="informed deterministic fixture")
     return result, transport
 
@@ -71,6 +74,60 @@ def test_posterior_covariance_is_conditioned_latent_psd_and_matches_variance():
 @pytest.mark.parametrize("change",[{"lb":[.1]*5},{"confidence":True},{"coordinate_space":"raw"},{"ub":[float("nan")]*6},{"lb":[.8]*6},{"extra":0}])
 def test_no_silent_schema_repair_or_default_parameters(change):
     with pytest.raises(ValueError): validate_region_response({**preference(),**change})
+
+
+@pytest.mark.parametrize("change", [
+    {"confidence":10**400}, {"confidence":-(10**400)},
+    {"lb":[10**400]*6}, {"lb":[-(10**400)]*6},
+    {"ub":[10**400]*6}, {"ub":[-(10**400)]*6},
+])
+def test_huge_json_integers_are_contract_errors(change):
+    payload = json.loads(json.dumps({**preference(), **change}))
+    with pytest.raises(ValueError):
+        validate_region_response(payload)
+
+
+def test_tiny_plain_ei_still_enforces_log_loss_limit():
+    class GP:
+        x = np.full((2, 6), .05)
+
+        def predict(self, x):
+            return .01*np.asarray(x)[:, 0], np.full(len(x), .025)
+
+        def posterior_covariance(self, a, b=None):
+            a = np.asarray(a); b = a if b is None else np.asarray(b)
+            return .025**2*np.exp(-np.sum((a[:, None]-b[None, :])**2, axis=2)/.04)
+
+    settings = InformedSettings()
+    args = dict(space=parameter_space_from_config(scalar_config()), trust=.5,
+                iteration=0, seed=4, candidate_id=2)
+    pool = np.array([[.1]*6, [.55]*6])
+    decision = region_decision(GP(), LogRMSETransform(-3, 1), .04, pool,
+        [True, True], preference(.4, .7), settings=settings, **args)
+    assert all(0 < value < 1e-12 for value in decision["plain_ei_v"])
+    assert decision["plain_index"] == 0 and decision["lifted_index"] == 1
+    assert decision["plain_log_ei_gap"] == pytest.approx(1.63835367, abs=1e-6)
+    assert not decision["accepted"] and decision["selected_index"] == 0
+    assert decision["fallback_reason"] == "plain_ei_gap"
+    np.testing.assert_array_equal(decision["effective_ei_v"], decision["plain_ei_v"])
+    # A permitted gap must still allow guidance at the same tiny EI scale.
+    allowed = region_decision(GP(), LogRMSETransform(-3, 1), .04, pool,
+        [True, True], preference(.4, .7),
+        settings=replace(settings, max_plain_log_ei_gap=2.), **args)
+    assert allowed["accepted"] and allowed["selected_index"] == 1
+
+
+def test_zero_plain_ei_retains_plain_selection_with_finite_archive():
+    rng = np.random.default_rng(3)
+    gp = Matern52GP(max_sweeps=0).fit(rng.random((4, 6)), [0., .2, -.1, .3])
+    decision = region_decision(gp, LogRMSETransform(-3, 1), 0.,
+        np.array([[.1]*6, [.55]*6]), [True, True], preference(.4, .7),
+        space=parameter_space_from_config(scalar_config()), settings=InformedSettings(),
+        trust=.5, iteration=0, seed=4, candidate_id=2)
+    assert decision["plain_ei_v"] == [0., 0.]
+    assert decision["fallback_reason"] == "zero_plain_ei"
+    assert not decision["accepted"] and decision["selected_index"] == decision["plain_index"]
+    json.dumps(decision, allow_nan=False)
 
 
 def test_shift_can_change_selection_without_changing_gp_or_variance():
@@ -115,7 +172,8 @@ def test_informed_config_and_feedback_are_explicit():
     assert trust_feedback(.5,True,True,.01,.02,s)["trust_after"]==pytest.approx(.6)
 
 
-@pytest.mark.parametrize("mode",["region","repair","none","invalid","error","malformed_content"])
+@pytest.mark.parametrize("mode",["region","repair","none","invalid","error","malformed_content",
+                                 "huge_confidence","huge_bound","huge_repair"])
 def test_full_workflow_archives_all_calls_fallbacks_and_replays(tmp_path,monkeypatch,mode):
     result,transport=execute(tmp_path,monkeypatch,mode)
     root=Path(result["run_directory"])
@@ -125,9 +183,9 @@ def test_full_workflow_archives_all_calls_fallbacks_and_replays(tmp_path,monkeyp
     assert stats["request_attempts"]==len(transport.calls)
     assert all(p["task"]=="region_preference" for p in transport.calls)
     assert stats["fallback_counts"]["inactive"]==2
-    if mode in {"error","invalid","malformed_content"}:
+    if mode in {"error","invalid","malformed_content","huge_confidence","huge_bound"}:
         assert stats["error_iterations"]==3 and stats["adopted"]==0
-    if mode=="repair": assert stats["request_attempts"]==6
+    if mode in {"repair","huge_repair"}: assert stats["request_attempts"]==6
     text=json.dumps(transport.calls)
     assert "simulation_voltage_v" not in text and "aligned_voltage_v" not in text
     assert transport.calls[0]["bounds"][2][0]==1e-16
@@ -137,6 +195,55 @@ def test_full_workflow_archives_all_calls_fallbacks_and_replays(tmp_path,monkeyp
         row=json.loads(artifact.read_text()); row["decision"]["mean_z"][0]+=.1
         artifact.write_text(json.dumps(row))
         assert not audit_run(root,deep=True)["passed"]
+
+
+def test_audit_rejects_changes_to_complete_region_request(tmp_path, monkeypatch):
+    result, _ = execute(tmp_path, monkeypatch)
+    root = Path(result["run_directory"])
+    request = root/"informed-requests/iteration-000000/attempt-001/llm/region_preference.request.json"
+    original = json.loads(request.read_text(encoding="utf-8"))
+    changes = [
+        (("context", "future_best_objective_v"), result["best_objective_v"]),
+        (("context", "raw_future_curve"), [1., 2., 3.]),
+        (("context", "conditions_by_rate", "1C", "voltage_cutoff_v"), 0.),
+        (("context", "discharge_summary_by_rate", "1C", "duration_s"), 123456.),
+        (("region_policy", "min_width"), 0.),
+        (("physical_constraints", "negative_porosity"), 0.),
+        (("objective",), "minimize a future target"),
+        (("response_schema", "extra"), "future data"),
+        (("extra",), {"future": True}),
+        (("contract_repair",), {"previous_response": {"future": True}}),
+    ]
+    for keys, value in changes:
+        changed = copy.deepcopy(original)
+        target = changed
+        for key in keys[:-1]:
+            target = target[key]
+        target[keys[-1]] = value
+        request.write_text(json.dumps(changed), encoding="utf-8")
+        report = audit_run(root, deep=True)
+        assert not report["passed"], f"accepted changed request field {keys}"
+        assert any("request" in issue for issue in report["issues"])
+    changed = copy.deepcopy(original)
+    del changed["context"]
+    request.write_text(json.dumps(changed), encoding="utf-8")
+    assert not audit_run(root, deep=True)["passed"]
+    request.write_text(json.dumps(original), encoding="utf-8")
+    assert audit_run(root, deep=True)["passed"]
+
+
+def test_audit_checks_schema_repair_request_fields(tmp_path, monkeypatch):
+    result, _ = execute(tmp_path, monkeypatch, mode="repair")
+    root = Path(result["run_directory"])
+    request = root/"informed-requests/iteration-000000/attempt-002/llm/region_preference.request.json"
+    original = json.loads(request.read_text(encoding="utf-8"))
+    for key in ("error", "instruction", "extra"):
+        changed = copy.deepcopy(original)
+        changed["contract_repair"][key] = "injected future data"
+        request.write_text(json.dumps(changed), encoding="utf-8")
+        assert not audit_run(root, deep=True)["passed"], f"accepted altered repair {key}"
+    request.write_text(json.dumps(original), encoding="utf-8")
+    assert audit_run(root, deep=True)["passed"]
 
 
 def test_disabled_module_and_abstention_match_plain_single_gp(tmp_path,monkeypatch):

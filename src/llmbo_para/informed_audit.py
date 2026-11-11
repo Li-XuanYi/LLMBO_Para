@@ -1,11 +1,13 @@
 """Offline replay of region suggestions; never requests an LLM or a simulator."""
 from dataclasses import asdict
+import hashlib
 import json
 import math
 import numpy as np
 
-from .evaluation import EvaluationResult, RateResult
-from .informed import InformedSettings, observation_summary, region_decision, trust_feedback, validate_region_response
+from .evaluation import DischargeSeries, EvaluationResult, RateResult
+from .informed import InformedSettings, REGION_REPAIR_INSTRUCTION, region_request_payload, region_decision, trust_feedback, validate_region_response
+from .llm import build_llm_context
 from .metrics import LogRMSETransform
 from .runstore import digest_value
 from .surrogate import Matern52GP
@@ -51,34 +53,34 @@ def replay_informed_step(root, *, options, candidate_id, initial_count, state, r
         stats["request_attempts"] += count
         check(request["iteration"] == ordinal, "request iteration differs")
         records = [EvaluationResult(tuple(r["parameters"]),tuple(RateResult(**q) for q in r["rates"]),r["valid"],r["objective_v"]) for r in attempts[:candidate_id]]
-        expected_observations = observation_summary(space, records)
         prompt = (root/"source/src/llmbo_para/prompts/region_preference.txt").read_text(encoding="utf-8")
-        import hashlib
-        previous_response = None
+        config = read(root/"manifest.json")["config"]
+        series = {rate: DischargeSeries(**value) for rate, value in read(root/"input-series.json").items()}
+        parameterization = root/"parameterization.json"
+        values = read(parameterization)["values"] if parameterization.exists() else None
+        expected_request = {**region_request_payload(space, records, iteration=ordinal, settings=settings),
+            "context":build_llm_context(config, space=space, series_by_rate=series, parameter_values=values),
+            "instructions":prompt, "prompt_sha256":hashlib.sha256(prompt.encode()).hexdigest()}
         final_response_valid = False
         for attempt in range(1,count+1):
             prefix = f"informed-requests/iteration-{ordinal:06d}/attempt-{attempt:03d}/"
             sent = read(root/prefix/"llm/region_preference.request.json")
-            check(sent["observations"] == expected_observations, "request observations differ or contain extra data")
-            check(sent["parameter_order"] == [s.name for s in space.specs] and sent["bounds"] == [[s.lower,s.upper] for s in space.specs]
-                and sent["units"] == [s.unit for s in space.specs] and sent["transforms"] == [s.transform for s in space.specs], "request parameter definitions differ")
-            check(sent["iteration"] == ordinal and sent["task"] == "region_preference", "request identity differs")
-            check(sent["instructions"] == prompt and sent["prompt_sha256"] == hashlib.sha256(prompt.encode()).hexdigest(), "prompt differs from source snapshot")
-            if attempt > 1:
-                check(sent.get("contract_repair",{}).get("previous_response") == previous_response, "schema repair lost prior response")
+            check(digest_value(sent) == digest_value(expected_request),
+                "request payload differs from configured inputs and past observations")
             response_path = root/prefix/"llm/region_preference.response.json"
             if response_path.exists() and (root/prefix/"validation.json").exists():
                 response = read(response_path)
                 content = response.get("content",response)
                 if isinstance(content,str):
                     content=json.loads(content)
-                previous_response = content
                 try:
                     preference = validate_region_response(content)
                     final_response_valid = True
-                except ValueError:
+                except ValueError as exc:
                     preference = None
                     final_response_valid = False
+                    expected_request = {**expected_request, "contract_repair":{
+                        "previous_response":content, "error":str(exc), "instruction":REGION_REPAIR_INSTRUCTION}}
                 validation = read(root/prefix/"validation.json")
                 check(validation["valid_response"] == final_response_valid, "response validation differs")
                 if attempt < count:
