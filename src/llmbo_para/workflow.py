@@ -60,7 +60,17 @@ def prepare_experiment(config: dict, *, base_dir: Path | None = None, archived_s
     if optimization.get("llm_enabled"):
         llm = config.get("llm", {}) if isinstance(config.get("llm"), dict) else {}
         key_env = llm.get("api_key_env") if isinstance(llm.get("api_key_env"), str) else ""
-        if not os.environ.get(key_env):
+        replay = llm.get("parameter_groups_replay")
+        if replay is not None:
+            try:
+                from .llm_replay import ArchivedGroupTransport
+                checked = ArchivedGroupTransport(replay, expected_model=llm.get("model"))
+                if config.get("run_kind") == "research" and checked.packet["source_kind"] != "archived_real_llm_response":
+                    errors.append("research replay requires an explicitly archived real LLM reply")
+                warnings.append("LLM groups replay a hash-verified archived response; no new group API call")
+            except (ValueError, TypeError, OSError, KeyError) as exc:
+                errors.append("archived group preflight: " + str(exc))
+        elif not os.environ.get(key_env):
             errors.append("the named LLM credential environment variable is not set")
         try:
             build_transport(llm)
@@ -160,8 +170,14 @@ def build_llm(config: dict, store: RunStore, *, prepared=None) -> LLMClient | No
     values = read_json(parameterization_file)["values"] if parameterization_file.exists() else None
     context = build_llm_context(config, space=prepared.space if prepared is not None else None,
         series_by_rate=prepared.series if prepared is not None else None, parameter_values=values)
-    return LLMClient(build_transport(llm, store),
-                     context=context, run_store=store, min_diversity_distance=llm["min_diversity_distance"])
+    if llm.get("parameter_groups_replay") is not None:
+        from .llm_replay import ArchivedGroupTransport
+        transport = ArchivedGroupTransport(llm["parameter_groups_replay"], expected_model=llm["model"], run_store=store)
+    else:
+        transport = build_transport(llm, store)
+    return LLMClient(transport,
+                     context=context, run_store=store, min_diversity_distance=llm["min_diversity_distance"],
+                     selection_max_attempts=llm.get("selection_max_attempts", 1))
 
 
 def build_transport(settings: dict, store=None):
@@ -243,6 +259,7 @@ def run_experiment(config: dict, output, *, base_dir=None, command="run_experime
             llm_informed_enabled=options.get("llm_informed_enabled", False),
             llm_informed=options.get("llm_informed"),
             screening_history=prepared.screening_history,
+            gp_prior_guard=options.get("gp_prior_guard"),
         )
         summary = optimizer.optimize(options["total_candidate_budget"])
         audit_started = time.perf_counter()

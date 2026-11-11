@@ -67,8 +67,8 @@ def configuration_errors(config: dict) -> list[str]:
     nested_allowed = {
         "data": {"kind", "path", "sha256", "evaluation_grid", "legacy_assumed_1s", "sample_period_s", "time_column", "current_column", "voltage_column", "temperature_column", "temperature_unit", "time_unit", "current_unit", "voltage_unit", "sheet_by_rate", "discharge_current_sign"},
         "model": {"provider", "name", "parameterization_id", "parameter_values_factory", "pybamm_version", "options", "mesh_points", "solver", "fixture_formula", "initial_state_mode", "fixed_electrolyte_diffusivity_multiplier"},
-        "optimization": {"seed", "warm_start_llm_points", "sobol_points", "total_candidate_budget", "candidate_pool_size", "composite_ei_draws", "parallel_workers", "llm_enabled", "gpu_backend", "gp_sweeps", "max_rate_attempts", "llm_warm_start_enabled", "llm_gp_groups_enabled", "strict_llm_tasks", "initial_candidates", "initial_candidates_source", "initial_candidates_evidence", "inventory_feasibility_filter", "bo_repair", "surrogate_mode", "llm_informed_enabled", "llm_informed", "reuse_screening_history"},
-        "llm": {"transport", "endpoint", "api_key_env", "model", "timeout_s", "min_diversity_distance", "max_tokens", "json_mode", "thinking"},
+        "optimization": {"seed", "warm_start_llm_points", "sobol_points", "total_candidate_budget", "candidate_pool_size", "composite_ei_draws", "parallel_workers", "llm_enabled", "gpu_backend", "gp_sweeps", "max_rate_attempts", "llm_warm_start_enabled", "llm_gp_groups_enabled", "strict_llm_tasks", "initial_candidates", "initial_candidates_source", "initial_candidates_evidence", "inventory_feasibility_filter", "bo_repair", "surrogate_mode", "llm_informed_enabled", "llm_informed", "reuse_screening_history", "gp_prior_guard"},
+        "llm": {"transport", "endpoint", "api_key_env", "model", "timeout_s", "min_diversity_distance", "max_tokens", "json_mode", "thinking", "selection_max_attempts", "warm_start_feedback", "parameter_groups_replay"},
         "physical_constraints": {"fixed_porosity"},
         "parameters": set(PARAMETER_NAMES),
     }
@@ -227,6 +227,16 @@ def configuration_errors(config: dict) -> list[str]:
     surrogate_mode = optimization.get("surrogate_mode", "per_rate")
     if not isinstance(surrogate_mode, str) or surrogate_mode not in {"per_rate", "single_objective"}:
         errors.append("optimization.surrogate_mode must be per_rate or single_objective")
+    if "gp_prior_guard" in optimization:
+        from .gp_prior_guard import GuardSettings
+        try:
+            if not isinstance(optimization["gp_prior_guard"], dict):
+                raise ValueError("optimization.gp_prior_guard must be an object")
+            guard = GuardSettings.parse(optimization["gp_prior_guard"])
+            if guard.enabled and surrogate_mode == "single_objective":
+                raise ValueError("gp_prior_guard requires per_rate surrogate mode")
+        except ValueError as exc:
+            errors.append(str(exc))
     if "bo_repair" in optimization:
         from .bo_repair import RepairSettings
         try:
@@ -301,6 +311,19 @@ def configuration_errors(config: dict) -> list[str]:
         errors.append("candidate_pool_size * composite_ei_draws exceeds the implemented 8,388,608-element memory guard; add validated batching before increasing it")
     llm = section("llm")
     number(llm.get("min_diversity_distance"), "llm.min_diversity_distance", minimum=0)
+    if "parameter_groups_replay" in llm:
+        evidence = llm["parameter_groups_replay"]
+        if (not isinstance(evidence, dict) or set(evidence) != {"path", "sha256"}
+            or not isinstance(evidence.get("path"), str) or not evidence["path"]
+            or not isinstance(evidence.get("sha256"), str) or len(evidence["sha256"]) != 64
+            or any(c not in "0123456789abcdef" for c in evidence["sha256"])):
+            errors.append("llm.parameter_groups_replay requires an explicit evidence path and SHA-256")
+        if optimization.get("llm_enabled") and warm_enabled and "initial_candidates" not in optimization:
+            errors.append("parameter_groups_replay cannot replace a live WarmStart; provide verified initial candidates")
+    if "warm_start_feedback" in llm and type(llm["warm_start_feedback"]) is not bool:
+        errors.append("llm.warm_start_feedback must be boolean")
+    if "selection_max_attempts" in llm:
+        number(llm["selection_max_attempts"], "llm.selection_max_attempts", minimum=1, maximum=3, integer=True)
     if optimization.get("llm_enabled"):
         for key in ("endpoint", "api_key_env", "model"):
             if not isinstance(llm.get(key), str) or not llm[key].strip():

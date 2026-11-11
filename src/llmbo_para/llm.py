@@ -213,7 +213,7 @@ class ChatCompletionsTransport(HttpJsonTransport):
 
 
 class LLMClient:
-    def __init__(self, transport: JsonTransport, *, context: Mapping | None = None, run_store=None, min_diversity_distance: float = 1e-3):
+    def __init__(self, transport: JsonTransport, *, context: Mapping | None = None, run_store=None, min_diversity_distance: float = 1e-3, selection_max_attempts: int = 1):
         self.transport = transport
         self.context = dict(context or {})
         reject_inline_secrets(self.context)
@@ -221,6 +221,11 @@ class LLMClient:
         if not math.isfinite(min_diversity_distance) or min_diversity_distance < 0:
             raise ValueError("min_diversity_distance must be finite and non-negative")
         self.min_diversity_distance = min_diversity_distance
+        if type(selection_max_attempts) is not int or not 1 <= selection_max_attempts <= 3:
+            raise ValueError("selection_max_attempts must be an integer from 1 to 3")
+        self.selection_max_attempts = selection_max_attempts
+        self.last_select_request_attempts = 0
+        self.last_select_validation = {}
         self.used_tasks = set()
 
     def _request(self, payload: dict, *, archive_prefix: str = "") -> Mapping:
@@ -367,12 +372,42 @@ class LLMClient:
                 "rejections": rejected, "statistics": self.last_warm_statistics, "min_diversity_distance": self.min_diversity_distance})
         return tuple(chosen)
 
+    @staticmethod
+    def _validate_selection(response: Mapping, count: int, pool_size: int) -> dict:
+        indices = response.get("selected_indices")
+        if "selected_indices" not in response:
+            reason = "missing_selected_indices"
+        elif not isinstance(indices, list):
+            reason = "selected_indices_must_be_a_list"
+        elif len(indices) != count:
+            reason = "wrong_index_count"
+        elif any(type(i) is not int for i in indices):
+            reason = "indices_must_be_integers_not_booleans"
+        elif any(i < 0 or i >= pool_size for i in indices):
+            reason = "index_out_of_range"
+        elif len(set(indices)) != count:
+            reason = "duplicate_index"
+        else:
+            reason = None
+        return {"valid_response": reason is None, "reason": reason,
+                "requested_count": count, "pool_size": pool_size}
+
     def select_warm_start(self, space: ParameterSpace, candidates: Sequence[Sequence[float]], count: int):
-        """Ask the LLM to select existing proposals; never accept invented points."""
+        """Select existing candidates; repair only the output contract, never scores."""
         pool = [space.validate(point) for point in candidates]
         if type(count) is not int or count < 1 or len(pool) < count:
             raise ValueError("warm-start selection requires enough legal proposals for the requested initial set")
-        payload = {"task": "warm_start_select", "rates": list(RATE_ORDER),
+        task = "warm_start_select"
+        if task in self.used_tasks:
+            raise ValueError("each LLM task may be requested only once per run")
+        remaining = self.context.get("initialization_recovery", {}).get("remaining_selection_requests", self.selection_max_attempts)
+        if type(remaining) is not int or remaining < 1:
+            raise ValueError("remaining selection-request budget must be positive")
+        max_attempts = min(self.selection_max_attempts, remaining)
+        self.used_tasks.add(task)
+        self.last_select_request_attempts = 0
+        self.last_selection_request_attempts = 0
+        payload = {"task": task, "rates": list(RATE_ORDER),
             "parameter_order": [spec.name for spec in space.specs],
             "units": [spec.unit for spec in space.specs],
             "bounds": [[spec.lower, spec.upper] for spec in space.specs],
@@ -380,44 +415,33 @@ class LLMClient:
             "physical_constraints": {"negative_porosity": space.negative_porosity, "positive_porosity": space.positive_porosity},
             "candidates": [{"index": index, "parameters": point} for index, point in enumerate(pool)],
             "requested_count": count, "response_schema": {"selected_indices": "exactly requested_count unique zero-based integers"}}
-        if "warm_start_select" in self.used_tasks:
-            raise ValueError("each LLM task may be requested only once per run")
-        self.used_tasks.add("warm_start_select")
-        self.last_selection_request_attempts = 0
-        for attempt in range(1, 4):
-            prefix = f"llm-attempts/warm_start_select/attempt-{attempt:03d}/"
+        for attempt in range(1, max_attempts + 1):
+            prefix = f"llm-attempts/{task}/attempt-{attempt:03d}/"
+            self.last_select_request_attempts = attempt
             self.last_selection_request_attempts = attempt
+            # Network, HTTP, refusal and non-JSON errors propagate without an automatic retry.
             response = self._request(payload, archive_prefix=prefix)
-            indices = response.get("selected_indices")
-            reason = None
-            if not isinstance(indices, list):
-                reason = "selected_indices_must_be_a_list"
-            elif len(indices) != count:
-                reason = "wrong_selected_count"
-            elif any(isinstance(index, bool) or not isinstance(index, int) or index < 0 or index >= len(pool) for index in indices):
-                reason = "index_out_of_range_or_not_integer"
-            elif len(set(indices)) != count:
-                reason = "duplicate_index"
-            self.last_selection_validation = {"valid_response": reason is None, "reason": reason,
-                "requested_count": count, "pool_size": len(pool), "received_count": len(indices) if isinstance(indices, list) else None,
-                "attempt": attempt}
+            diagnostic = self._validate_selection(response, count, len(pool))
+            self.last_select_validation = {**diagnostic, "request_attempts": attempt}
+            self.last_selection_validation = self.last_select_validation
             if self.store:
-                self.store.write_json(prefix + "validation.json", self.last_selection_validation)
-                self.store.append_event({"type": "llm_selection_attempt_validation", **self.last_selection_validation})
-            if reason is None:
+                self.store.write_json(prefix + "validation.json", self.last_select_validation)
+                self.store.append_event({"type": "llm_selection_attempt_validation", "attempt": attempt, **diagnostic})
+            if diagnostic["valid_response"]:
                 break
             payload = {**payload, "contract_repair": {"previous_response": response,
-                "validation": self.last_selection_validation,
-                "instruction": "Correct only the index contract. Return exactly requested_count distinct integer indices from the unchanged candidates list. Do not invent or alter candidate parameters."}}
+                "validation": diagnostic,
+                "instruction": "Correct the JSON selection contract only. Return selected_indices with exactly the requested count of distinct in-range integer indices. Do not change the candidate pool or invent scores; response_format is not the requested answer."}}
         if self.store:
             for kind in ("llm", "http"):
                 for suffix in ("request.json", "response.json"):
-                    source = self.store.path / prefix / kind / ("warm_start_select." + suffix)
+                    source = self.store.path / prefix / kind / (task + "." + suffix)
                     if source.exists():
-                        self.store.write_json(kind + "/warm_start_select." + suffix, json.loads(source.read_text(encoding="utf-8")))
-            self.store.write_json("llm/warm_start_select.validation.json", self.last_selection_validation)
-        if reason is not None:
-            raise ValueError("LLM must select the requested number of distinct existing candidate indices")
+                        self.store.write_json(kind + "/" + task + "." + suffix, json.loads(source.read_text(encoding="utf-8")))
+            self.store.write_json("llm/warm_start_select.validation.json", self.last_select_validation)
+        if not self.last_select_validation["valid_response"]:
+            raise ValueError("LLM must select the requested number of distinct existing candidate indices; bounded contract repair exhausted")
+        indices = response["selected_indices"]
         selected = tuple(pool[index] for index in indices)
         if self.store:
             self.store.write_json("llm/warm_start_select.accepted.json", {"selected_indices": indices, "parameters": selected})

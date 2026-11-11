@@ -100,7 +100,7 @@ class ChatTransportTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(dir=Path.cwd()) as folder, patch.dict('os.environ', self.environment), \
              patch('llmbo_para.llm.build_opener', return_value=Opener()):
             store = RunStore(Path(folder), {'run_kind': 'selector-contract-repair-test'}, command='selector retry regression')
-            client = LLMClient(self.transport(run_store=store), run_store=store)
+            client = LLMClient(self.transport(run_store=store), run_store=store, selection_max_attempts=3)
             selected = client.select_warm_start(space, candidates, 2)
             self.assertEqual(selected, (candidates[0], candidates[2]))
             self.assertEqual(client.last_selection_request_attempts, 2)
